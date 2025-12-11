@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Search, ShoppingCart, Sun, Moon, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,13 +7,16 @@ import Logo from "@/assets/media/Logo.png";
 import MobileMenu from "@/components/layout/MobileMenu";
 import { headerNavigation } from "@/constant/headerNavigation";
 import { useThemeToggle } from "@/hooks/useToggleTheme";
+import Auth from "@/pages/Auth";
 
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeToggle();
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <>
-      <header className="sticky top-0 z-50 flex items-center justify-between px-5 bg-background border-b shadow-xs">
+      <Auth open={authOpen} onOpenChange={setAuthOpen} />
+      <header className="sticky top-0 z-50 flex items-center justify-between px-5 bg-popover-foreground dark:bg-background border-b shadow-xs">
         <Link to="/" className="flex items-center">
           <img src={Logo} alt="World of Minifigs" className="h-20 p-1" />
         </Link>
@@ -27,7 +30,7 @@ const Header = () => {
               className={({ isActive }) =>
                 isActive
                   ? "text-accent decoration-2 underline underline-offset-8 transition-colors"
-                  : "text-foreground hover:text-accent transition-colors"
+                  : "text-background dark:text-foreground hover:text-accent dark:hover:text-accent transition-colors"
               }
             >
               {item.label}
@@ -65,8 +68,24 @@ const Header = () => {
           >
             {darkMode ? <Sun /> : <Moon />}
           </Button>
-          <Button variant="ghost" size="icon" aria-label="User" title="User">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="User"
+            title="User"
+            onClick={() => setAuthOpen(true)}
+            className="hidden md:inline-flex"
+          >
             <User />
+          </Button>
+          <Button
+            variant="accent"
+            className="hidden md:block"
+            aria-label="Sign In"
+            title="Sign In"
+            onClick={() => setAuthOpen(true)}
+          >
+            Sign In
           </Button>
 
           {/* Mobile Navigation */}
@@ -82,7 +101,7 @@ const Header = () => {
                 <Menu />
               </Button>
             </SheetTrigger>
-            <MobileMenu />
+            <MobileMenu onSignInClick={() => setAuthOpen(true)} />
           </Sheet>
         </div>
       </header>

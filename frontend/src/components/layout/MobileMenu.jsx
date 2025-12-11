@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import {
   SheetContent,
   SheetHeader,
@@ -7,18 +7,19 @@ import {
   SheetClose,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import { headerNavigation } from "@/constant/headerNavigation";
 
-const MobileMenu = () => {
+const MobileMenu = ({ onSignInClick }) => {
   return (
-    <SheetContent>
-      <SheetHeader className="p-4 pb-2">
+    <SheetContent className="flex h-full flex-col p-5">
+      <SheetHeader className="p-2">
         <SheetTitle className="text-lg">Menu</SheetTitle>
         <SheetDescription className="sr-only">
           This is the mobile menu on a mobile device.
         </SheetDescription>
       </SheetHeader>
-      <nav className="flex flex-col gap-5 text-lg p-5">
+      <nav className="flex-1 flex flex-col gap-5">
         {headerNavigation.map((item) => (
           <SheetClose asChild key={item.id}>
             <NavLink to={item.path} className="flex items-center gap-3">
@@ -28,6 +29,17 @@ const MobileMenu = () => {
           </SheetClose>
         ))}
       </nav>
+
+      <SheetClose asChild>
+        <Button
+          variant="accent"
+          className="w-full"
+          asChild
+          onClick={onSignInClick}
+        >
+          <Link to="#">Sign In</Link>
+        </Button>
+      </SheetClose>
     </SheetContent>
   );
 };

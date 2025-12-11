@@ -4,13 +4,13 @@ import { footerNavigation } from "@/constant/footerNavigation";
 
 const Footer = () => {
   return (
-    <footer className="bg-background border-t">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 border-b p-5">
+    <footer className="bg-accent dark:bg-background dark:border-t">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 border-b border-muted-foreground/10 p-5">
         {footerNavigation.map(({ id, title, description, isSocial, links }) => (
           <div key={id} className="space-y-5">
             <div className="relative pb-2">
               <h3 className="text-xl font-bold text-foreground">{title}</h3>
-              <span className="absolute bottom-0 left-0 w-12 h-0.5 bg-accent" />
+              <span className="absolute bottom-0 left-0 w-12 h-0.5 bg-foreground dark:bg-accent" />
             </div>
 
             {description && (
@@ -28,10 +28,7 @@ const Footer = () => {
                     title={item.label}
                     aria-label={item.label}
                   >
-                    <Badge
-                      variant="outline"
-                      className="p-2 hover:text-accent cursor-pointer"
-                    >
+                    <Badge className="p-2 hover:text-accent cursor-pointer dark:border-border">
                       <item.icon />
                     </Badge>
                   </a>
@@ -42,7 +39,7 @@ const Footer = () => {
                 {links.map((item, index) => (
                   <span
                     key={item.id || `${item.label}-${index}`}
-                    className="text-sm hover:text-accent transition-colors wrap-break-word"
+                    className="text-sm dark:hover:text-accent hover:font-medium transition-colors wrap-break-word cursor-pointer"
                   >
                     {item.label}
                   </span>
