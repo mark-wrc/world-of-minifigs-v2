@@ -4,8 +4,8 @@ import { footerNavigation } from "@/constant/footerNavigation";
 
 const Footer = () => {
   return (
-    <footer className="bg-background border-t px-5 py-10">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+    <footer className="bg-background border-t">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 border-b p-5">
         {footerNavigation.map(({ id, title, description, isSocial, links }) => (
           <div key={id} className="space-y-5">
             <div className="relative pb-2">
@@ -42,7 +42,7 @@ const Footer = () => {
                 {links.map((item, index) => (
                   <span
                     key={item.id || `${item.label}-${index}`}
-                    className="text-sm hover:text-accent transition-colors"
+                    className="text-sm hover:text-accent transition-colors wrap-break-word"
                   >
                     {item.label}
                   </span>
@@ -53,7 +53,7 @@ const Footer = () => {
         ))}
       </div>
 
-      <div className="text-center text-md pt-8 mt-5 border-t">
+      <div className="text-center text-md p-5">
         © Copyright World of Minifigs {new Date().getFullYear()}. All rights
         reserved
       </div>

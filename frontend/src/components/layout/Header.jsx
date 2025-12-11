@@ -13,7 +13,7 @@ const Header = () => {
 
   return (
     <>
-      <header className="flex items-center justify-between px-5 bg-background border-b shadow-xs">
+      <header className="sticky top-0 z-50 flex items-center justify-between px-5 bg-background border-b shadow-xs">
         <Link to="/" className="flex items-center">
           <img src={Logo} alt="World of Minifigs" className="h-20 p-1" />
         </Link>
