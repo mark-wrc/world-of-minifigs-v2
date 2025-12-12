@@ -6,18 +6,19 @@ export const footerNavigation = [
     title: "Account",
     links: [
       { label: "My Account", action: "myAccount" },
-      { label: "Login", path: "/login" },
-      { label: "Register", path: "/register" },
       { label: "Cart", action: "cart" },
+      { label: "Contact Us", path: "/contact-us" },
     ],
   },
   {
     id: 2,
     title: "Quick Links",
     links: [
+      { label: "Products", path: "/products" },
+      { label: "About", path: "/about" },
+      { label: "Designer", path: "/designer" },
       { label: "Privacy Policy", path: "/privacy-policy" },
       { label: "Terms Of Use", path: "/terms-of-use" },
-      { label: "Contact", path: "/contact" },
     ],
   },
   {

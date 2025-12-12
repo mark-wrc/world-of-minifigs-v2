@@ -39,7 +39,7 @@ const Header = () => {
         </nav>
 
         {/* Header Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1"> 
           <Button
             variant="ghost"
             size="icon"
@@ -67,16 +67,6 @@ const Header = () => {
             title={darkMode ? "Toggle Light mode" : "Toggle Dark mode"}
           >
             {darkMode ? <Sun /> : <Moon />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="User"
-            title="User"
-            onClick={() => setAuthOpen(true)}
-            className="hidden md:inline-flex"
-          >
-            <User />
           </Button>
           <Button
             variant="accent"

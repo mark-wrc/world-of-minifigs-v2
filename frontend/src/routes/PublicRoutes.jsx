@@ -4,7 +4,9 @@ import Home from "@/pages/Home";
 import Products from "@/pages/Products";
 import Contact from "@/pages/Contact";
 import About from "@/pages/About";
-import Builder from "@/pages/Builder";
+import Designer from "@/pages/Designer";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfUse from "@/pages/TermsOfUse";
 import NotFound from "@/pages/NotFound";
 
 const PublicRoutes = () => {
@@ -12,9 +14,11 @@ const PublicRoutes = () => {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/products" element={<Products />} />
-      <Route path="/contact" element={<Contact />} />
+      <Route path="/contact-us" element={<Contact />} />
       <Route path="/about" element={<About />} />
-      <Route path="/builder" element={<Builder />} />
+      <Route path="/designer" element={<Designer />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms-of-use" element={<TermsOfUse />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

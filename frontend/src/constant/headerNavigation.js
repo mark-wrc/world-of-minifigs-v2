@@ -8,7 +8,7 @@ import {
   UserRound,
   Settings,
   LogOut,
-  Wrench,
+  PenTool,
 } from "lucide-react";
 
 export const headerNavigation = [
@@ -20,14 +20,14 @@ export const headerNavigation = [
   },
   {
     id: "products",
-    label: "Product",
+    label: "Products",
     path: "/products",
     icon: ShoppingBag,
   },
   {
     id: "contact",
-    label: "Contact",
-    path: "/contact",
+    label: "Contact Us",
+    path: "/contact-us",
     icon: Phone,
   },
   {
@@ -37,10 +37,10 @@ export const headerNavigation = [
     icon: Info,
   },
   {
-    id: "builder",
-    label: "Builder",
-    path: "/builder",
-    icon: Wrench  ,
+    id: "designer",
+    label: "Designer",
+    path: "/designer",
+    icon: PenTool,
   },
 ];
 

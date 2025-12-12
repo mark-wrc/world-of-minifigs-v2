@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { footerNavigation } from "@/constant/footerNavigation";
 
@@ -37,12 +38,13 @@ const Footer = () => {
             ) : (
               <div className="flex flex-col gap-3">
                 {links.map((item, index) => (
-                  <span
+                  <Link
                     key={item.id || `${item.label}-${index}`}
+                    to={item.path}
                     className="text-sm dark:hover:text-accent hover:font-medium transition-colors wrap-break-word cursor-pointer"
                   >
                     {item.label}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
