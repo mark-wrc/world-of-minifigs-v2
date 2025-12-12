@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
 const connectDatabase = async () => {
-  const env = (process.env.NODE_ENV || "").toUpperCase();
+  const env = (process.env.NODE_ENV || "").toLowerCase();
   const DB_URI =
-    env === "PRODUCTION" ? process.env.DB_URI_PROD : process.env.DB_URI_LOCAL;
+    env === "production" ? process.env.DB_URI_PROD : process.env.DB_URI_LOCAL;
 
   if (!DB_URI) {
     console.error("Database URI is not defined. Check your config.env values.");

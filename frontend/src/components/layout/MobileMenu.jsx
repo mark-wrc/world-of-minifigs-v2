@@ -34,7 +34,6 @@ const MobileMenu = ({ onSignInClick }) => {
         <Button
           variant="accent"
           className="w-full"
-          asChild
           onClick={onSignInClick}
         >
           Sign In

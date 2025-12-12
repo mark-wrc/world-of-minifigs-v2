@@ -4,7 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import connectDatabase from "./config/dbConnect.js";
 
-if (process.env.NODE_ENV !== "production") {
+if ((process.env.NODE_ENV || "").toLowerCase() !== "production") {
   dotenv.config({ path: "./config/config.env" });
 }
 
