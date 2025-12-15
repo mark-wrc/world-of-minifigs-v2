@@ -67,7 +67,7 @@ const Footer = () => {
       </div>
 
       <div className="text-center text-md p-5">
-        © Copyright World of Minifigs {new Date().getFullYear()}. All rights
+        © World of Minifigs {new Date().getFullYear()}. All rights
         reserved
       </div>
     </footer>

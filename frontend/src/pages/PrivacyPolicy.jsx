@@ -1,5 +1,4 @@
 import React from "react";
-import { policyMetadata, policyData } from "@/constant/policyData";
 import { ChevronRight } from "lucide-react";
 import {
   Card,
@@ -8,6 +7,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { policyMetadata, policyData } from "@/constant/policyData";
 
 const PrivacyPolicy = () => {
   return (

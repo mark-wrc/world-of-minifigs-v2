@@ -5,12 +5,11 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
-import { useThemeToggle } from "@/hooks/useToggleTheme";
 
 const Toaster = ({ ...props }) => {
-  const { darkMode } = useThemeToggle();
-  const theme = darkMode ? "dark" : "light";
+  const { theme } = useTheme();
 
   return (
     <Sonner
@@ -24,11 +23,13 @@ const Toaster = ({ ...props }) => {
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={{
+        fontFamily: "inherit",
         "--normal-bg": "var(--popover)",
         "--normal-text": "var(--popover-foreground)",
         "--normal-border": "var(--border)",
         "--border-radius": "var(--radius)",
       }}
+      richColors
       {...props}
     />
   );

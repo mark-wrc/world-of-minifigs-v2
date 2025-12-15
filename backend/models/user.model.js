@@ -22,11 +22,6 @@ const userSchema = new mongoose.Schema(
     dateOfBirth: {
       type: Date,
     },
-    gender: {
-      type: String,
-      enum: ["male", "female", "other"],
-      default: "male",
-    },
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -96,8 +91,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Index for better query performance
-userSchema.index({ email: 1 });
-userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ isVerified: 1 });
