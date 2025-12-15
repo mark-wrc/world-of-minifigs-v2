@@ -1,5 +1,4 @@
 import React from "react";
-import { termsMetadata, termsData } from "@/constant/termsData";
 import { ChevronRight } from "lucide-react";
 import {
   Card,
@@ -8,6 +7,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { termsMetadata, termsData } from "@/constant/termsData";
 
 const TermsOfUse = () => {
   return (

@@ -6,37 +6,38 @@ import { Label } from "@/components/ui/label";
 const Login = ({
   formData,
   isLoading,
-  isFormValid,
   handleChange,
   handleSubmit,
 }) => {
   return (
     <form onSubmit={handleSubmit}>
-      <div className="space-y-2 mb-3">
-        <Label htmlFor="login-identifier">Email or Username</Label>
-        <Input
-          type="text"
-          name="identifier"
-          placeholder="Enter your email or username"
-          autoComplete="username"
-          id="login-identifier"
-          value={formData.identifier}
-          onChange={handleChange}
-        />
-      </div>
+          <div className="space-y-2 mb-3">
+            <Label htmlFor="login-identifier">Email or Username</Label>
+            <Input
+              type="text"
+              name="identifier"
+              placeholder="Enter your email or username"
+              autoComplete="username"
+              id="login-identifier"
+              value={formData.identifier}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="login-password">Password</Label>
-        <Input
-          type="password"
-          name="password"
-          placeholder="Enter your password"
-          autoComplete="current-password"
-          id="login-password"
-          value={formData.password}
-          onChange={handleChange}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="login-password">Password</Label>
+            <Input
+              type="password"
+              name="password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              id="login-password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
       <div className="flex items-center justify-end mb-5">
         <Button
@@ -52,9 +53,9 @@ const Login = ({
         type="submit"
         variant="accent"
         className="w-full"
-        disabled={isLoading || !isFormValid}
+        disabled={isLoading}
       >
-        {isLoading ? "Logging in..." : "Log In"}
+        {isLoading ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   );

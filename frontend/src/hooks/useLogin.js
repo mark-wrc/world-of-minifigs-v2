@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useLoginMutation } from "@/redux/api/authApi";
 
-export const useLogin = () => {
+export const useLogin = (onSuccess) => {
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
@@ -19,16 +19,20 @@ export const useLogin = () => {
   };
 
   const validateForm = () => {
-    if (!formData.identifier.trim()) {
-      toast.error("Validation error", {
-        description: "Email or username is required",
+    const trimmedIdentifier = formData.identifier.trim();
+    const trimmedPassword = formData.password.trim();
+
+    if (!trimmedIdentifier) {
+      toast.error("Email or username is required", {
+        description:
+          "Please enter the email or username you used for your account.",
       });
       return false;
     }
 
-    if (!formData.password) {
-      toast.error("Validation error", {
-        description: "Password is required",
+    if (!trimmedPassword) {
+      toast.error("Password is required", {
+        description: "Please enter your password.",
       });
       return false;
     }
@@ -46,38 +50,34 @@ export const useLogin = () => {
     try {
       const credentials = {
         identifier: formData.identifier.trim().toLowerCase(),
-        password: formData.password,
+        password: formData.password.trim(), // trim to match validation
       };
 
-      await login(credentials).unwrap();
-      // Show success toast
-      toast.success("Login successful!", {
-        description: "Welcome back!",
+      const response = await login(credentials).unwrap();
+
+      toast.success(response?.message || "Login completed", {
+        description:
+          response?.description || "You have been signed in successfully.",
       });
+
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error("Login error:", error);
-      const errorMessage =
-        error.data?.message ||
-        (error.status === 401
-          ? "Invalid email/username or password"
-          : "Login failed. Please try again.");
 
-      toast.error("Login failed", {
-        description: errorMessage,
+      toast.error(error?.data?.message || "Login error occurred", {
+        description:
+          error?.data?.description ||
+          "Unable to sign in. Please verify your credentials and try again.",
       });
     }
   };
 
-  // Check if form is valid for button disable state
-  const isFormValid =
-    formData.identifier.trim() !== "" && formData.password !== "";
-
   return {
     formData,
     isLoading,
-    isFormValid,
     handleChange,
     handleSubmit,
   };
 };
-

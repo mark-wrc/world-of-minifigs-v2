@@ -17,22 +17,22 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
   const {
     formData: loginFormData,
     isLoading: isLoginLoading,
-    isFormValid: isLoginFormValid,
     handleChange: handleLoginChange,
     handleSubmit: handleLoginSubmit,
-  } = useLogin();
+  } = useLogin(() => onOpenChange(false));
 
   const {
     formData: registerFormData,
     isLoading: isRegisterLoading,
-    isFormValid: isRegisterFormValid,
     showPasswordRequirements,
     passwordRequirements,
     passwordRequirementsConfig,
     handleChange: handleRegisterChange,
     handleCheckboxChange,
+    handlePasswordFocus,
+    handlePasswordBlur,
     handleSubmit: handleRegisterSubmit,
-  } = useRegister();
+  } = useRegister(() => onOpenChange(false));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,24 +62,24 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
             <Login
               formData={loginFormData}
               isLoading={isLoginLoading}
-              isFormValid={isLoginFormValid}
               handleChange={handleLoginChange}
               handleSubmit={handleLoginSubmit}
             />
           </TabsContent>
           <TabsContent value="register">
-            <Register
-              onLinkClick={() => onOpenChange(false)}
-              formData={registerFormData}
-              isLoading={isRegisterLoading}
-              isFormValid={isRegisterFormValid}
-              showPasswordRequirements={showPasswordRequirements}
-              passwordRequirements={passwordRequirements}
-              passwordRequirementsConfig={passwordRequirementsConfig}
-              handleChange={handleRegisterChange}
-              handleCheckboxChange={handleCheckboxChange}
-              handleSubmit={handleRegisterSubmit}
-            />
+                <Register
+                  onLinkClick={() => onOpenChange(false)}
+                  formData={registerFormData}
+                  isLoading={isRegisterLoading}
+                  showPasswordRequirements={showPasswordRequirements}
+                  passwordRequirements={passwordRequirements}
+                  passwordRequirementsConfig={passwordRequirementsConfig}
+                  handleChange={handleRegisterChange}
+                  handleCheckboxChange={handleCheckboxChange}
+                  handlePasswordFocus={handlePasswordFocus}
+                  handlePasswordBlur={handlePasswordBlur}
+                  handleSubmit={handleRegisterSubmit}
+                />
           </TabsContent>
         </Tabs>
       </DialogContent>

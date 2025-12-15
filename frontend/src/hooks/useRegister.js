@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { useRegisterMutation } from "@/redux/api/authApi";
 import { passwordRequirementsConfig } from "@/constant/passwordRequirements";
 
-export const useRegister = () => {
+export const useRegister = (onSuccess) => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,7 +15,8 @@ export const useRegister = () => {
     agreeToTerms: false,
   });
 
-  const [showPasswordRequirements] = useState(true);
+  const [showPasswordRequirements, setShowPasswordRequirements] =
+    useState(false);
   const [register, { isLoading }] = useRegisterMutation();
 
   // Password requirement checks
@@ -35,25 +36,19 @@ export const useRegister = () => {
     passwordRequirements.hasNumber &&
     passwordRequirements.hasSpecialChar;
 
-  // Check if email is valid format
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
-
-  // Check if all required fields are filled and form is valid
-  const isFormValid =
-    formData.firstName.trim() !== "" &&
-    formData.lastName.trim() !== "" &&
-    formData.username.trim() !== "" &&
-    formData.email.trim() !== "" &&
-    isEmailValid &&
-    formData.contactNumber.trim() !== "" &&
-    formData.password !== "" &&
-    formData.confirmPassword !== "" &&
-    isPasswordValid &&
-    formData.password === formData.confirmPassword &&
-    formData.agreeToTerms;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    formData.email.trim()
+  );
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === "contactNumber") {
+      const digitsOnly = value.replace(/\D/g, "");
+      setFormData((prev) => ({ ...prev, contactNumber: digitsOnly }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -64,92 +59,126 @@ export const useRegister = () => {
     setFormData((prev) => ({ ...prev, agreeToTerms: checked }));
   };
 
+  const handlePasswordFocus = () => {
+    setShowPasswordRequirements(true);
+  };
+
+  const handlePasswordBlur = () => {
+    // Only hide if password is empty, otherwise keep it visible
+    if (formData.password === "") {
+      setShowPasswordRequirements(false);
+    }
+  };
+
   const validateForm = () => {
     if (!formData.firstName.trim()) {
-      toast.error("Validation error", {
-        description: "First name is required",
+      toast.error("First name is required", {
+        description: "Please enter your first name.",
       });
       return false;
     }
 
     if (!formData.lastName.trim()) {
-      toast.error("Validation error", {
-        description: "Last name is required",
+      toast.error("Last name is required", {
+        description: "Please enter your last name.",
       });
       return false;
     }
 
     if (!formData.username.trim()) {
-      toast.error("Validation error", {
-        description: "Username is required",
-      });
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      toast.error("Validation error", {
-        description: "Email is required",
-      });
-      return false;
-    }
-
-    if (!isEmailValid) {
-      toast.error("Validation error", {
-        description: "Please enter a valid email address",
+      toast.error("Username is required", {
+        description: "Please choose a username.",
       });
       return false;
     }
 
     if (!formData.contactNumber.trim()) {
-      toast.error("Validation error", {
-        description: "Contact number is required",
+      toast.error("Contact number is required", {
+        description: "Please enter your contact number.",
+      });
+      return false;
+    }
+
+    const digitsOnly = formData.contactNumber.trim();
+    if (!/^[0-9]{11}$/.test(digitsOnly)) {
+      toast.error("Contact number must be 11 digits", {
+        description: "Please enter exactly 11 numeric digits.",
+      });
+      return false;
+    }
+
+    // Explicit email required check
+    if (!formData.email.trim()) {
+      toast.error("Email is required", {
+        description: "Please enter your email address.",
+      });
+      return false;
+    }
+
+    if (!isEmailValid) {
+      toast.error("Please enter a valid email address", {
+        description:
+          "The email format is incorrect. Please check and try again.",
       });
       return false;
     }
 
     if (!formData.password) {
-      toast.error("Validation error", {
-        description: "Password is required",
+      toast.error("Password is required", {
+        description: "Please create a password.",
+      });
+      return false;
+    }
+
+    if (!formData.confirmPassword) {
+      toast.error("Confirm password is required", {
+        description: "Please re-enter your password.",
       });
       return false;
     }
 
     if (!isPasswordValid) {
       if (!passwordRequirements.minLength) {
-        toast.error("Validation error", {
-          description: "Password must be at least 6 characters",
+        toast.error("Password must be at least 6 characters", {
+          description:
+            "Your password needs to be longer to meet security requirements.",
         });
       } else if (!passwordRequirements.hasUppercase) {
-        toast.error("Validation error", {
-          description: "Password must contain at least one uppercase letter",
+        toast.error("Password must contain at least one uppercase letter", {
+          description:
+            "Add at least one capital letter (A-Z) to your password.",
         });
       } else if (!passwordRequirements.hasLowercase) {
-        toast.error("Validation error", {
-          description: "Password must contain at least one lowercase letter",
+        toast.error("Password must contain at least one lowercase letter", {
+          description:
+            "Add at least one lowercase letter (a-z) to your password.",
         });
       } else if (!passwordRequirements.hasNumber) {
-        toast.error("Validation error", {
-          description: "Password must contain at least one number",
+        toast.error("Password must contain at least one number", {
+          description: "Add at least one number (0-9) to your password.",
         });
       } else if (!passwordRequirements.hasSpecialChar) {
-        toast.error("Validation error", {
-          description:
-            "Password must contain at least one special character (!@#$%^&*_)",
-        });
+        toast.error(
+          "Password must contain at least one special character (!@#$%^&*_)",
+          {
+            description:
+              "Add at least one special character to strengthen your password.",
+          }
+        );
       }
       return false;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Validation error", {
-        description: "Passwords do not match",
+      toast.error("Passwords don't match", {
+        description: "Please make sure both fields contain the same value.",
       });
       return false;
     }
 
     if (!formData.agreeToTerms) {
-      toast.error("Validation error", {
-        description: "You must agree to the terms and conditions",
+      toast.error("Terms & Conditions not accepted", {
+        description: "Please accept the terms to continue.",
       });
       return false;
     }
@@ -171,20 +200,26 @@ export const useRegister = () => {
         username: formData.username.trim().toLowerCase(),
         email: formData.email.trim().toLowerCase(),
         contactNumber: formData.contactNumber.trim(),
-        password: formData.password,
+        password: formData.password.trim(),
       };
 
-      await register(userData).unwrap();
-      toast.success("Registration successful!", {
-        description: "Your account has been created successfully.",
+      const response = await register(userData).unwrap();
+
+      toast.success(response?.message || "Account creation completed", {
+        description:
+          response?.description ||
+          "Your account has been created. Please check your email to verify.",
       });
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error("Registration error:", error);
-      const errorMessage =
-        error.data?.message || "Registration failed. Please try again.";
 
-      toast.error("Registration failed", {
-        description: errorMessage,
+      toast.error(error?.data?.message || "Registration error occurred", {
+        description:
+          error?.data?.description ||
+          "Unable to create account. Please check your information and try again.",
       });
     }
   };
@@ -192,13 +227,13 @@ export const useRegister = () => {
   return {
     formData,
     isLoading,
-    isFormValid,
     showPasswordRequirements,
     passwordRequirements,
     passwordRequirementsConfig,
     handleChange,
     handleCheckboxChange,
+    handlePasswordFocus,
+    handlePasswordBlur,
     handleSubmit,
   };
 };
-

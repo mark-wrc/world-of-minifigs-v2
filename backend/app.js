@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import connectDatabase from "./config/dbConnect.js";
+import authRoutes from "./routes/authRoutes.js";
 
 if ((process.env.NODE_ENV || "").toLowerCase() !== "production") {
   dotenv.config({ path: "./config/config.env" });
@@ -24,6 +25,9 @@ app.use(cookieParser());
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
+
+// Routes
+app.use("/api/v1/auth", authRoutes);
 
 // 404 handler
 app.use((_req, res) => {

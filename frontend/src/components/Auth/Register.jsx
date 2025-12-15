@@ -11,12 +11,13 @@ const Register = ({
   onLinkClick,
   formData,
   isLoading,
-  isFormValid,
   showPasswordRequirements,
   passwordRequirements,
   passwordRequirementsConfig,
   handleChange,
   handleCheckboxChange,
+  handlePasswordFocus,
+  handlePasswordBlur,
   handleSubmit,
 }) => {
   return (
@@ -33,6 +34,7 @@ const Register = ({
             autoComplete="given-name"
             value={formData.firstName}
             onChange={handleChange}
+            required
           />
         </div>
 
@@ -47,6 +49,7 @@ const Register = ({
             autoComplete="family-name"
             value={formData.lastName}
             onChange={handleChange}
+            required
           />
         </div>
 
@@ -61,6 +64,7 @@ const Register = ({
             autoComplete="username"
             value={formData.username}
             onChange={handleChange}
+            required
           />
         </div>
 
@@ -71,10 +75,15 @@ const Register = ({
             id="reg-contact"
             name="contactNumber"
             type="tel"
-            placeholder="+1 (555) 000-0000"
+            inputMode="numeric"
+            pattern="[0-9]{11}"
+            maxLength={11}
+            minLength={11}
+            placeholder="01234567890"
             autoComplete="tel"
             value={formData.contactNumber}
             onChange={handleChange}
+            required
           />
         </div>
       </div>
@@ -90,6 +99,7 @@ const Register = ({
           autoComplete="email"
           value={formData.email}
           onChange={handleChange}
+          required
         />
       </div>
 
@@ -104,6 +114,9 @@ const Register = ({
           autoComplete="new-password"
           value={formData.password}
           onChange={handleChange}
+          onFocus={handlePasswordFocus}
+          onBlur={handlePasswordBlur}
+          required
         />
         {showPasswordRequirements && (
           <Card className="shadow-none gap-3">
@@ -147,6 +160,7 @@ const Register = ({
           autoComplete="new-password"
           value={formData.confirmPassword}
           onChange={handleChange}
+          required
         />
       </div>
 
@@ -158,6 +172,7 @@ const Register = ({
           checked={formData.agreeToTerms}
           onCheckedChange={handleCheckboxChange}
           className="mt-1"
+          required
         />
         <Label
           htmlFor="reg-terms"
@@ -187,9 +202,9 @@ const Register = ({
         type="submit"
         variant="accent"
         className="w-full"
-        disabled={isLoading || !isFormValid}
+        disabled={isLoading || !formData.agreeToTerms}
       >
-        {isLoading ? "Registering..." : "Register"}
+        {isLoading ? "Creating account..." : "Create Account"}
       </Button>
     </form>
   );
