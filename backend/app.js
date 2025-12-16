@@ -6,7 +6,7 @@ import connectDatabase from "./config/dbConnect.js";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import authRoutes from "./routes/authRoutes.js";
-
+import userRoutes from "./routes/userRoutes.js";
 if ((process.env.NODE_ENV || "").toLowerCase() !== "production") {
   dotenv.config({ path: "./config/config.env" });
 }
@@ -105,7 +105,7 @@ const authLimiter = rateLimit({
 
 // Routes
 app.use("/api/v1/auth", authLimiter, authRoutes);
-
+app.use("/api/v1/user", userRoutes);
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

@@ -11,7 +11,7 @@ import { policyMetadata, policyData } from "@/constant/policyData";
 
 const PrivacyPolicy = () => {
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 py-10 px-5">
       {/* Header with Icon */}
       <div className="flex flex-col items-center text-center space-y-5">
         <h1 className="text-5xl font-bold">{policyMetadata.title}</h1>

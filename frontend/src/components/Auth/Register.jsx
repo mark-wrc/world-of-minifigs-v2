@@ -167,7 +167,7 @@ const Register = ({
       </div>
 
       {/* Terms and Conditions */}
-      <div className="flex items-start gap-2 text-sm text-foreground my-5">
+      <div className="flex items-start gap-2 text-sm my-5">
         <Checkbox
           id="reg-terms"
           name="agreeToTerms"
@@ -176,11 +176,9 @@ const Register = ({
           className="mt-1"
           required
         />
-        <Label
-          htmlFor="reg-terms"
-          className="text-sm font-normal leading-relaxed"
-        >
-          I agree to the{" "}
+        <p className="text-sm font-normal leading-relaxed">
+          By proceeding, you acknowledge that you have read, understood, and
+          agree to our{" "}
           <Link
             to="/terms-of-use"
             onClick={onLinkClick}
@@ -196,7 +194,7 @@ const Register = ({
           >
             Privacy Policy
           </Link>{" "}
-        </Label>
+        </p>
       </div>
 
       {/* Register Button */}
