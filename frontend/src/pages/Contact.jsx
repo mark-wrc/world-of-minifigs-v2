@@ -44,7 +44,7 @@ const Contact = () => {
             Get in <span className="text-accent">{contactHero.highlight}</span>
           </h1>
           <div className="mx-auto max-w-3xl">
-            <p className="text-sm">{contactHero.description}</p>
+            <p>{contactHero.description}</p>
           </div>
         </div>
       </section>
@@ -158,6 +158,7 @@ const Contact = () => {
                 <p className="text-sm">{contactChannels.description}</p>
               </CardHeader>
 
+              {/* Socials */}
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {contactChannels.channels.map((channel) => (
@@ -176,6 +177,7 @@ const Contact = () => {
               </CardContent>
             </Card>
 
+            {/* FAQ */}
             <Card className="shadow-none pb-0">
               <CardHeader>
                 <CardTitle className="text-xl font-bold">

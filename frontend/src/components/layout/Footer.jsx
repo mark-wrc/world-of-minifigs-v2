@@ -6,7 +6,7 @@ import { APP_NAME } from "@/constant/appConfig";
 
 const Footer = () => {
   return (
-    <footer className="bg-accent dark:bg-background dark:border-t">
+    <footer className="bg-accent dark:bg-card/50">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 border-b border-muted-foreground/10 p-5">
         {footerNavigation.map(({ id, title, description, isSocial, links }) => (
           <div key={id} className="space-y-5">
