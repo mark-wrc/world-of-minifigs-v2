@@ -14,6 +14,8 @@ const Register = ({
   showPasswordRequirements,
   passwordRequirements,
   passwordRequirementsConfig,
+  cooldownSeconds,
+  isSubmitDisabled,
   handleChange,
   handleCheckboxChange,
   handlePasswordFocus,
@@ -202,9 +204,13 @@ const Register = ({
         type="submit"
         variant="accent"
         className="w-full"
-        disabled={isLoading || !formData.agreeToTerms}
+        disabled={isSubmitDisabled}
       >
-        {isLoading ? "Creating account..." : "Create Account"}
+        {isLoading
+          ? "Creating account..."
+          : cooldownSeconds > 0
+          ? `Try again in ${cooldownSeconds}s`
+          : "Create Account"}
       </Button>
     </form>
   );

@@ -11,6 +11,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Access token is required",
+        description: "Please provide a valid access token in the Authorization header.",
       });
     }
 
@@ -21,6 +22,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Access token is required",
+        description: "Please provide a valid access token in the Authorization header.",
       });
     }
 
@@ -32,6 +34,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Invalid or expired access token",
+        description: "Your session has expired or the token is invalid. Please sign in again.",
       });
     }
 
@@ -44,6 +47,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "User not found",
+        description: "The user associated with this token no longer exists. Please sign in again.",
       });
     }
 
@@ -52,6 +56,7 @@ export const authenticate = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message: "Your account has been deactivated",
+        description: "Your account has been deactivated. Please contact support for assistance.",
       });
     }
 
@@ -74,6 +79,7 @@ export const requireVerification = (req, res, next) => {
     return res.status(401).json({
       success: false,
       message: "Authentication required",
+      description: "Please sign in to access this resource.",
     });
   }
 
@@ -81,6 +87,7 @@ export const requireVerification = (req, res, next) => {
     return res.status(403).json({
       success: false,
       message: "Please verify your email address to continue",
+      description: "You need to verify your email address before accessing this resource.",
     });
   }
 
@@ -94,6 +101,7 @@ export const requireRole = (...roles) => {
       return res.status(401).json({
         success: false,
         message: "Authentication required",
+        description: "Please sign in to access this resource.",
       });
     }
 
@@ -101,6 +109,7 @@ export const requireRole = (...roles) => {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to access this resource",
+        description: "Your account does not have the required permissions to access this resource.",
       });
     }
 

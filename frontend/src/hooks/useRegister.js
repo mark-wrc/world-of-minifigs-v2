@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRegisterMutation } from "@/redux/api/authApi";
 import { passwordRequirementsConfig } from "@/constant/passwordRequirements";
@@ -17,6 +17,7 @@ export const useRegister = (onSuccess) => {
 
   const [showPasswordRequirements, setShowPasswordRequirements] =
     useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [register, { isLoading }] = useRegisterMutation();
 
   // Password requirement checks
@@ -28,7 +29,6 @@ export const useRegister = (onSuccess) => {
     hasSpecialChar: /[!@#$%^&*_]/.test(formData.password),
   };
 
-  // Check if all password requirements are met
   const isPasswordValid =
     passwordRequirements.minLength &&
     passwordRequirements.hasUppercase &&
@@ -36,9 +36,17 @@ export const useRegister = (onSuccess) => {
     passwordRequirements.hasNumber &&
     passwordRequirements.hasSpecialChar;
 
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-    formData.email.trim()
-  );
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim());
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const id = setInterval(() => {
+      setCooldownSeconds((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [cooldownSeconds]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -64,7 +72,6 @@ export const useRegister = (onSuccess) => {
   };
 
   const handlePasswordBlur = () => {
-    // Only hide if password is empty, otherwise keep it visible
     if (formData.password === "") {
       setShowPasswordRequirements(false);
     }
@@ -107,7 +114,6 @@ export const useRegister = (onSuccess) => {
       return false;
     }
 
-    // Explicit email required check
     if (!formData.email.trim()) {
       toast.error("Email is required", {
         description: "Please enter your email address.",
@@ -205,16 +211,37 @@ export const useRegister = (onSuccess) => {
 
       const response = await register(userData).unwrap();
 
-      toast.success(response?.message || "Account creation completed", {
-        description:
-          response?.description ||
-          "Your account has been created. Please check your email to verify.",
-      });
+      if (response?.emailSent === false) {
+        toast.warning(response?.message || "Account created", {
+          description:
+            response?.description ||
+            "Your account was created, but verification email failed. Please use 'Resend verification' to get your link.",
+        });
+      } else {
+        toast.success(response?.message || "Account creation completed", {
+          description:
+            response?.description ||
+            "Your account has been created. Please check your email to verify.",
+        });
+      }
+
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
       console.error("Registration error:", error);
+
+      if (error?.status === 429) {
+        const windowSeconds = Number(error?.data?.windowSeconds) || 15 * 60; // fallback 15 min
+        setCooldownSeconds(windowSeconds);
+
+        toast.error(error?.data?.message || "Too many registration attempts", {
+          description:
+            error?.data?.description ||
+            "You have made too many registration attempts. Please wait a few minutes before trying again.",
+        });
+        return;
+      }
 
       toast.error(error?.data?.message || "Registration error occurred", {
         description:
@@ -230,6 +257,9 @@ export const useRegister = (onSuccess) => {
     showPasswordRequirements,
     passwordRequirements,
     passwordRequirementsConfig,
+    cooldownSeconds,
+    isSubmitDisabled:
+      isLoading || cooldownSeconds > 0 || !formData.agreeToTerms,
     handleChange,
     handleCheckboxChange,
     handlePasswordFocus,

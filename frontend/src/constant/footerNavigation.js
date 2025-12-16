@@ -1,4 +1,5 @@
 import { Facebook, Instagram } from "lucide-react";
+import { APP_NAME } from "@/constant/appConfig";
 
 export const footerNavigation = [
   {
@@ -34,7 +35,7 @@ export const footerNavigation = [
   },
   {
     id: 4,
-    title: "World of Minifigs",
+    title: APP_NAME,
     description:
       "Follow us on social media to stay updated on new releases, exclusive promotions, and our latest collections.",
     isSocial: true,

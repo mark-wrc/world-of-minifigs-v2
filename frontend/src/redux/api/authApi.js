@@ -37,11 +37,11 @@ export const authApi = createApi({
     // ==================== Verification ====================
     verifyEmail: builder.mutation({
       query: (token) => {
-        // Ensure token is properly encoded for URL
         const encodedToken = encodeURIComponent(token);
         return {
-          url: `/verify-email?token=${encodedToken}`,
-          method: "GET",
+          url: "/verify-email",
+          method: "POST",
+          body: { token: encodedToken },
         };
       },
     }),

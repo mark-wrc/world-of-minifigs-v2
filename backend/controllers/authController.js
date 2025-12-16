@@ -11,7 +11,7 @@ export const register = async (req, res) => {
     const { firstName, lastName, username, email, contactNumber, password } =
       req.body;
 
-    // Validate required fields
+    // Validate required fields (basic check before normalization)
     if (
       !firstName ||
       !lastName ||
@@ -27,65 +27,148 @@ export const register = async (req, res) => {
       });
     }
 
+    // Normalize strings
+    const firstNameStr = String(firstName).trim();
+    const lastNameStr = String(lastName).trim();
+    const usernameStr = String(username).trim().toLowerCase();
+    const emailStr = String(email).trim().toLowerCase();
+    const contactStr = String(contactNumber).trim();
+    const passwordStr = String(password);
+
+    // Password strength validation 
+    const hasMinLength = passwordStr.length >= 6;
+    const hasUppercase = /[A-Z]/.test(passwordStr);
+    const hasLowercase = /[a-z]/.test(passwordStr);
+    const hasNumber = /[0-9]/.test(passwordStr);
+    const hasSpecialChar = /[!@#$%^&*_]/.test(passwordStr);
+
+    if (
+      !hasMinLength ||
+      !hasUppercase ||
+      !hasLowercase ||
+      !hasNumber ||
+      !hasSpecialChar
+    ) {
+      let message = "Weak password";
+      let description =
+        "Your password does not meet the minimum security requirements.";
+
+      if (!hasMinLength) {
+        message = "Password too short";
+        description = "Password must be at least 6 characters long.";
+      } else if (!hasUppercase) {
+        message = "Missing uppercase letter";
+        description =
+          "Password must contain at least one uppercase letter (A-Z).";
+      } else if (!hasLowercase) {
+        message = "Missing lowercase letter";
+        description =
+          "Password must contain at least one lowercase letter (a-z).";
+      } else if (!hasNumber) {
+        message = "Missing number";
+        description = "Password must contain at least one number (0-9).";
+      } else if (!hasSpecialChar) {
+        message = "Missing special character";
+        description =
+          "Password must contain at least one special character (!@#$%^&*_).";
+      }
+
+      return res.status(400).json({
+        success: false,
+        message,
+        description,
+      });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { username: username.toLowerCase() },
-      ],
+      $or: [{ email: emailStr }, { username: usernameStr }],
     });
 
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message:
-          existingUser.email === email.toLowerCase()
-            ? "Email already registered"
-            : "Username already taken",
+        message: "Account already exists",
         description:
-          existingUser.email === email.toLowerCase()
-            ? "An account with this email already exists. Please sign in or use a different email."
-            : "This username is already taken. Please choose a different username.",
+          "An account with these details already exists. Please sign in or use different login details.",
       });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(passwordStr, 10);
 
     // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpiry = new Date();
     verificationTokenExpiry.setHours(
       verificationTokenExpiry.getHours() +
-        parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "24")
+        parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "24", 10)
     );
 
-    // Create user
-    const user = await User.create({
-      firstName,
-      lastName,
-      username: username.toLowerCase(),
-      email: email.toLowerCase(),
-      contactNumber,
-      password: hashedPassword,
-      verificationToken,
-      verificationTokenExpiry,
-      isVerified: false,
-    });
+    // Create user 
+    let user;
+    try {
+      user = await User.create({
+        firstName: firstNameStr,
+        lastName: lastNameStr,
+        username: usernameStr,
+        email: emailStr,
+        contactNumber: contactStr,
+        password: hashedPassword,
+        verificationToken,
+        verificationTokenExpiry,
+        isVerified: false,
+      });
+    } catch (error) {
+      // Handle Mongoose validation errors
+      if (error.name === "ValidationError") {
+        const errors = error.errors;
+        const firstError = Object.values(errors)[0];
+
+        return res.status(400).json({
+          success: false,
+          message: firstError.message || "Validation error",
+          description:
+            firstError.message || "Please check your input and try again.",
+        });
+      }
+
+      // Handle duplicate key error (unique constraint)
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        return res.status(409).json({
+          success: false,
+          message: `${field} already exists`,
+          description: `An account with this ${field} already exists. Please use a different ${field}.`,
+        });
+      }
+
+      // Re-throw if it's not a validation error
+      throw error;
+    }
 
     // Generate verification URL
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
-    // Send verification email
+    // Send verification email with improved error handling
+    let emailSent = false;
+
     try {
       await sendEmail({
         email: user.email,
-        subject: "Verify Your Email Address - World of Minifigs",
+        subject: `Verify Your Email Address - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
         message: getVerificationEmailTemplate(user, verificationUrl),
       });
-    } catch (emailError) {
-      console.error("Error sending verification email:", emailError);
-      // Don't fail registration if email fails, but log it
+      emailSent = true;
+    } catch (emailErrorCaught) {
+      // Log detailed error for monitoring/debugging
+      console.error("Error sending verification email:", {
+        userId: user._id,
+        email: user.email,
+        error: emailErrorCaught.message,
+        stack: emailErrorCaught.stack,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     // Remove sensitive data from response
@@ -100,12 +183,25 @@ export const register = async (req, res) => {
       isVerified: user.isVerified,
     };
 
-    res.status(201).json({
-      success: true,
-      message: "Your account has been created",
-      description: "Please check your email to verify your account.",
-      user: userResponse,
-    });
+    // Return appropriate response based on email sending status
+    if (emailSent) {
+      res.status(201).json({
+        success: true,
+        message: "Your account has been created",
+        description: "Please check your email to verify your account.",
+        user: userResponse,
+      });
+    } else {
+      // Account created but email failed - inform user they can resend
+      res.status(201).json({
+        success: true,
+        message: "Your account has been created",
+        description:
+          "Your account was created successfully, but we couldn't send the verification email. Please use the 'Resend verification email' option to receive your verification link.",
+        user: userResponse,
+        emailSent: false, // Flag for frontend to show resend option
+      });
+    }
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({
@@ -113,7 +209,6 @@ export const register = async (req, res) => {
       message: "Registration failed",
       description:
         "An unexpected error occurred during registration. Please try again.",
-      error: error.message,
     });
   }
 };
@@ -137,7 +232,7 @@ export const resendVerification = async (req, res) => {
         success: false,
         message: "Email not found",
         description:
-          "We couldn’t find an account registered with that email. Please check or try again with a different email.",
+          "We couldn't find an account registered with that email. Please check or try again with a different email.",
       });
     }
 
@@ -149,32 +244,64 @@ export const resendVerification = async (req, res) => {
       });
     }
 
-    // Generate a fresh verification token and expiry (default 1 hour)
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const verificationTokenExpiry = new Date();
-    verificationTokenExpiry.setHours(
-      verificationTokenExpiry.getHours() +
-        parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "1")
-    );
+    const now = new Date();
 
-    user.verificationToken = verificationToken;
-    user.verificationTokenExpiry = verificationTokenExpiry;
-    await user.save();
+    // If there is already a valid (non‑expired) verification token,
+    // reuse it instead of generating a new one to avoid race issues.
+    let verificationToken = user.verificationToken;
+    let verificationTokenExpiry = user.verificationTokenExpiry;
+
+    const hasValidExistingToken =
+      verificationToken &&
+      verificationTokenExpiry &&
+      verificationTokenExpiry > now;
+
+    if (!hasValidExistingToken) {
+      verificationToken = crypto.randomBytes(32).toString("hex");
+      verificationTokenExpiry = new Date();
+      verificationTokenExpiry.setHours(
+        verificationTokenExpiry.getHours() +
+          parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "1", 10)
+      );
+
+      user.verificationToken = verificationToken;
+      user.verificationTokenExpiry = verificationTokenExpiry;
+      await user.save();
+    }
 
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 
-    await sendEmail({
-      email: user.email,
-      subject: "Verify Your Email Address - World of Minifigs",
-      message: getVerificationEmailTemplate(user, verificationUrl),
-    });
+    // Send verification email with proper error handling
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: `Verify Your Email Address - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+        message: getVerificationEmailTemplate(user, verificationUrl),
+      });
 
-    return res.status(200).json({
-      success: true,
-      message: "Verification email sent",
-      description:
-        "A new verification link has been sent to your email address.",
-    });
+      return res.status(200).json({
+        success: true,
+        message: "Verification email sent",
+        description:
+          "A new verification link has been sent to your email address.",
+      });
+    } catch (emailError) {
+      // Log detailed error for monitoring/debugging
+      console.error("Error sending verification email:", {
+        userId: user._id,
+        email: user.email,
+        error: emailError.message,
+        stack: emailError.stack,
+        timestamp: new Date().toISOString(),
+      });
+
+      return res.status(500).json({
+        success: false,
+        message: "Unable to send verification email",
+        description:
+          "We couldn't send the verification email. Please try again later or contact support if the problem persists.",
+      });
+    }
   } catch (error) {
     console.error("Resend verification error:", error);
     return res.status(500).json({
@@ -182,7 +309,6 @@ export const resendVerification = async (req, res) => {
       message: "Unable to resend verification email",
       description:
         "An unexpected error occurred while sending the verification email. Please try again.",
-      error: error.message,
     });
   }
 };
@@ -270,8 +396,8 @@ export const login = async (req, res) => {
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: refreshTokenDays * 24 * 60 * 60 * 1000, // match JWT_REFRESH_TOKEN_EXPIRY
+      sameSite: "strict",
+      maxAge: refreshTokenDays * 24 * 60 * 60 * 1000,
     });
 
     res.status(200).json({
@@ -288,7 +414,6 @@ export const login = async (req, res) => {
       message: "Login failed",
       description:
         "An unexpected error occurred. Please try again in a moment.",
-      error: error.message,
     });
   }
 };
@@ -296,7 +421,7 @@ export const login = async (req, res) => {
 // Verify Email
 export const verifyEmail = async (req, res) => {
   try {
-    let { token } = req.query;
+    let { token } = req.body;
 
     if (!token) {
       return res.status(400).json({
@@ -310,7 +435,6 @@ export const verifyEmail = async (req, res) => {
     try {
       token = decodeURIComponent(token);
     } catch (decodeError) {
-      // If decoding fails, use original token
       console.warn("Token decode warning:", decodeError);
     }
 
@@ -328,12 +452,11 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // Check if token has expired first
+    // Check if token has expired
     if (
       user.verificationTokenExpiry &&
       user.verificationTokenExpiry < new Date()
     ) {
-      // Do NOT clear token here so repeat clicks still show 'expired'
       return res.status(400).json({
         success: false,
         message: "Verification link expired",
@@ -342,7 +465,6 @@ export const verifyEmail = async (req, res) => {
       });
     }
 
-    // Check if already verified
     // Check if already verified
     if (user.isVerified) {
       return res.status(200).json({
@@ -371,12 +493,11 @@ export const verifyEmail = async (req, res) => {
       message: "Verification failed",
       description:
         "An unexpected error occurred during verification. Please try again.",
-      error: error.message,
     });
   }
 };
 
-// Logout User
+//------------------------------------------------ Logout User ------------------------------------------
 export const logout = async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
@@ -395,7 +516,7 @@ export const logout = async (req, res) => {
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: "strict",
     });
 
     res.status(200).json({
@@ -410,7 +531,6 @@ export const logout = async (req, res) => {
       message: "Logout failed",
       description:
         "An unexpected error occurred during logout. Please try again.",
-      error: error.message,
     });
   }
 };
@@ -428,7 +548,7 @@ export const refreshToken = async (req, res) => {
       });
     }
 
-    // Verify refresh token
+    // Verify refresh token signature
     let decoded;
     try {
       decoded = verifyRefreshToken(refreshToken);
@@ -453,8 +573,13 @@ export const refreshToken = async (req, res) => {
       });
     }
 
-    // Check if refresh token matches
+    // Check if refresh token matches the one stored for this user
     if (user.refreshToken !== refreshToken) {
+      // Optional: clear stored token to prevent reuse attempts
+      user.refreshToken = undefined;
+      user.refreshTokenExpiry = undefined;
+      await user.save();
+
       return res.status(401).json({
         success: false,
         message: "Invalid token",
@@ -465,6 +590,10 @@ export const refreshToken = async (req, res) => {
 
     // Check if refresh token has expired
     if (!user.refreshTokenExpiry || user.refreshTokenExpiry < new Date()) {
+      user.refreshToken = undefined;
+      user.refreshTokenExpiry = undefined;
+      await user.save();
+
       return res.status(401).json({
         success: false,
         message: "Session expired",
@@ -473,10 +602,30 @@ export const refreshToken = async (req, res) => {
       });
     }
 
-    // Generate new access token
-    const { accessToken } = generateTokens(user._id);
+    // Rotate refresh token: generate new access + refresh tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(
+      user._id
+    );
 
-    res.status(200).json({
+    const refreshTokenDays = Number(process.env.JWT_REFRESH_TOKEN_EXPIRY) || 7;
+    const newRefreshTokenExpiry = new Date();
+    newRefreshTokenExpiry.setDate(
+      newRefreshTokenExpiry.getDate() + refreshTokenDays
+    );
+
+    user.refreshToken = newRefreshToken;
+    user.refreshTokenExpiry = newRefreshTokenExpiry;
+    await user.save();
+
+    // Update refresh token cookie
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: refreshTokenDays * 24 * 60 * 60 * 1000,
+    });
+
+    return res.status(200).json({
       success: true,
       accessToken,
     });
@@ -487,7 +636,6 @@ export const refreshToken = async (req, res) => {
       message: "Token refresh failed",
       description:
         "An unexpected error occurred while refreshing your session. Please sign in again.",
-      error: error.message,
     });
   }
 };

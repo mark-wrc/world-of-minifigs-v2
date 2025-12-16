@@ -1,14 +1,26 @@
 import nodemailer from "nodemailer";
 
 const sendEmail = async (option) => {
+  // Validate required SMTP config
+  if (
+    !process.env.SMTP_HOST ||
+    !process.env.SMTP_USER ||
+    !process.env.SMTP_PASSWORD ||
+    !process.env.SMTP_FROM_EMAIL
+  ) {
+    throw new Error(
+      "SMTP configuration is incomplete. Please check your environment variables."
+    );
+  }
+
   // Validate and default SMTP port
   const parsedPort = Number.parseInt(process.env.SMTP_PORT, 10);
-  const smtpPort = Number.isFinite(parsedPort) ? parsedPort : 587; // default to 587
+  const smtpPort = Number.isFinite(parsedPort) ? parsedPort : 587;
 
   const transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: smtpPort,
-    secure: smtpPort === 465, // true for SMTPS (465), false for STARTTLS (e.g., 587)
+    secure: smtpPort === 465,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD,
@@ -19,7 +31,9 @@ const sendEmail = async (option) => {
   });
 
   const mailOptions = {
-    from: `${process.env.SMTP_FROM_NAME} <${process.env.SMTP_FROM_EMAIL}>`,
+    from: `${process.env.SMTP_FROM_NAME || "World of Minifigs"} <${
+      process.env.SMTP_FROM_EMAIL
+    }>`,
     to: option.email,
     subject: option.subject,
     html: option.message,

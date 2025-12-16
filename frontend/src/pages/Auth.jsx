@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { APP_NAME } from "@/constant/appConfig";
 import Login from "@/components/Auth/Login";
 import Register from "@/components/Auth/Register";
 import { useLogin } from "@/hooks/useLogin";
@@ -17,6 +18,8 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
   const {
     formData: loginFormData,
     isLoading: isLoginLoading,
+    cooldownSeconds: loginCooldownSeconds,
+    isSubmitDisabled: isLoginDisabled,
     handleChange: handleLoginChange,
     handleSubmit: handleLoginSubmit,
   } = useLogin(() => onOpenChange(false));
@@ -27,6 +30,8 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
     showPasswordRequirements,
     passwordRequirements,
     passwordRequirementsConfig,
+    cooldownSeconds: registerCooldownSeconds,
+    isSubmitDisabled: isRegisterDisabled,
     handleChange: handleRegisterChange,
     handleCheckboxChange,
     handlePasswordFocus,
@@ -39,7 +44,7 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
-            Welcome to World of Minifigs
+            Welcome to {APP_NAME}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Please sign in to your account to continue.
@@ -62,24 +67,28 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
             <Login
               formData={loginFormData}
               isLoading={isLoginLoading}
+              cooldownSeconds={loginCooldownSeconds}
+              isSubmitDisabled={isLoginDisabled}
               handleChange={handleLoginChange}
               handleSubmit={handleLoginSubmit}
             />
           </TabsContent>
           <TabsContent value="register">
-                <Register
-                  onLinkClick={() => onOpenChange(false)}
-                  formData={registerFormData}
-                  isLoading={isRegisterLoading}
-                  showPasswordRequirements={showPasswordRequirements}
-                  passwordRequirements={passwordRequirements}
-                  passwordRequirementsConfig={passwordRequirementsConfig}
-                  handleChange={handleRegisterChange}
-                  handleCheckboxChange={handleCheckboxChange}
-                  handlePasswordFocus={handlePasswordFocus}
-                  handlePasswordBlur={handlePasswordBlur}
-                  handleSubmit={handleRegisterSubmit}
-                />
+            <Register
+              onLinkClick={() => onOpenChange(false)}
+              formData={registerFormData}
+              isLoading={isRegisterLoading}
+              showPasswordRequirements={showPasswordRequirements}
+              passwordRequirements={passwordRequirements}
+              passwordRequirementsConfig={passwordRequirementsConfig}
+              cooldownSeconds={registerCooldownSeconds}
+              isSubmitDisabled={isRegisterDisabled}
+              handleChange={handleRegisterChange}
+              handleCheckboxChange={handleCheckboxChange}
+              handlePasswordFocus={handlePasswordFocus}
+              handlePasswordBlur={handlePasswordBlur}
+              handleSubmit={handleRegisterSubmit}
+            />
           </TabsContent>
         </Tabs>
       </DialogContent>

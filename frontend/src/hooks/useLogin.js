@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLoginMutation } from "@/redux/api/authApi";
 
@@ -8,7 +8,18 @@ export const useLogin = (onSuccess) => {
     password: "",
   });
 
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [login, { isLoading }] = useLoginMutation();
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+
+    const id = setInterval(() => {
+      setCooldownSeconds((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [cooldownSeconds]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -50,7 +61,7 @@ export const useLogin = (onSuccess) => {
     try {
       const credentials = {
         identifier: formData.identifier.trim().toLowerCase(),
-        password: formData.password.trim(), // trim to match validation
+        password: formData.password.trim(),
       };
 
       const response = await login(credentials).unwrap();
@@ -66,6 +77,18 @@ export const useLogin = (onSuccess) => {
     } catch (error) {
       console.error("Login error:", error);
 
+      if (error?.status === 429) {
+        const windowSeconds = Number(error?.data?.windowSeconds) || 15 * 60; // fallback 15 min
+        setCooldownSeconds(windowSeconds);
+
+        toast.error(error?.data?.message || "Too many login attempts", {
+          description:
+            error?.data?.description ||
+            "You have made too many login attempts. Please wait a few minutes before trying again.",
+        });
+        return;
+      }
+
       toast.error(error?.data?.message || "Login error occurred", {
         description:
           error?.data?.description ||
@@ -77,6 +100,8 @@ export const useLogin = (onSuccess) => {
   return {
     formData,
     isLoading,
+    cooldownSeconds,
+    isSubmitDisabled: isLoading || cooldownSeconds > 0,
     handleChange,
     handleSubmit,
   };

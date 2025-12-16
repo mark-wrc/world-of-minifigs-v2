@@ -7,6 +7,7 @@ import Logo from "@/assets/media/Logo.png";
 import MobileMenu from "@/components/layout/MobileMenu";
 import { headerNavigation } from "@/constant/headerNavigation";
 import { useThemeToggle } from "@/hooks/useToggleTheme";
+import { APP_NAME } from "@/constant/appConfig";
 import Auth from "@/pages/Auth";
 
 const Header = () => {
@@ -18,7 +19,7 @@ const Header = () => {
       <Auth open={authOpen} onOpenChange={setAuthOpen} />
       <header className="sticky top-0 z-50 flex items-center justify-between px-5 bg-popover-foreground dark:bg-background border-b shadow-xs">
         <Link to="/" className="flex items-center">
-          <img src={Logo} alt="World of Minifigs" className="h-20 p-1" />
+          <img src={Logo} alt={APP_NAME} className="h-20 p-1" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -39,7 +40,7 @@ const Header = () => {
         </nav>
 
         {/* Header Actions */}
-        <div className="flex items-center gap-1"> 
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"

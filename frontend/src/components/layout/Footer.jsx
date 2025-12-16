@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { footerNavigation } from "@/constant/footerNavigation";
+import { APP_NAME } from "@/constant/appConfig";
 
 const Footer = () => {
   return (
@@ -67,8 +68,7 @@ const Footer = () => {
       </div>
 
       <div className="text-center text-md p-5">
-        © World of Minifigs {new Date().getFullYear()}. All rights
-        reserved
+        © {APP_NAME} {new Date().getFullYear()}. All rights reserved
       </div>
     </footer>
   );
