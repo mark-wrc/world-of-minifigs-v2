@@ -1,5 +1,4 @@
 import {
-  Shield,
   Mail,
   FileText,
   MapPin,
@@ -12,24 +11,23 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react";
+import { APP_EMAIL, APP_ADDRESS, APP_COMPANY_NAME } from "@/constant/appConfig";
 
 export const policyMetadata = {
   title: "Privacy Policy",
-  // description:
-  //   "Your privacy matters to us. Learn how we collect, use, and protect your personal information.",
-  //   icon: Shield,
   lastUpdated: "Last Updated: March 1, 2025",
   cta: {
     title: "Contact Us",
     message:
       "If you have any questions or concerns about this Privacy Policy, please contact us via email",
     company: {
-      companyName: "World of Minifigs/Brick Extreme LLC",
-      address: "Lehi, Utah, 84043",
+      companyName: APP_COMPANY_NAME,
+      address: APP_ADDRESS,
       icon: MapPin,
     },
     email: {
-      email: "brickextremeofficial@gmail.com",
+      email: APP_EMAIL,
+      emailPath: `mailto: ${APP_EMAIL}`,
       icon: Mail,
     },
   },

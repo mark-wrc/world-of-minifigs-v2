@@ -1,5 +1,5 @@
 import { Facebook, Instagram } from "lucide-react";
-import { APP_NAME } from "@/constant/appConfig";
+import { APP_NAME, APP_EMAIL, APP_ADDRESS, APP_SOCIAL_LINKS } from "@/constant/appConfig";
 
 export const footerNavigation = [
   {
@@ -26,10 +26,10 @@ export const footerNavigation = [
     id: 3,
     title: "Support",
     links: [
-      { label: "Lehi, Utah 84043"},
+      { label: APP_ADDRESS},
       {
-        label: "brickextremeofficial@gmail.com",
-        path: "mailto:brickextremeofficial@gmail.com",
+        label: APP_EMAIL,
+        path: `mailto: ${APP_EMAIL}`,
       },
     ],
   },
@@ -43,13 +43,13 @@ export const footerNavigation = [
       {
         id: "facebook",
         icon: Facebook,
-        href: "https://www.facebook.com/profile.php?id=61552234252330",
+        path: APP_SOCIAL_LINKS.facebook,
         label: "Facebook",
       },
       {
         id: "instagram",
         icon: Instagram,
-        href: "https://www.instagram.com/theworldofminifigs/",
+        path: APP_SOCIAL_LINKS.instagram,
         label: "Instagram",
       },
     ],

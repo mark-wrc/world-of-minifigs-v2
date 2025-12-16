@@ -13,20 +13,23 @@ import {
   CheckCircle2,
   FileCheck,
 } from "lucide-react";
+import { APP_EMAIL, APP_ADDRESS, APP_COMPANY_NAME } from "@/constant/appConfig";
 
 export const termsMetadata = {
   title: "Terms of Use",
   lastUpdated: "Last Updated: March 1, 2025",
   cta: {
     title: "Contact Us",
-    message: "If you have any questions or concerns about this Terms of Use, please contact us via email",
+    message:
+      "If you have any questions or concerns about this Terms of Use, please contact us via email",
     company: {
-      companyName: "World of Minifigs/Brick Extreme LLC",
-      address: "Lehi, Utah, 84043",
+      companyName: APP_COMPANY_NAME,
+      address: APP_ADDRESS,
       icon: MapPin,
     },
     email: {
-      email: "brickextremeofficial@gmail.com",
+      email: APP_EMAIL,
+      emailPath: `mailto: ${APP_EMAIL}`,
       icon: Mail,
     },
   },
@@ -37,7 +40,8 @@ export const termsData = {
     {
       id: "product",
       title: "Product Information and Authenticity",
-      description: "We provide the following guarantees regarding our products:",
+      description:
+        "We provide the following guarantees regarding our products:",
       items: [
         {
           label: "Authentic LEGO Parts:",
@@ -199,4 +203,3 @@ export const termsData = {
     },
   ],
 };
-

@@ -137,11 +137,8 @@ const PrivacyPolicy = () => {
             </div>
             <div className="flex items-start gap-3">
               <policyMetadata.cta.email.icon className="text-accent shrink-0 mt-0.5" />
-              <a
-                href={`mailto:${policyMetadata.cta.email.email}`}
-                className="hover:text-accent transition-colors"
-              >
-                <span className="text-accent-foreground dark:text-foreground">
+              <a href={policyMetadata.cta.email.emailPath}>
+                <span className="text-accent-foreground dark:text-foreground hover:underline dark:hover:text-accent transition-colors">
                   {policyMetadata.cta.email.email}
                 </span>
               </a>

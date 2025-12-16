@@ -24,7 +24,7 @@ const Footer = () => {
                 {links.map((item) => (
                   <a
                     key={item.id || item.label}
-                    href={item.href}
+                    href={item.path}
                     target="_blank"
                     rel="noopener noreferrer"
                     title={item.label}
@@ -44,7 +44,7 @@ const Footer = () => {
                       <a
                         key={item.id || `${item.label}`}
                         href={item.path}
-                        className="text-sm dark:hover:text-accent hover:font-medium transition-colors wrap-break-word cursor-pointer"
+                        className="text-sm dark:hover:text-accent hover:font-medium wrap-break-word cursor-pointer"
                       >
                         {item.label}
                       </a>
