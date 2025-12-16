@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
-import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -19,102 +18,16 @@ import {
   contactChannels,
   contactFaqs,
 } from "@/constant/contactData";
-import { useSendContactMessageMutation } from "@/redux/api/userApi";
+import { useContactForm } from "@/hooks/useContactForm";
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-    consent: false,
-  });
-
-  const [sendContact, { isLoading }] = useSendContactMessageMutation();
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleConsentChange = (checked) => {
-    setFormData((prev) => ({ ...prev, consent: !!checked }));
-  };
-
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      toast.error("Name is required", {
-        description: "Please enter your name.",
-      });
-      return false;
-    }
-
-    if (!formData.email.trim()) {
-      toast.error("Email is required", {
-        description: "Please enter your email address.",
-      });
-      return false;
-    }
-
-    if (!formData.message.trim()) {
-      toast.error("Message is required", {
-        description: "Please enter your message.",
-      });
-      return false;
-    }
-
-    if (!formData.consent) {
-      toast.error("Terms & Privacy Policy not accepted", {
-        description:
-          "Please agree to the Terms and Privacy Policy to continue.",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    const { name, email, subject, message } = formData;
-
-    try {
-      const response = await sendContact({
-        name: name.trim(),
-        email: email.trim(),
-        subject: subject.trim(),
-        message: message.trim(),
-      }).unwrap();
-
-      toast.success(response?.message || "Message sent", {
-        description: response?.description || "Thank you for reaching out.",
-      });
-
-      setFormData({
-        name: "",
-        email: "",
-        subject: "",
-        message: "",
-        consent: false,
-      });
-    } catch (error) {
-      console.error("Contact form error:", error);
-
-      toast.error(error?.data?.message || "Unable to send your message", {
-        description:
-          error?.data?.description ||
-          "An unexpected error occurred while sending your message. Please try again later.",
-      });
-    }
-  };
+  const {
+    formData,
+    isLoading,
+    handleChange,
+    handleConsentChange,
+    handleSubmit,
+  } = useContactForm();
 
   return (
     <div>
@@ -181,21 +94,21 @@ const Contact = () => {
                   <Input
                     id="subject"
                     name="subject"
-                    placeholder="What is this regarding?"
+                    placeholder="What can we help you with?"
                     value={formData.subject}
                     onChange={handleChange}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="message">Message</Label>
+                  <Label htmlFor="message">Your Message</Label>
                   <Textarea
                     id="message"
                     name="message"
-                    placeholder="Write your message here..."
-                    className="min-h-32"
                     value={formData.message}
                     onChange={handleChange}
+                    placeholder="Tell us more about your concern, question, or idea. We're happy to help!"
+                    className="min-h-32"
                     required
                   />
                 </div>
@@ -203,7 +116,6 @@ const Contact = () => {
                 <div className="flex items-start gap-2 text-sm">
                   <Checkbox
                     id="consent"
-                    name="consent"
                     checked={formData.consent}
                     onCheckedChange={handleConsentChange}
                     className="mt-0.5"
@@ -237,7 +149,7 @@ const Contact = () => {
           </Card>
 
           {/* Right: Social + FAQ */}
-          <div className="space-y-5">
+          <div className="space-y-5 self-start">
             <Card className="shadow-none">
               <CardHeader>
                 <CardTitle className="text-xl font-bold">
@@ -272,7 +184,7 @@ const Contact = () => {
               </CardHeader>
 
               <CardContent>
-                <Accordion type="single" collapsible className="w-full">
+                <Accordion type="single" collapsible>
                   {contactFaqs.faq.map((faq, index) => (
                     <AccordionItem key={faq.question} value={`faq-${index}`}>
                       <AccordionTrigger>{faq.question}</AccordionTrigger>
