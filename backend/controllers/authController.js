@@ -3,7 +3,11 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
 import { getVerificationEmailTemplate } from "../utils/Email/verifyEmail.js";
+import { getResetPasswordTemplate } from "../utils/Email/passwordEmail.js";
 import { generateTokens, verifyRefreshToken } from "../utils/generateToken.js";
+
+const MIN_RESPONSE_TIME_MS = 3000; // minimum response time
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 //------------------------------------------------ Register User ------------------------------------------
 export const register = async (req, res) => {
@@ -35,7 +39,7 @@ export const register = async (req, res) => {
     const contactStr = String(contactNumber).trim();
     const passwordStr = String(password);
 
-    // Password strength validation 
+    // Password strength validation
     const hasMinLength = passwordStr.length >= 6;
     const hasUppercase = /[A-Z]/.test(passwordStr);
     const hasLowercase = /[a-z]/.test(passwordStr);
@@ -105,7 +109,7 @@ export const register = async (req, res) => {
         parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "24", 10)
     );
 
-    // Create user 
+    // Create user
     let user;
     try {
       user = await User.create({
@@ -156,7 +160,9 @@ export const register = async (req, res) => {
     try {
       await sendEmail({
         email: user.email,
-        subject: `Verify Your Email Address - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+        subject: `Verify Your Email Address - ${
+          process.env.SMTP_FROM_NAME || "World of Minifigs"
+        }`,
         message: getVerificationEmailTemplate(user, verificationUrl),
       });
       emailSent = true;
@@ -213,11 +219,18 @@ export const register = async (req, res) => {
   }
 };
 
+// resend verification token
 export const resendVerification = async (req, res) => {
+  const startTime = Date.now();
+
   try {
     const { email } = req.body;
 
     if (!email) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_RESPONSE_TIME_MS)
+        await delay(MIN_RESPONSE_TIME_MS - elapsed);
+
       return res.status(400).json({
         success: false,
         message: "Email is required",
@@ -225,18 +238,15 @@ export const resendVerification = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const emailStr = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: emailStr });
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Email not found",
-        description:
-          "We couldn't find an account registered with that email. Please check or try again with a different email.",
-      });
-    }
+    // Already verified users
+    if (user && user.isVerified) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_RESPONSE_TIME_MS)
+        await delay(MIN_RESPONSE_TIME_MS - elapsed);
 
-    if (user.isVerified) {
       return res.status(200).json({
         success: true,
         message: "Email already verified",
@@ -244,66 +254,67 @@ export const resendVerification = async (req, res) => {
       });
     }
 
-    const now = new Date();
+    // Handle non-existent or unverified users
+    if (user && !user.isVerified) {
+      const now = new Date();
+      const hasValidExistingToken =
+        user.verificationToken &&
+        user.verificationTokenExpiry &&
+        user.verificationTokenExpiry > now;
 
-    // If there is already a valid (non‑expired) verification token,
-    // reuse it instead of generating a new one to avoid race issues.
-    let verificationToken = user.verificationToken;
-    let verificationTokenExpiry = user.verificationTokenExpiry;
+      let verificationToken = user.verificationToken;
 
-    const hasValidExistingToken =
-      verificationToken &&
-      verificationTokenExpiry &&
-      verificationTokenExpiry > now;
+      if (!hasValidExistingToken) {
+        verificationToken = crypto.randomBytes(32).toString("hex");
+        const verificationTokenExpiry = new Date();
+        verificationTokenExpiry.setHours(
+          verificationTokenExpiry.getHours() +
+            parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "1", 10)
+        );
 
-    if (!hasValidExistingToken) {
-      verificationToken = crypto.randomBytes(32).toString("hex");
-      verificationTokenExpiry = new Date();
-      verificationTokenExpiry.setHours(
-        verificationTokenExpiry.getHours() +
-          parseInt(process.env.EMAIL_VERIFICATION_EXPIRY || "1", 10)
-      );
+        user.verificationToken = verificationToken;
+        user.verificationTokenExpiry = verificationTokenExpiry;
+        await user.save();
+      }
 
-      user.verificationToken = verificationToken;
-      user.verificationTokenExpiry = verificationTokenExpiry;
-      await user.save();
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: `Verify Your Email Address - ${
+            process.env.SMTP_FROM_NAME || "World of Minifigs"
+          }`,
+          message: getVerificationEmailTemplate(user, verificationUrl),
+        });
+      } catch (emailError) {
+        console.error("Error sending verification email:", {
+          userId: user._id,
+          email: user.email,
+          error: emailError.message,
+          stack: emailError.stack,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME_MS)
+      await delay(MIN_RESPONSE_TIME_MS - elapsed);
 
-    // Send verification email with proper error handling
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: `Verify Your Email Address - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
-        message: getVerificationEmailTemplate(user, verificationUrl),
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Verification email sent",
-        description:
-          "A new verification link has been sent to your email address.",
-      });
-    } catch (emailError) {
-      // Log detailed error for monitoring/debugging
-      console.error("Error sending verification email:", {
-        userId: user._id,
-        email: user.email,
-        error: emailError.message,
-        stack: emailError.stack,
-        timestamp: new Date().toISOString(),
-      });
-
-      return res.status(500).json({
-        success: false,
-        message: "Unable to send verification email",
-        description:
-          "We couldn't send the verification email. Please try again later or contact support if the problem persists.",
-      });
-    }
+    return res.status(200).json({
+      success: true,
+      message: "Verification email sent",
+      description:
+        "If an account exists for this email, a verification link has been sent.",
+    });
   } catch (error) {
     console.error("Resend verification error:", error);
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME_MS)
+      await delay(MIN_RESPONSE_TIME_MS - elapsed);
+
     return res.status(500).json({
       success: false,
       message: "Unable to resend verification email",
@@ -448,7 +459,7 @@ export const verifyEmail = async (req, res) => {
         success: false,
         message: "Invalid verification link",
         description:
-          "The verification link is not valid. It may have been changed or already replaced. Please request a new verification email.",
+          "The verification link is not valid. It may have been changed or already replaced. Please request a new one.",
       });
     }
 
@@ -461,7 +472,7 @@ export const verifyEmail = async (req, res) => {
         success: false,
         message: "Verification link expired",
         description:
-          "The verification link has expired. Please enter your registered email to get a new link.",
+          "The verification link has expired. Please enter your registered email to get a new one.",
       });
     }
 
@@ -636,6 +647,169 @@ export const refreshToken = async (req, res) => {
       message: "Token refresh failed",
       description:
         "An unexpected error occurred while refreshing your session. Please sign in again.",
+    });
+  }
+};
+
+//------------------------------------------------ Forgot Password ------------------------------------------
+export const forgotPassword = async (req, res) => {
+  const startTime = Date.now();
+
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_RESPONSE_TIME_MS)
+        await delay(MIN_RESPONSE_TIME_MS - elapsed);
+
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+        description:
+          "Please provide the email address associated with your account.",
+      });
+    }
+
+    const emailStr = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: emailStr });
+
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const resetTokenExpiry = new Date();
+      resetTokenExpiry.setMinutes(
+        resetTokenExpiry.getMinutes() +
+          parseInt(process.env.PASSWORD_RESET_EXPIRY || "30", 10)
+      );
+
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordTokenExpiry = resetTokenExpiry;
+      await user.save();
+
+      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: `Reset Your Password - ${
+            process.env.SMTP_FROM_NAME || "World of Minifigs"
+          }`,
+          message: getResetPasswordTemplate(user, resetUrl),
+        });
+      } catch (emailError) {
+        console.error("Error sending password reset email:", {
+          userId: user._id,
+          email: user.email,
+          error: emailError.message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME_MS)
+      await delay(MIN_RESPONSE_TIME_MS - elapsed);
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset sent",
+      description:
+        "If an account exists for this email, a password reset link has been sent.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+
+    const elapsed = Date.now() - startTime;
+    if (elapsed < MIN_RESPONSE_TIME_MS)
+      await delay(MIN_RESPONSE_TIME_MS - elapsed);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to process request",
+      description: "An unexpected error occurred. Please try again.",
+    });
+  }
+};
+
+//------------------------------------------------ Reset Password ------------------------------------------
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid reset link",
+        description: "Please use the reset link from your email.",
+      });
+    }
+
+    // Check token FIRST before requiring password
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordTokenExpiry: { $gt: new Date() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset link",
+        description:
+          "The password reset link is invalid or has expired. Please request a new one.",
+      });
+    }
+
+    // NOW check for password
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required",
+        description: "Please provide a new password.",
+      });
+    }
+
+    // Password validation
+    const passwordStr = String(password);
+    const hasMinLength = passwordStr.length >= 6;
+    const hasUppercase = /[A-Z]/.test(passwordStr);
+    const hasLowercase = /[a-z]/.test(passwordStr);
+    const hasNumber = /[0-9]/.test(passwordStr);
+    const hasSpecialChar = /[!@#$%^&*_]/.test(passwordStr);
+
+    if (
+      !hasMinLength ||
+      !hasUppercase ||
+      !hasLowercase ||
+      !hasNumber ||
+      !hasSpecialChar
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Weak password",
+        description:
+          "Password must be at least 6 characters with uppercase, lowercase, number, and special character.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(passwordStr, 10);
+
+    user.password = hashedPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordTokenExpiry = undefined;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successful",
+      description:
+        "Your password has been updated. You can now sign in with your new password.",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Password reset failed",
+      description: "An unexpected error occurred. Please try again.",
     });
   }
 };

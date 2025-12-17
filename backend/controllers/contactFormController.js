@@ -53,9 +53,13 @@ export const sendContactMessage = async (req, res) => {
     }
 
     // 1) Send message to app support email
+    const emailSubject = subjectStr
+      ? `${subjectStr} - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`
+      : "Contact Form Submission - World of Minifigs Team";
+
     await sendEmail({
       email: appEmail,
-      subject: subjectStr || "New Contact Form Submission",
+      subject: emailSubject,
       message: ContactFormTemplate({
         name: nameStr,
         email: emailStr,

@@ -1,11 +1,11 @@
 export const getVerificationEmailTemplate = (user, verificationUrl) => {
-    const email = user.email;
-    const appName = process.env.SMTP_FROM_NAME || "World Of Minifigs";
-    const supportEmail = process.env.SUPPORT_EMAIL || process.env.SMTP_FROM_EMAIL;
-    const expiryTime = process.env.EMAIL_VERIFICATION_EXPIRY || "24";
-    const expiryUnit = parseInt(expiryTime) === 1 ? "hour" : "hours"; 
-  
-    return `
+  const email = user.email;
+  const appName = process.env.SMTP_FROM_NAME || "World Of Minifigs";
+  const supportEmail = process.env.SUPPORT_EMAIL || process.env.SMTP_FROM_EMAIL;
+  const expiryTime = process.env.EMAIL_VERIFICATION_EXPIRY || "24";
+  const expiryUnit = parseInt(expiryTime) === 1 ? "hour" : "hours";
+
+  return `
       <!DOCTYPE html>
       <html lang="en">
       <head>
@@ -122,13 +122,10 @@ export const getVerificationEmailTemplate = (user, verificationUrl) => {
     </p>
   
     <p>
-      &copy; ${new Date().getFullYear()} ${
-      process.env.SMTP_FROM_NAME
-    }. All rights reserved.
+      &copy; ${new Date().getFullYear()} ${appName}. All rights reserved.
     </p>
   </div>
     </body>
       </html>
     `;
-  };
-  
+};

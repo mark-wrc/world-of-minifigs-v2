@@ -10,6 +10,7 @@ const Login = ({
   isSubmitDisabled,
   handleChange,
   handleSubmit,
+  onForgotPassword,
 }) => {
   return (
     <form onSubmit={handleSubmit}>
@@ -46,6 +47,7 @@ const Login = ({
           variant="link"
           type="button"
           className="text-destructive dark:text-accent"
+          onClick={onForgotPassword}
         >
           Forgot Password?
         </Button>

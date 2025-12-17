@@ -35,7 +35,7 @@ const VerifyEmail = () => {
     return (
       <>
         <Auth open={authOpen} onOpenChange={setAuthOpen} defaultTab="login" />
-        <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="min-h-screen flex items-center justify-center px-5">
           <div className="max-w-xl w-full text-center space-y-6">
             <div>
               <div className="w-20 h-20 mx-auto bg-destructive/10 rounded-full flex items-center justify-center mb-5">

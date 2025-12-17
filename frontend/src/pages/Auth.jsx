@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { LogIn, UserPlus } from "lucide-react";
 import {
   Dialog,
@@ -11,10 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { APP_NAME } from "@/constant/appConfig";
 import Login from "@/components/Auth/Login";
 import Register from "@/components/Auth/Register";
+import ForgotPassword from "@/components/Auth/ForgotPassword";
 import { useLogin } from "@/hooks/useLogin";
 import { useRegister } from "@/hooks/useRegister";
+import { useForgotPassword } from "@/hooks/useForgotPassword";
 
 const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   const {
     formData: loginFormData,
     isLoading: isLoginLoading,
@@ -39,58 +43,84 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
     handleSubmit: handleRegisterSubmit,
   } = useRegister(() => onOpenChange(false));
 
+  const {
+    email: forgotEmail,
+    isLoading: isForgotLoading,
+    cooldownSeconds: forgotCooldownSeconds,
+    isSubmitDisabled: isForgotDisabled,
+    handleChange: handleForgotChange,
+    handleSubmit: handleForgotSubmit,
+  } = useForgotPassword(() => {
+    setShowForgotPassword(false);
+    onOpenChange(false);
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">
-            Welcome to {APP_NAME}
+            {showForgotPassword ? "Forgot Password" : `Welcome to ${APP_NAME}`}
           </DialogTitle>
-          <DialogDescription className="sr-only">
-            Please sign in to your account to continue.
+          <DialogDescription className={showForgotPassword ? "" : "sr-only"}>
+            {showForgotPassword
+              ? "Enter your email to receive a password reset link."
+              : "Please sign in to your account to continue."}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue={defaultTab}>
-          <TabsList className="grid grid-cols-2 w-full mb-5">
-            <TabsTrigger value="login">
-              <LogIn size={18} />
-              Login
-            </TabsTrigger>
-            <TabsTrigger value="register">
-              <UserPlus size={18} />
-              Register
-            </TabsTrigger>
-          </TabsList>
+        {showForgotPassword ? (
+          <ForgotPassword
+            email={forgotEmail}
+            isLoading={isForgotLoading}
+            cooldownSeconds={forgotCooldownSeconds}
+            isSubmitDisabled={isForgotDisabled}
+            handleChange={handleForgotChange}
+            handleSubmit={handleForgotSubmit}
+          />
+        ) : (
+          <Tabs defaultValue={defaultTab}>
+            <TabsList className="grid grid-cols-2 w-full mb-5">
+              <TabsTrigger value="login">
+                <LogIn size={18} />
+                Login
+              </TabsTrigger>
+              <TabsTrigger value="register">
+                <UserPlus size={18} />
+                Register
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="login">
-            <Login
-              formData={loginFormData}
-              isLoading={isLoginLoading}
-              cooldownSeconds={loginCooldownSeconds}
-              isSubmitDisabled={isLoginDisabled}
-              handleChange={handleLoginChange}
-              handleSubmit={handleLoginSubmit}
-            />
-          </TabsContent>
-          <TabsContent value="register">
-            <Register
-              onLinkClick={() => onOpenChange(false)}
-              formData={registerFormData}
-              isLoading={isRegisterLoading}
-              showPasswordRequirements={showPasswordRequirements}
-              passwordRequirements={passwordRequirements}
-              passwordRequirementsConfig={passwordRequirementsConfig}
-              cooldownSeconds={registerCooldownSeconds}
-              isSubmitDisabled={isRegisterDisabled}
-              handleChange={handleRegisterChange}
-              handleCheckboxChange={handleCheckboxChange}
-              handlePasswordFocus={handlePasswordFocus}
-              handlePasswordBlur={handlePasswordBlur}
-              handleSubmit={handleRegisterSubmit}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="login">
+              <Login
+                formData={loginFormData}
+                isLoading={isLoginLoading}
+                cooldownSeconds={loginCooldownSeconds}
+                isSubmitDisabled={isLoginDisabled}
+                handleChange={handleLoginChange}
+                handleSubmit={handleLoginSubmit}
+                onForgotPassword={() => setShowForgotPassword(true)}
+              />
+            </TabsContent>
+            <TabsContent value="register">
+              <Register
+                onLinkClick={() => onOpenChange(false)}
+                formData={registerFormData}
+                isLoading={isRegisterLoading}
+                showPasswordRequirements={showPasswordRequirements}
+                passwordRequirements={passwordRequirements}
+                passwordRequirementsConfig={passwordRequirementsConfig}
+                cooldownSeconds={registerCooldownSeconds}
+                isSubmitDisabled={isRegisterDisabled}
+                handleChange={handleRegisterChange}
+                handleCheckboxChange={handleCheckboxChange}
+                handlePasswordFocus={handlePasswordFocus}
+                handlePasswordBlur={handlePasswordBlur}
+                handleSubmit={handleRegisterSubmit}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );
