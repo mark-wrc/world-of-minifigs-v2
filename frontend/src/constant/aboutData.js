@@ -27,7 +27,7 @@ export const aboutStats = [
 ];
 
 export const aboutStory = {
-  badge: "Our Story",
+  badge: "OUR STORY",
   title: "A Father-Son Journey Into the World of LEGO",
   image: storyImage,
   story: [
@@ -38,7 +38,7 @@ export const aboutStory = {
 };
 
 export const aboutOrder = {
-  badge: "Just 3 easy steps",
+  badge: "JUST 3 EASY STEPS",
   title: "Snap, Shop, and Ship",
   description:
     "Whether you're a seasoned builder or just starting out, placing an order is as easy as stack, click, and build. Follow these simple steps to bring your LEGO dreams to life.",

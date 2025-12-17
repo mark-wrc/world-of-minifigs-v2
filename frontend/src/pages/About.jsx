@@ -36,7 +36,7 @@ const About = () => {
             {aboutHero.title2}
           </h1>
           <div className="mx-auto max-w-xl">
-            <p className="text-sm md:text-md">{aboutHero.description}</p>
+            <p className="text-sm md:text-lg">{aboutHero.description}</p>
           </div>
         </div>
       </section>
@@ -46,7 +46,7 @@ const About = () => {
           {aboutStats.map((stat, index) => (
             <Card key={index} className="text-center dark:shadow-none">
               <CardContent className="py-10">
-                <div className="text-3xl font-bold text-accent mb-5 bg-popover-foreground dark:bg-background/20 h-28 w-28 mx-auto rounded-full flex items-center justify-center">
+                <div className="text-3xl font-bold text-accent-foreground dark:text-secondary-foreground mb-5 bg-accent h-28 w-28 mx-auto rounded-full flex items-center justify-center">
                   {stat.number}
                 </div>
                 <div className="font-bold">{stat.label}</div>
@@ -66,8 +66,10 @@ const About = () => {
             />
           </div>
           <div className="space-y-4 leading-relaxed">
-            <Badge className="px-3 py-1 text-sm">{aboutStory.badge}</Badge>
-            <h2 className="text-4xl font-bold">{aboutStory.title}</h2>
+            <Badge variant="accent" className="px-3 py-1 text-sm">
+              {aboutStory.badge}
+            </Badge>
+            <h2 className="text-4xl font-bold leading-tight">{aboutStory.title}</h2>
 
             <div className="space-y-4">
               {aboutStory.story.map((paragraph, id) => (
@@ -80,15 +82,17 @@ const About = () => {
       {/* Order Steps */}
       <section className="py-10 px-5 bg-input/50 dark:bg-card/50">
         <div className="text-center mb-10">
-          <Badge className="px-3 py-1 text-sm">{aboutOrder.badge}</Badge>
+          <Badge variant="accent" className="px-3 py-1 text-sm">
+            {aboutOrder.badge}
+          </Badge>
           <h2 className="text-4xl font-bold mt-5 mb-3">{aboutOrder.title}</h2>
           <p className="max-w-3xl mx-auto">{aboutOrder.description}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-center">
           {aboutOrder.steps.map((step, index) => (
-            <Card key={index}>
+            <Card key={index} className="text-center dark:shadow-none">
               <CardHeader>
-                <div className="text-3xl font-bold text-accent mb-5 bg-popover-foreground dark:bg-background/20 h-20 w-20 mx-auto rounded-full flex items-center justify-center">
+                <div className="text-3xl font-bold text-accent-foreground dark:text-secondary-foreground mb-5 bg-accent h-20 w-20 mx-auto rounded-full flex items-center justify-center">
                   {index + 1}
                 </div>
                 <CardTitle className="text-xl font-bold">
@@ -107,15 +111,17 @@ const About = () => {
       {/* Why Choose Us */}
       <section className="py-10 px-5">
         <div className="text-center mb-10">
-          <Badge className="px-3 py-1 text-sm">{aboutChoose.badge}</Badge>
+          <Badge variant="accent" className="px-3 py-1 text-sm">
+            {aboutChoose.badge}
+          </Badge>
           <h2 className="text-4xl font-bold mt-5 mb-3">{aboutChoose.title}</h2>
           <p className="max-w-3xl mx-auto">{aboutChoose.description}</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 text-center">
           {aboutChoose.features.map((feature, index) => (
-            <Card key={index}>
+            <Card key={index} className="text-center dark:shadow-none">
               <CardHeader>
-                <div className="text-3xl font-bold text-accent mb-5 bg-popover-foreground dark:bg-background/20 h-20 w-20 mx-auto rounded-full flex items-center justify-center">
+                <div className="text-3xl font-bold text-accent-foreground dark:text-secondary-foreground mb-5 bg-accent h-20 w-20 mx-auto rounded-full flex items-center justify-center">
                   <feature.icon size={24} />
                 </div>
                 <CardTitle className="text-xl font-bold">
@@ -143,7 +149,7 @@ const About = () => {
             {aboutExplore.title}{" "}
             <span className="text-accent">{aboutExplore.highlight}</span>
           </h2>
-          <p className="text-background dark:text-foreground mb-8">
+          <p className="text-background dark:text-foreground mb-8 text-sm md:text-lg">
             {aboutExplore.description}
           </p>
           <Button asChild variant="accent">

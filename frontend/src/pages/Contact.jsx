@@ -44,7 +44,7 @@ const Contact = () => {
             Get in <span className="text-accent">{contactHero.highlight}</span>
           </h1>
           <div className="mx-auto max-w-3xl">
-            <p>{contactHero.description}</p>
+            <p className="text-sm md:text-lg">{contactHero.description}</p>
           </div>
         </div>
       </section>
