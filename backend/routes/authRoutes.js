@@ -8,7 +8,9 @@ import {
   resendVerification,
   forgotPassword,
   resetPassword,
+  getCurrentUser,
 } from "../controllers/authController.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
@@ -21,6 +23,7 @@ router.post("/refresh-token", refreshToken);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.get("/me", authenticate, getCurrentUser);
 
 export default router;
 

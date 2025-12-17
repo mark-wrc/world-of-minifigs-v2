@@ -2,8 +2,11 @@ import React from "react";
 import { Outlet } from "react-router-dom";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import { useAuthInit } from "@/hooks/useAuthInit";
 
 const RootLayout = () => {
+  useAuthInit();
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />

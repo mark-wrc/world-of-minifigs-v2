@@ -1,28 +1,29 @@
 import User from "../models/user.model.js";
-import { verifyAccessToken } from "../utils/generateToken.js";
+import {
+  verifyAccessToken,
+  verifyRefreshToken,
+  generateTokens,
+} from "../utils/generateToken.js";
 
-// Middleware to authenticate user using JWT access token
+// Middleware to authenticate user using JWT access token with automatic refresh
 export const authenticate = async (req, res, next) => {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.authorization;
+    // Try to get token from httpOnly cookie first, then fallback to Authorization header
+    let token = req.cookies?.accessToken;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        success: false,
-        message: "Access token is required",
-        description: "Please provide a valid access token in the Authorization header.",
-      });
+    // Fallback to Authorization header if cookie is not available
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
     }
-
-    // Extract token from "Bearer <token>"
-    const token = authHeader.substring(7);
 
     if (!token) {
       return res.status(401).json({
         success: false,
         message: "Access token is required",
-        description: "Please provide a valid access token in the Authorization header.",
+        description: "Please sign in to continue.",
       });
     }
 
@@ -31,11 +32,104 @@ export const authenticate = async (req, res, next) => {
     try {
       decoded = verifyAccessToken(token);
     } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid or expired access token",
-        description: "Your session has expired or the token is invalid. Please sign in again.",
-      });
+      // Token expired or invalid - try to refresh if refresh token exists
+      const refreshToken = req.cookies?.refreshToken;
+      if (!refreshToken) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired access token",
+          description:
+            "Your session has expired or the token is invalid. Please sign in again.",
+        });
+      }
+
+      // Try to verify and use refresh token
+      try {
+        const refreshDecoded = verifyRefreshToken(refreshToken);
+
+        // Find user with refresh token
+        const userWithRefresh = await User.findById(refreshDecoded.userId);
+
+        if (!userWithRefresh || !userWithRefresh.isActive) {
+          return res.status(401).json({
+            success: false,
+            message: "User not found or inactive",
+            description: "Your account is not available. Please sign in again.",
+          });
+        }
+
+        // Verify refresh token matches stored token
+        if (userWithRefresh.refreshToken !== refreshToken) {
+          userWithRefresh.refreshToken = undefined;
+          userWithRefresh.refreshTokenExpiry = undefined;
+          await userWithRefresh.save();
+
+          return res.status(401).json({
+            success: false,
+            message: "Invalid token",
+            description: "Your session is invalid. Please sign in again.",
+          });
+        }
+
+        // Check if refresh token has expired
+        if (
+          !userWithRefresh.refreshTokenExpiry ||
+          userWithRefresh.refreshTokenExpiry < new Date()
+        ) {
+          userWithRefresh.refreshToken = undefined;
+          userWithRefresh.refreshTokenExpiry = undefined;
+          await userWithRefresh.save();
+
+          return res.status(401).json({
+            success: false,
+            message: "Session expired",
+            description: "Your session has expired. Please sign in again.",
+          });
+        }
+
+        // Refresh token is valid - generate new tokens
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
+          generateTokens(userWithRefresh._id);
+
+        const refreshTokenDays =
+          Number(process.env.JWT_REFRESH_TOKEN_EXPIRY) || 7;
+        const accessTokenDays =
+          Number(process.env.JWT_ACCESS_TOKEN_EXPIRY) || 1;
+        const newRefreshTokenExpiry = new Date();
+        newRefreshTokenExpiry.setDate(
+          newRefreshTokenExpiry.getDate() + refreshTokenDays
+        );
+
+        userWithRefresh.refreshToken = newRefreshToken;
+        userWithRefresh.refreshTokenExpiry = newRefreshTokenExpiry;
+        await userWithRefresh.save();
+
+        // Set new access token as httpOnly cookie
+        res.cookie("accessToken", newAccessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: accessTokenDays * 24 * 60 * 60 * 1000,
+        });
+
+        // Update refresh token cookie
+        res.cookie("refreshToken", newRefreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: refreshTokenDays * 24 * 60 * 60 * 1000,
+        });
+
+        // Use the new decoded token
+        decoded = { userId: userWithRefresh._id };
+        token = newAccessToken; // Update token for user lookup
+      } catch (refreshError) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired token",
+          description: "Your session has expired. Please sign in again.",
+        });
+      }
     }
 
     // Find user
@@ -47,7 +141,8 @@ export const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "User not found",
-        description: "The user associated with this token no longer exists. Please sign in again.",
+        description:
+          "The user associated with this token no longer exists. Please sign in again.",
       });
     }
 
@@ -56,7 +151,8 @@ export const authenticate = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         message: "Your account has been deactivated",
-        description: "Your account has been deactivated. Please contact support for assistance.",
+        description:
+          "Your account has been deactivated. Please contact support for assistance.",
       });
     }
 
@@ -87,7 +183,8 @@ export const requireVerification = (req, res, next) => {
     return res.status(403).json({
       success: false,
       message: "Please verify your email address to continue",
-      description: "You need to verify your email address before accessing this resource.",
+      description:
+        "You need to verify your email address before accessing this resource.",
     });
   }
 
@@ -109,7 +206,8 @@ export const requireRole = (...roles) => {
       return res.status(403).json({
         success: false,
         message: "You do not have permission to access this resource",
-        description: "Your account does not have the required permissions to access this resource.",
+        description:
+          "Your account does not have the required permissions to access this resource.",
       });
     }
 
@@ -121,11 +219,17 @@ export const requireRole = (...roles) => {
 // Useful for routes that work for both authenticated and unauthenticated users
 export const optionalAuth = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    // Try to get token from httpOnly cookie first, then fallback to Authorization header
+    let token = req.cookies?.accessToken;
 
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      }
+    }
 
+    if (token) {
       try {
         const decoded = verifyAccessToken(token);
         const user = await User.findById(decoded.userId).select(

@@ -1,25 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useLoginMutation } from "@/redux/api/authApi";
+import { useLoginMutation, useLogoutMutation } from "@/redux/api/authApi";
+import { setCredentials, clearCredentials } from "@/redux/slices/authSlice";
+
+// ------------------------------------------ Login ------------------------------------------------------------
 
 export const useLogin = (onSuccess) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
   });
 
-  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [login, { isLoading }] = useLoginMutation();
-
-  useEffect(() => {
-    if (cooldownSeconds <= 0) return;
-
-    const id = setInterval(() => {
-      setCooldownSeconds((prev) => (prev > 1 ? prev - 1 : 0));
-    }, 1000);
-
-    return () => clearInterval(id);
-  }, [cooldownSeconds]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,28 +62,25 @@ export const useLogin = (onSuccess) => {
 
       const response = await login(credentials).unwrap();
 
+      // Store user in Redux state
+      if (response?.user) {
+        dispatch(setCredentials(response.user));
+      }
+
       toast.success(response?.message || "Login completed", {
         description:
           response?.description || "You have been signed in successfully.",
       });
 
+      // Close auth dialog if callback provided
       if (onSuccess) {
         onSuccess();
       }
+
+      // Always redirect to home after successful login
+      navigate("/");
     } catch (error) {
       console.error("Login error:", error);
-
-      if (error?.status === 429) {
-        const windowSeconds = Number(error?.data?.windowSeconds) || 15 * 60; // fallback 15 min
-        setCooldownSeconds(windowSeconds);
-
-        toast.error(error?.data?.message || "Too many login attempts", {
-          description:
-            error?.data?.description ||
-            "You have made too many login attempts. Please wait a few minutes before trying again.",
-        });
-        return;
-      }
 
       toast.error(error?.data?.message || "Login error occurred", {
         description:
@@ -100,9 +93,54 @@ export const useLogin = (onSuccess) => {
   return {
     formData,
     isLoading,
-    cooldownSeconds,
-    isSubmitDisabled: isLoading || cooldownSeconds > 0,
+    isSubmitDisabled: isLoading,
     handleChange,
     handleSubmit,
+  };
+};
+
+// ------------------------------------------ Log-out ------------------------------------------------------------
+// Helper function to get user initials
+export const getInitials = (user) => {
+  if (!user?.firstName || !user?.lastName) {
+    return user?.username?.charAt(0)?.toUpperCase() || "U";
+  }
+  const firstInitial = user.firstName.charAt(0).toUpperCase();
+  const lastInitial = user.lastName.charAt(0).toUpperCase();
+  return `${firstInitial}${lastInitial}`;
+};
+
+export const useLogout = () => {
+  const dispatch = useDispatch();
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation();
+
+  const handleLogout = async () => {
+    try {
+      const response = await logout().unwrap();
+      dispatch(clearCredentials());
+      toast.success(response?.message || "Logout successful", {
+        description:
+          response?.description || "You have been signed out successfully.",
+      });
+      // Refresh the page to clear any session data
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Even if logout fails on server, clear local state
+      dispatch(clearCredentials());
+      // Show error message from backend
+      toast.error(error?.data?.message || "Logout failed", {
+        description:
+          error?.data?.description ||
+          "An error occurred during logout. Please try again.",
+      });
+      // Refresh the page to clear any session data
+      window.location.href = "/";
+    }
+  };
+
+  return {
+    handleLogout,
+    isLoggingOut,
   };
 };

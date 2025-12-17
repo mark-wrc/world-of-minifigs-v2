@@ -54,12 +54,13 @@ export const authApi = createApi({
       }),
     }),
 
-    // ==================== Token Management ====================
-    refreshToken: builder.mutation({
+    // ==================== User Management ====================
+    getCurrentUser: builder.query({
       query: () => ({
-        url: "/refresh-token",
-        method: "POST",
+        url: "/me",
+        method: "GET",
       }),
+      providesTags: ["User"],
     }),
 
     // ==================== Forgot/Reset Password ====================
@@ -87,7 +88,7 @@ export const {
   useLogoutMutation,
   useVerifyEmailMutation,
   useResendVerificationMutation,
-  useRefreshTokenMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
+  useGetCurrentUserQuery,
 } = authApi;

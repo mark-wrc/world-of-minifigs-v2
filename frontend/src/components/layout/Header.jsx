@@ -1,18 +1,22 @@
 import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { Search, ShoppingCart, Sun, Moon, Menu, User } from "lucide-react";
+import { useSelector } from "react-redux";
+import { Search, ShoppingCart, Sun, Moon, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import Logo from "@/assets/media/Logo.png";
-import MobileMenu from "@/components/layout/MobileMenu";
 import { headerNavigation } from "@/constant/headerNavigation";
-import { useThemeToggle } from "@/hooks/useToggleTheme";
 import { APP_NAME } from "@/constant/appConfig";
+import MobileMenu from "@/components/layout/MobileMenu";
+import UserDropdown from "@/components/layout/UserDropdown";
 import Auth from "@/pages/Auth";
+import { useThemeToggle } from "@/hooks/useToggleTheme";
 
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeToggle();
   const [authOpen, setAuthOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
 
   return (
     <>
@@ -41,6 +45,7 @@ const Header = () => {
 
         {/* Header Actions */}
         <div className="flex items-center gap-1">
+          {/* Search Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -49,6 +54,7 @@ const Header = () => {
           >
             <Search />
           </Button>
+          {/* Cart Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -60,6 +66,7 @@ const Header = () => {
               <ShoppingCart />
             </Link>
           </Button>
+          {/* Theme Toggle Button */}
           <Button
             variant="ghost"
             size="icon"
@@ -69,18 +76,26 @@ const Header = () => {
           >
             {darkMode ? <Sun /> : <Moon />}
           </Button>
-          <Button
-            variant="accent"
-            className="hidden md:block"
-            aria-label="Sign In"
-            title="Sign In"
-            onClick={() => setAuthOpen(true)}
-          >
-            Sign In
-          </Button>
-
+          {/* User Dropdown or Sign In Button */}
+          {isAuthenticated ? (
+            <UserDropdown user={user} />
+          ) : (
+            <Button
+              variant="accent"
+              className="hidden md:block"
+              aria-label="Sign In"
+              title="Sign In"
+              onClick={() => setAuthOpen(true)}
+            >
+              Sign In
+            </Button>
+          )}
           {/* Mobile Navigation */}
-          <Sheet>
+          <Sheet
+            open={mobileMenuOpen}
+            onOpenChange={setMobileMenuOpen}
+            closeOnDesktop
+          >
             <SheetTrigger asChild>
               <Button
                 variant="ghost"
@@ -92,7 +107,7 @@ const Header = () => {
                 <Menu />
               </Button>
             </SheetTrigger>
-            <MobileMenu onSignInClick={() => setAuthOpen(true)} />
+            <MobileMenu onSignInClick={() => setAuthOpen(true)} user={user} />
           </Sheet>
         </div>
       </header>

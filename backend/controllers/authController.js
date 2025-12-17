@@ -382,6 +382,7 @@ export const login = async (req, res) => {
     const { accessToken, refreshToken } = generateTokens(user._id);
 
     // Update user's last login and refresh token
+    const accessTokenDays = Number(process.env.JWT_ACCESS_TOKEN_EXPIRY) || 1;
     const refreshTokenDays = Number(process.env.JWT_REFRESH_TOKEN_EXPIRY) || 7;
     const refreshTokenExpiry = new Date();
     refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + refreshTokenDays);
@@ -401,7 +402,16 @@ export const login = async (req, res) => {
       contactNumber: user.contactNumber,
       role: user.role,
       isVerified: user.isVerified,
+      profilePicture: user.profilePicture,
     };
+
+    // Set access token as httpOnly cookie
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: accessTokenDays * 24 * 60 * 60 * 1000,
+    });
 
     // Set refresh token as httpOnly cookie
     res.cookie("refreshToken", refreshToken, {
@@ -416,7 +426,6 @@ export const login = async (req, res) => {
       message: "Login successful",
       description: "Welcome back!",
       user: userResponse,
-      accessToken,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -523,6 +532,13 @@ export const logout = async (req, res) => {
       }
     }
 
+    // Clear access token cookie
+    res.clearCookie("accessToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    });
+
     // Clear refresh token cookie
     res.clearCookie("refreshToken", {
       httpOnly: true,
@@ -542,6 +558,45 @@ export const logout = async (req, res) => {
       message: "Logout failed",
       description:
         "An unexpected error occurred during logout. Please try again.",
+    });
+  }
+};
+
+// Get Current User
+export const getCurrentUser = async (req, res) => {
+  try {
+    // User is attached by authenticate middleware
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authenticated",
+        description: "Please sign in to continue.",
+      });
+    }
+
+    // Remove sensitive data from response
+    const userResponse = {
+      id: req.user._id,
+      firstName: req.user.firstName,
+      lastName: req.user.lastName,
+      username: req.user.username,
+      email: req.user.email,
+      contactNumber: req.user.contactNumber,
+      role: req.user.role,
+      isVerified: req.user.isVerified,
+      profilePicture: req.user.profilePicture,
+    };
+
+    return res.status(200).json({
+      success: true,
+      user: userResponse,
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user information",
+      description: "An unexpected error occurred. Please try again.",
     });
   }
 };
@@ -618,6 +673,7 @@ export const refreshToken = async (req, res) => {
       user._id
     );
 
+    const accessTokenDays = Number(process.env.JWT_ACCESS_TOKEN_EXPIRY) || 1;
     const refreshTokenDays = Number(process.env.JWT_REFRESH_TOKEN_EXPIRY) || 7;
     const newRefreshTokenExpiry = new Date();
     newRefreshTokenExpiry.setDate(
@@ -627,6 +683,14 @@ export const refreshToken = async (req, res) => {
     user.refreshToken = newRefreshToken;
     user.refreshTokenExpiry = newRefreshTokenExpiry;
     await user.save();
+
+    // Set access token as httpOnly cookie
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: accessTokenDays * 24 * 60 * 60 * 1000,
+    });
 
     // Update refresh token cookie
     res.cookie("refreshToken", newRefreshToken, {
@@ -638,7 +702,6 @@ export const refreshToken = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      accessToken,
     });
   } catch (error) {
     console.error("Refresh token error:", error);
