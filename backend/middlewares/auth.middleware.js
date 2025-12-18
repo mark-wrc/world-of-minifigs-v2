@@ -13,7 +13,7 @@ export const authenticate = async (req, res, next) => {
 
     // Fallback to Authorization header if cookie is not available
     if (!token) {
-    const authHeader = req.headers.authorization;
+      const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
       }
@@ -35,9 +35,9 @@ export const authenticate = async (req, res, next) => {
       // Token expired or invalid - try to refresh if refresh token exists
       const refreshToken = req.cookies?.refreshToken;
       if (!refreshToken) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid or expired access token",
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired access token",
           description:
             "Your session has expired or the token is invalid. Please sign in again.",
         });
@@ -97,8 +97,8 @@ export const authenticate = async (req, res, next) => {
             success: false,
             message: "Session expired",
             description: "Your session has expired. Please sign in again.",
-      });
-    }
+          });
+        }
 
         // Refresh token is valid - generate new tokens
         const { accessToken: newAccessToken, refreshToken: newRefreshToken } =
@@ -164,13 +164,13 @@ export const authenticate = async (req, res, next) => {
     const userForExpiryCheck = await User.findById(decoded.userId).select(
       "refreshToken refreshTokenExpiry"
     );
-    
+
     // If refreshTokenExpiry exists and is expired, or if refreshToken exists but expiry is missing/expired
     if (userForExpiryCheck) {
-      const isExpired = 
-        userForExpiryCheck.refreshTokenExpiry && 
+      const isExpired =
+        userForExpiryCheck.refreshTokenExpiry &&
         userForExpiryCheck.refreshTokenExpiry < new Date();
-      
+
       if (isExpired) {
         // Refresh token expired - clear it and log out user
         userForExpiryCheck.refreshToken = undefined;
@@ -266,6 +266,9 @@ export const requireRole = (...roles) => {
   };
 };
 
+//  authorize admin users only
+export const authorizeAdmin = requireRole("admin");
+
 // Optional authentication - attaches user if token is valid, but doesn't require it
 // Useful for routes that work for both authenticated and unauthenticated users
 export const optionalAuth = async (req, res, next) => {
@@ -274,8 +277,8 @@ export const optionalAuth = async (req, res, next) => {
     let token = req.cookies?.accessToken;
 
     if (!token) {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
         token = authHeader.substring(7);
       }
     }

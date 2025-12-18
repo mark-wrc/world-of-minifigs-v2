@@ -65,15 +65,28 @@ export const useLogin = (onSuccess) => {
       // Store user in Redux state
       if (response?.user) {
         dispatch(setCredentials(response.user));
+        
+        // Close auth dialog first
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        // Small delay to ensure cookies are set before navigation
+        setTimeout(() => {
+          // Redirect based on user role
+          if (response.user.role === "admin") {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 100);
+      } else {
+        // Fallback to home if no user data
+        if (onSuccess) {
+          onSuccess();
+        }
+        navigate("/");
       }
-
-      // Close auth dialog if callback provided
-      if (onSuccess) {
-        onSuccess();
-      }
-
-      // Always redirect to home after successful login
-      navigate("/");
     } catch (error) {
       console.error("Login error:", error);
 
@@ -111,24 +124,14 @@ export const useLogout = () => {
 
   const handleLogout = async () => {
     try {
-      const response = await logout().unwrap();
+      await logout().unwrap();
       dispatch(clearCredentials());
-      toast.success(response?.message || "Logout successful", {
-        description:
-          response?.description || "You have been signed out successfully.",
-      });
       // Refresh the page to clear any session data
       window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
       // Even if logout fails on server, clear local state
       dispatch(clearCredentials());
-      // Show error message from backend
-      toast.error(error?.data?.message || "Logout failed", {
-        description:
-          error?.data?.description ||
-          "An error occurred during logout. Please try again.",
-      });
       // Refresh the page to clear any session data
       window.location.href = "/";
     }

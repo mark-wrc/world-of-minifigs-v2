@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { LogIn, UserPlus } from "lucide-react";
 import {
   Dialog,
@@ -18,6 +18,14 @@ import { useForgotPassword } from "@/hooks/useForgotPassword";
 
 const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    if (!open) {
+      setShowForgotPassword(false);
+      setActiveTab(defaultTab);
+    }
+  }, [open, defaultTab]);
 
   const {
     formData: loginFormData,
@@ -75,7 +83,7 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
             handleSubmit={handleForgotSubmit}
           />
         ) : (
-          <Tabs defaultValue={defaultTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid grid-cols-2 w-full mb-5">
               <TabsTrigger value="login">
                 <LogIn size={18} />

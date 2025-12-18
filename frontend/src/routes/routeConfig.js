@@ -7,7 +7,7 @@ import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfUse from "@/pages/TermsOfUse";
 import VerifyEmail from "@/components/auth/VerifyEmail";
 import ResetPassword from "@/components/auth/ResetPassword";
-import NotFound from "@/pages/NotFound";
+import NotFound from "@/components/layout/NotFound";
 import Dashboard from "@/pages/Dashboard";
 import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";

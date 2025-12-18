@@ -546,8 +546,6 @@ export const logout = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Logout successful",
-      description: "You have been signed out successfully.",
     });
   } catch (error) {
     console.error("Logout error:", error);

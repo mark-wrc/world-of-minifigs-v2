@@ -6,8 +6,9 @@ import connectDatabase from "./config/dbConnect.js";
 import helmet from "helmet";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+
 if ((process.env.NODE_ENV || "").toLowerCase() !== "production") {
-  dotenv.config({ path: "./config/config.env" });
+  dotenv.config({ path: "./config/config.env", quiet: true });
 }
 
 const validateEnv = () => {
