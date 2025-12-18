@@ -1,19 +1,24 @@
 import React from "react";
-import { Routes, Route } from "react-router-dom";
-import RootLayout from "@/routes/RootLayout";
-import PublicRoutes from "@/routes/PublicRoutes";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import Router from "@/routes/Router";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import { Toaster } from "@/components/ui/sonner";
+import { useAuthInit } from "@/hooks/useAuthInit";
 
 const App = () => {
+  useAuthInit();
+
   return (
     <>
       <ScrollToTop />
-      <Routes>
-        <Route element={<RootLayout />}>
-          <Route path="/*" element={<PublicRoutes />} />
-        </Route>
-      </Routes>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-1 items-center justify-center">
+          <Router />
+        </main>
+        <Footer />
+      </div>
       <Toaster position="bottom-right" />
     </>
   );

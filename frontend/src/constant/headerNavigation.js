@@ -51,9 +51,9 @@ export const userMenu = [
     icon: LayoutDashboard,
   },
   {
-    id: "orders",
-    label: "Orders",
-    path: "/orders",
+    id: "purchase",
+    label: "My Purchases",
+    path: "/purchase",
     icon: ShoppingCart,
   },
   {

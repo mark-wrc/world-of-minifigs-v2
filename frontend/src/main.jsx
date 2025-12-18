@@ -5,9 +5,6 @@ import { Provider } from "react-redux";
 import store from "@/redux/store";
 import "@/assets/styles/index.css";
 import App from "@/App.jsx";
-import { APP_NAME } from "@/constant/appConfig";
-
-document.title = APP_NAME ;
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
