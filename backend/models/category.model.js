@@ -4,7 +4,7 @@ const categorySchema = new mongoose.Schema(
   {
     categoryName: {
       type: String,
-      required: [true, "Category name is required"],
+      required: true,
       trim: true,
     },
     description: {
@@ -14,16 +14,32 @@ const categorySchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Indexes
+
+// Fast lookup + uniqueness guarantee
+categorySchema.index(
+  { categoryName: 1 },
+  {
+    unique: true,
+    collation: { locale: "en", strength: 2 }, // case-insensitive
+  }
+);
+
+// Faster sorting for getAllCategories
+categorySchema.index({ createdAt: -1 });
 
 const Category = mongoose.model("Category", categorySchema);
 

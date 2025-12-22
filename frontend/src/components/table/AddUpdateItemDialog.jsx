@@ -35,7 +35,7 @@ const AddUpdateItemDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           {dialogDescription && (
@@ -64,4 +64,3 @@ const AddUpdateItemDialog = ({
 };
 
 export default AddUpdateItemDialog;
-

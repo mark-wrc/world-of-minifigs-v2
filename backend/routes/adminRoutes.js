@@ -17,6 +17,13 @@ import {
   updateCategory,
   deleteCategory,
 } from "../controllers/categoryController.js";
+import {
+  createSubCategory,
+  getAllSubCategories,
+  getSubCategoryById,
+  updateSubCategory,
+  deleteSubCategory,
+} from "../controllers/subCategoryController.js";
 
 const router = express.Router();
 
@@ -36,5 +43,12 @@ router.get("/categories", getAllCategories);
 router.get("/categories/:id", getCategoryById);
 router.put("/categories/:id", updateCategory);
 router.delete("/categories/:id", deleteCategory);
+
+// SubCategory CRUD routes
+router.post("/subCategories", createSubCategory);
+router.get("/subCategories", getAllSubCategories);
+router.get("/subCategories/:id", getSubCategoryById);
+router.put("/subCategories/:id", updateSubCategory);
+router.delete("/subCategories/:id", deleteSubCategory);
 
 export default router;

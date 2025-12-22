@@ -1,17 +1,34 @@
-import React, { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { adminNavigation } from "@/constant/adminNavigation";
 import { getInitials } from "@/hooks/useLogin";
 
 const AdminPanel = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Initialize isCollapsed from localStorage
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem("adminSidebarCollapsed");
+    return saved !== null ? JSON.parse(saved) : false;
+  });
   const [expandedItems, setExpandedItems] = useState([]);
   const { user } = useSelector((state) => state.auth);
   const userInitials = getInitials(user);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Save collapsed state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem("adminSidebarCollapsed", JSON.stringify(isCollapsed));
+  }, [isCollapsed]);
 
   // toggle the menu item children
   const toggleExpand = (itemId) => {
@@ -22,10 +39,34 @@ const AdminPanel = () => {
     );
   };
 
-  // navlink button style
-  const getNavLinkClassName = (isActive, isChild = false) =>
-    `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-      isChild ? "ml-5" : ""
+  // Auto-expand parent items based on current route
+  useEffect(() => {
+    const currentPath = location.pathname.split("/").pop(); // Get the last segment of the path
+
+    // Find parent items that should be expanded based on current route
+    const itemsToExpand = adminNavigation
+      .filter((item) => item.children)
+      .filter((item) =>
+        item.children.some((child) => child.path === currentPath)
+      )
+      .map((item) => item.id);
+
+    if (itemsToExpand.length > 0) {
+      setExpandedItems((prev) => {
+        const newExpanded = [...new Set([...prev, ...itemsToExpand])];
+        return newExpanded;
+      });
+    }
+  }, [location.pathname]); // navlink button style
+  const getNavLinkClassName = (
+    isActive,
+    isChild = false,
+    isCollapsedIcon = false
+  ) =>
+    `flex items-center ${
+      isCollapsedIcon ? "justify-center" : "gap-3"
+    } px-4 py-3 rounded-lg transition-colors ${isChild ? "ml-5" : ""} ${
+      isCollapsedIcon ? "cursor-pointer" : ""
     } ${
       isActive
         ? "bg-accent dark:text-secondary-foreground font-medium"
@@ -35,7 +76,43 @@ const AdminPanel = () => {
   const renderNavItem = (item) => {
     if (item.children) {
       const isExpanded = expandedItems.includes(item.id);
+      const currentPath = location.pathname.split("/").pop();
+      const isChildActive = item.children.some(
+        (child) => child.path === currentPath
+      );
 
+      // If sidebar is collapsed, show dropdown menu for categories and collections
+      if (isCollapsed) {
+        return (
+          <DropdownMenu key={item.id}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`w-full ${getNavLinkClassName(
+                  isChildActive,
+                  false,
+                  true
+                )}`}
+                title={item.label}
+              >
+                <item.icon size={20} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-56">
+              {item.children.map((child) => (
+                <DropdownMenuItem
+                  key={child.id}
+                  onClick={() => navigate(`/admin/${child.path}`)}
+                  className="cursor-pointer"
+                >
+                  {child.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      }
+
+      // If sidebar is expanded, show normal accordion behavior
       return (
         <div key={item.id}>
           {/* toggle the menu item with children */}
@@ -56,7 +133,7 @@ const AdminPanel = () => {
           </button>
           {/* render the children */}
           {!isCollapsed && isExpanded && (
-            <div className="space-y-1">
+            <div className="space-y-1 mt-1">
               {item.children.map((child) => (
                 <NavLink
                   key={child.id}

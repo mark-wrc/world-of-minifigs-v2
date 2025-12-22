@@ -70,7 +70,7 @@ function DialogHeader({ className, ...props }) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "flex flex-col gap-2 pt-2 sm:pt-0 pb-2",
+        "flex flex-col gap-2 pt-2 sm:pt-0 pb-5",
         className
       )}
       {...props}
@@ -105,7 +105,7 @@ function DialogDescription({ className, ...props }) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm", className)}
+      className={cn("text-sm text-popover-foreground/80", className)}
       {...props}
     />
   );

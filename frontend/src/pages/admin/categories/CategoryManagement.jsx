@@ -7,8 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import TableLayout from "@/components/table/TableLayout";
 import { ActionsColumn, TableCell } from "@/components/table/BaseColumn";
-import DeleteDialog from "@/components/table/DeleteDialog";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
+import DeleteDialog from "@/components/table/DeleteDialog";
 import {
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
@@ -84,12 +84,9 @@ const CategoryManagement = () => {
         }).unwrap();
 
         if (response.success) {
-          toast.success(
-            response.message || "Category updated successfully",
-            {
-              description: `The category "${response.category.categoryName}" has been updated.`,
-            }
-          );
+          toast.success(response.message || "Category updated successfully", {
+            description: `The category "${response.category.categoryName}" has been updated.`,
+          });
 
           // Reset form and close dialog
           setFormData({
@@ -105,12 +102,9 @@ const CategoryManagement = () => {
         const response = await createCategory(categoryData).unwrap();
 
         if (response.success) {
-          toast.success(
-            response.message || "Category created successfully",
-            {
-              description: `The category "${response.category.categoryName}" has been added.`,
-            }
-          );
+          toast.success(response.message || "Category created successfully", {
+            description: `The category "${response.category.categoryName}" has been added.`,
+          });
 
           // Reset form and close dialog
           setFormData({
@@ -180,9 +174,9 @@ const CategoryManagement = () => {
 
     try {
       const categoryId = selectedCategory._id || selectedCategory.id;
-      await deleteCategory(categoryId).unwrap();
+      const response = await deleteCategory(categoryId).unwrap();
 
-      toast.success("Category deleted successfully", {
+      toast.success(response.message || "Category deleted successfully", {
         description: `The category "${selectedCategory.categoryName}" has been removed.`,
       });
 

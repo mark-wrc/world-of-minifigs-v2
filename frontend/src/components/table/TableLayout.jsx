@@ -44,7 +44,7 @@ const TableLayout = ({
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pt-5">
       {/* Table Controls - Top */}
       <div className="flex items-center justify-between">
         <ShowEntries
@@ -60,22 +60,28 @@ const TableLayout = ({
       </div>
 
       {/* Table */}
-
-      <div className=" border rounded-md overflow-x-auto">
+      <div className="border rounded-md overflow-x-auto">
         <table className="w-full">
           <thead className="bg-input dark:bg-card/30">
-            {columns.map((column) => (
-              <TableHeader key={column.key}>{column.label}</TableHeader>
-            ))}
+            <tr>
+              {columns.map((column) => (
+                <TableHeader key={column.key}>
+                  {column.label}
+                </TableHeader>
+              ))}
+            </tr>
           </thead>
+
           <tbody>
             {isLoading ? (
-              <td
-                colSpan={columns.length}
-                className="p-5 text-center text-popover-foreground/80"
-              >
-                {loadingMessage}
-              </td>
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="p-5 text-center text-popover-foreground/80"
+                >
+                  {loadingMessage}
+                </td>
+              </tr>
             ) : paginatedData.length > 0 ? (
               paginatedData.map((item) => (
                 <tr key={item._id || item.id} className="border-t text-sm">
@@ -83,12 +89,14 @@ const TableLayout = ({
                 </tr>
               ))
             ) : (
-              <td
-                colSpan={columns.length}
-                className="p-5 text-center text-popover-foreground/80"
-              >
-                {emptyMessage}
-              </td>
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="p-5 text-center text-popover-foreground/80"
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

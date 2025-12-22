@@ -6,7 +6,7 @@ export const adminApi = createApi({
     baseUrl: "/api/v1/admin",
     credentials: "include",
   }),
-  tagTypes: ["Color", "Category"],
+  tagTypes: ["Color", "Category", "SubCategory"],
   endpoints: (builder) => ({
     // ==================== Color Management ====================
     // Get all colors
@@ -106,6 +106,57 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["Category"],
     }),
+
+    // ==================== SubCategory Management ====================
+    // Get all subCategories
+    getSubCategories: builder.query({
+      query: () => ({
+        url: "/subCategories",
+        method: "GET",
+      }),
+      providesTags: ["SubCategory"],
+    }),
+
+    // Get single subCategory by ID
+    getSubCategoryById: builder.query({
+      query: (id) => ({
+        url: `/subCategories/${id}`,
+        method: "GET",
+      }),
+      providesTags: (_, __, id) => [{ type: "SubCategory", id }],
+    }),
+
+    // Create subCategory (admin only)
+    createSubCategory: builder.mutation({
+      query: (subCategoryData) => ({
+        url: "/subCategories",
+        method: "POST",
+        body: subCategoryData,
+      }),
+      invalidatesTags: ["SubCategory"],
+    }),
+
+    // Update subCategory (admin only)
+    updateSubCategory: builder.mutation({
+      query: ({ id, ...subCategoryData }) => ({
+        url: `/subCategories/${id}`,
+        method: "PUT",
+        body: subCategoryData,
+      }),
+      invalidatesTags: (_, __, { id }) => [
+        { type: "SubCategory", id },
+        "SubCategory",
+      ],
+    }),
+
+    // Delete subCategory (admin only)
+    deleteSubCategory: builder.mutation({
+      query: (id) => ({
+        url: `/subCategories/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SubCategory"],
+    }),
   }),
 });
 
@@ -120,4 +171,9 @@ export const {
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
+  useGetSubCategoriesQuery,
+  useGetSubCategoryByIdQuery,
+  useCreateSubCategoryMutation,
+  useUpdateSubCategoryMutation,
+  useDeleteSubCategoryMutation,
 } = adminApi;

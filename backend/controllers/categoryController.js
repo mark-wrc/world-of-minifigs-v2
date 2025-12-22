@@ -1,4 +1,5 @@
 import Category from "../models/category.model.js";
+import SubCategory from "../models/subCategory.model.js";
 
 //------------------------------------------------ Create Category ------------------------------------------
 export const createCategory = async (req, res) => {
@@ -28,7 +29,9 @@ export const createCategory = async (req, res) => {
     // Check if category with same name already exists
     const existingCategory = await Category.findOne({
       categoryName: categoryNameStr,
-    });
+    })
+      .collation({ locale: "en", strength: 2 })
+      .lean();
 
     if (existingCategory) {
       return res.status(409).json({
@@ -75,7 +78,8 @@ export const getAllCategories = async (req, res) => {
       .select("-__v")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
@@ -100,7 +104,8 @@ export const getCategoryById = async (req, res) => {
     const category = await Category.findById(id)
       .select("-__v")
       .populate("createdBy", "firstName lastName username")
-      .populate("updatedBy", "firstName lastName username");
+      .populate("updatedBy", "firstName lastName username")
+      .lean();
 
     if (!category) {
       return res.status(404).json({
@@ -156,7 +161,9 @@ export const updateCategory = async (req, res) => {
       const existingCategory = await Category.findOne({
         categoryName: categoryNameStr,
         _id: { $ne: id },
-      });
+      })
+        .collation({ locale: "en", strength: 2 })
+        .lean();
 
       if (existingCategory) {
         return res.status(409).json({
@@ -204,13 +211,28 @@ export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const category = await Category.findById(id);
+    const category = await Category.findById(id).lean();
 
     if (!category) {
       return res.status(404).json({
         success: false,
         message: "Category not found",
         description: "The requested category does not exist.",
+      });
+    }
+
+    // Check if category has any related subcategories
+    const relatedSubCategories = await SubCategory.countDocuments({
+      category: id,
+    });
+
+    if (relatedSubCategories > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Cannot delete category",
+        description: `This category has ${relatedSubCategories} related subcategor${
+          relatedSubCategories === 1 ? "y" : "ies"
+        }. Please delete or reassign them first.`,
       });
     }
 
