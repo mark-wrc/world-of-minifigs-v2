@@ -31,6 +31,7 @@ import {
   updateSkillLevel,
   deleteSkillLevel,
 } from "../controllers/skillLevelController.js";
+import { getAllUsers } from "../controllers/authController.js";
 
 const router = express.Router();
 
@@ -64,5 +65,8 @@ router.get("/skillLevels", getAllSkillLevels);
 router.get("/skillLevels/:id", getSkillLevelById);
 router.put("/skillLevels/:id", updateSkillLevel);
 router.delete("/skillLevels/:id", deleteSkillLevel);
+
+// User Management GET routes
+router.get("/users", getAllUsers);
 
 export default router;

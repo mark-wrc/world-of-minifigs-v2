@@ -6,7 +6,7 @@ export const adminApi = createApi({
     baseUrl: "/api/v1/admin",
     credentials: "include",
   }),
-  tagTypes: ["Color", "Category", "SubCategory", "SkillLevel"],
+  tagTypes: ["Color", "Category", "SubCategory", "SkillLevel", "User"],
   endpoints: (builder) => ({
     // ==================== Color Management ====================
     // Get all colors
@@ -208,6 +208,16 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["SkillLevel"],
     }),
+
+    // ==================== User Management ====================
+    // Get all users
+    getUsers: builder.query({
+      query: () => ({
+        url: "/users",
+        method: "GET",
+      }),
+      providesTags: ["User"],
+    }),
   }),
 });
 
@@ -232,4 +242,5 @@ export const {
   useCreateSkillLevelMutation,
   useUpdateSkillLevelMutation,
   useDeleteSkillLevelMutation,
+  useGetUsersQuery,
 } = adminApi;
