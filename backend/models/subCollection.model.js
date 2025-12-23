@@ -11,18 +11,16 @@ const subCollectionSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    images: [
-      {
-        publicId: {
-          type: String,
-          required: true,
-        },
-        url: {
-          type: String,
-          required: true,
-        },
+    image: {
+      publicId: {
+        type: String,
+        required: true,
       },
-    ],
+      url: {
+        type: String,
+        required: true,
+      },
+    },
 
     collection: {
       type: mongoose.Schema.Types.ObjectId,
@@ -64,4 +62,3 @@ subCollectionSchema.index({ createdAt: -1 });
 const SubCollection = mongoose.model("SubCollection", subCollectionSchema);
 
 export default SubCollection;
-

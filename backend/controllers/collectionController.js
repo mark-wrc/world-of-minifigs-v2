@@ -1,5 +1,10 @@
 import Collection from "../models/collection.model.js";
-import { uploadImage, deleteImage, validateImage } from "../utils/cloudinary.js";
+import SubCollection from "../models/subCollection.model.js";
+import {
+  uploadImage,
+  deleteImage,
+  validateImage,
+} from "../utils/cloudinary.js";
 
 const FEATURED_COLLECTION_LIMIT = 2;
 
@@ -335,6 +340,21 @@ export const deleteCollection = async (req, res) => {
         success: false,
         message: "Collection not found",
         description: "The requested collection does not exist.",
+      });
+    }
+
+    // Check if there are any sub-collections related to this collection
+    const subCollectionCount = await SubCollection.countDocuments({
+      collection: id,
+    });
+
+    if (subCollectionCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Cannot delete collection",
+        description: `This collection has ${subCollectionCount} related sub-collection${
+          subCollectionCount > 1 ? "s" : ""
+        }. Please delete or reassign them first.`,
       });
     }
 

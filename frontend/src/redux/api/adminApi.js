@@ -6,7 +6,7 @@ export const adminApi = createApi({
     baseUrl: "/api/v1/admin",
     credentials: "include",
   }),
-  tagTypes: ["Color", "Category", "SubCategory", "SkillLevel", "Collection", "User"],
+  tagTypes: ["Color", "Category", "SubCategory", "SkillLevel", "Collection", "SubCollection", "User"],
   endpoints: (builder) => ({
     // ==================== Color Management ====================
     // Get all colors
@@ -260,6 +260,57 @@ export const adminApi = createApi({
       invalidatesTags: ["Collection"],
     }),
 
+    // ==================== SubCollection Management ====================
+    // Get all subCollections
+    getSubCollections: builder.query({
+      query: () => ({
+        url: "/subCollections",
+        method: "GET",
+      }),
+      providesTags: ["SubCollection"],
+    }),
+
+    // Get single subCollection by ID
+    getSubCollectionById: builder.query({
+      query: (id) => ({
+        url: `/subCollections/${id}`,
+        method: "GET",
+      }),
+      providesTags: (_, __, id) => [{ type: "SubCollection", id }],
+    }),
+
+    // Create subCollection (admin only)
+    createSubCollection: builder.mutation({
+      query: (subCollectionData) => ({
+        url: "/subCollections",
+        method: "POST",
+        body: subCollectionData,
+      }),
+      invalidatesTags: ["SubCollection"],
+    }),
+
+    // Update subCollection (admin only)
+    updateSubCollection: builder.mutation({
+      query: ({ id, ...subCollectionData }) => ({
+        url: `/subCollections/${id}`,
+        method: "PUT",
+        body: subCollectionData,
+      }),
+      invalidatesTags: (_, __, { id }) => [
+        { type: "SubCollection", id },
+        "SubCollection",
+      ],
+    }),
+
+    // Delete subCollection (admin only)
+    deleteSubCollection: builder.mutation({
+      query: (id) => ({
+        url: `/subCollections/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["SubCollection"],
+    }),
+
     // ==================== User Management ====================
     // Get all users
     getUsers: builder.query({
@@ -298,5 +349,10 @@ export const {
   useCreateCollectionMutation,
   useUpdateCollectionMutation,
   useDeleteCollectionMutation,
+  useGetSubCollectionsQuery,
+  useGetSubCollectionByIdQuery,
+  useCreateSubCollectionMutation,
+  useUpdateSubCollectionMutation,
+  useDeleteSubCollectionMutation,
   useGetUsersQuery,
 } = adminApi;

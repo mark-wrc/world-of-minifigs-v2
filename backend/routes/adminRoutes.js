@@ -38,6 +38,13 @@ import {
   updateCollection,
   deleteCollection,
 } from "../controllers/collectionController.js";
+import {
+  createSubCollection,
+  getAllSubCollections,
+  getSubCollectionById,
+  updateSubCollection,
+  deleteSubCollection,
+} from "../controllers/subCollectionController.js";
 import { getAllUsers } from "../controllers/authController.js";
 
 const router = express.Router();
@@ -79,6 +86,13 @@ router.get("/collections", getAllCollections);
 router.get("/collections/:id", getCollectionById);
 router.put("/collections/:id", updateCollection);
 router.delete("/collections/:id", deleteCollection);
+
+// Sub-collection CRUD routes
+router.post("/subCollections", createSubCollection);
+router.get("/subCollections", getAllSubCollections);
+router.get("/subCollections/:id", getSubCollectionById);
+router.put("/subCollections/:id", updateSubCollection);
+router.delete("/subCollections/:id", deleteSubCollection);
 
 // User Management GET routes
 router.get("/users", getAllUsers);
