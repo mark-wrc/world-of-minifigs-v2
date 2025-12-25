@@ -285,7 +285,7 @@ const SubCollectionManagement = () => {
       subCollectionName: subCollection.subCollectionName || "",
       description: subCollection.description || "",
       collection:
-        subCollection.collection?._id || subCollection.collection || "",
+        subCollection.collectionId?._id || subCollection.collectionId || "",
       image: null, // Don't preload existing image
     });
 
@@ -351,7 +351,7 @@ const SubCollectionManagement = () => {
         searchFields={[
           "subCollectionName",
           "description",
-          "collection.collectionName",
+          "collectionId.collectionName",
         ]}
         renderRow={(subCollection) => (
           <>
@@ -359,7 +359,7 @@ const SubCollectionManagement = () => {
               {subCollection.subCollectionName}
             </TableCell>
             <TableCell maxWidth="200px">
-              {subCollection.collection?.collectionName || "-"}
+              {subCollection.collectionId?.collectionName || "-"}
             </TableCell>
             <TableCell maxWidth="300px">
               {subCollection.description || "-"}

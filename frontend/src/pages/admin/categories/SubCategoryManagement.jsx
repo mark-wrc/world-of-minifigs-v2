@@ -206,7 +206,7 @@ const SubCategoryManagement = () => {
     setFormData({
       subCategoryName: subCategory.subCategoryName || "",
       description: subCategory.description || "",
-      category: subCategory.category?._id || subCategory.category || "",
+      category: subCategory.categoryId?._id || subCategory.categoryId || "",
     });
     setDialogOpen(true);
   };
@@ -266,7 +266,7 @@ const SubCategoryManagement = () => {
         searchFields={[
           "subCategoryName",
           "description",
-          "category.categoryName",
+          "categoryId.categoryName",
         ]}
         renderRow={(subCategory) => (
           <>
@@ -274,7 +274,7 @@ const SubCategoryManagement = () => {
               {subCategory.subCategoryName}
             </TableCell>
             <TableCell maxWidth="200px">
-              {subCategory.category?.categoryName || "-"}
+              {subCategory.categoryId?.categoryName || "-"}
             </TableCell>
             <TableCell maxWidth="300px">
               {subCategory.description || "-"}

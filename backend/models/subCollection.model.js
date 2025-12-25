@@ -22,7 +22,7 @@ const subCollectionSchema = new mongoose.Schema(
       },
     },
 
-    collection: {
+    collectionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Collection",
       required: true,
@@ -32,12 +32,10 @@ const subCollectionSchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
     },
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
     },
   },
   {
@@ -49,7 +47,7 @@ const subCollectionSchema = new mongoose.Schema(
 
 // Fast lookup + uniqueness guarantee
 subCollectionSchema.index(
-  { collection: 1, subCollectionName: 1 },
+  { collectionId: 1, subCollectionName: 1 },
   {
     unique: true,
     collation: { locale: "en", strength: 2 }, // case-insensitive

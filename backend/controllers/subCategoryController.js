@@ -47,7 +47,7 @@ export const createSubCategory = async (req, res) => {
     // Check if subcategory with same name already exists in this category
     const existingSubCategory = await SubCategory.findOne({
       subCategoryName: subCategoryNameStr,
-      category: category,
+      categoryId: category,
     })
       .collation({ locale: "en", strength: 2 })
       .lean();
@@ -68,12 +68,12 @@ export const createSubCategory = async (req, res) => {
     const subCategory = await SubCategory.create({
       subCategoryName: subCategoryNameStr,
       description: descriptionStr,
-      category: category,
+      categoryId: category,
       createdBy: req.user._id,
     });
 
     // Populate category details
-    await subCategory.populate("category", "categoryName");
+    await subCategory.populate("categoryId", "categoryName");
 
     return res.status(201).json({
       success: true,
@@ -82,7 +82,7 @@ export const createSubCategory = async (req, res) => {
         id: subCategory._id,
         subCategoryName: subCategory.subCategoryName,
         description: subCategory.description,
-        category: subCategory.category,
+        category: subCategory.categoryId,
         createdAt: subCategory.createdAt,
       },
     });
@@ -101,7 +101,7 @@ export const getAllSubCategories = async (req, res) => {
   try {
     const subCategories = await SubCategory.find()
       .select("-__v")
-      .populate("category", "categoryName")
+      .populate("categoryId", "categoryName")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
       .sort({ createdAt: -1 })
@@ -129,7 +129,7 @@ export const getSubCategoryById = async (req, res) => {
 
     const subCategory = await SubCategory.findById(id)
       .select("-__v")
-      .populate("category", "categoryName")
+      .populate("categoryId", "categoryName")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
       .lean();
@@ -185,10 +185,10 @@ export const updateSubCategory = async (req, res) => {
       }
 
       // Check if another sub-category with same name exists in the same category
-      const categoryToCheck = category || subCategory.category;
+      const categoryToCheck = category || subCategory.categoryId;
       const existingSubCategory = await SubCategory.findOne({
         subCategoryName: subCategoryNameStr,
-        category: categoryToCheck,
+        categoryId: categoryToCheck,
         _id: { $ne: id },
       })
         .collation({ locale: "en", strength: 2 })
@@ -217,7 +217,7 @@ export const updateSubCategory = async (req, res) => {
           description: "The selected category does not exist.",
         });
       }
-      subCategory.category = category;
+      subCategory.categoryId = category;
     }
 
     // Update description if provided
@@ -229,7 +229,7 @@ export const updateSubCategory = async (req, res) => {
     subCategory.updatedBy = req.user._id;
 
     await subCategory.save();
-    await subCategory.populate("category", "categoryName");
+    await subCategory.populate("categoryId", "categoryName");
 
     return res.status(200).json({
       success: true,
@@ -238,7 +238,7 @@ export const updateSubCategory = async (req, res) => {
         id: subCategory._id,
         subCategoryName: subCategory.subCategoryName,
         description: subCategory.description,
-        category: subCategory.category,
+        category: subCategory.categoryId,
         updatedAt: subCategory.updatedAt,
       },
     });

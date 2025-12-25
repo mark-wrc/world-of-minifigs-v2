@@ -13,7 +13,7 @@ const subCategorySchema = new mongoose.Schema(
       trim: true,
     },
 
-    category: {
+    categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Category",
       required: true,
@@ -23,13 +23,10 @@ const subCategorySchema = new mongoose.Schema(
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
     },
-
     updatedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      index: true,
     },
   },
   {
@@ -41,7 +38,7 @@ const subCategorySchema = new mongoose.Schema(
 
 // Fast lookup + uniqueness guarantee
 subCategorySchema.index(
-  { category: 1, subCategoryName: 1 },
+  { categoryId: 1, subCategoryName: 1 },
   {
     unique: true,
     collation: { locale: "en", strength: 2 }, // case-insensitive

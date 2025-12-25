@@ -70,7 +70,7 @@ export const createSubCollection = async (req, res) => {
     // Check if subcollection with same name already exists in this collection
     const existingSubCollection = await SubCollection.findOne({
       subCollectionName: subCollectionNameStr,
-      collection: collection,
+      collectionId: collection,
     })
       .collation({ locale: "en", strength: 2 })
       .lean();
@@ -107,7 +107,7 @@ export const createSubCollection = async (req, res) => {
     const subCollection = await SubCollection.create({
       subCollectionName: subCollectionNameStr,
       description: descriptionStr,
-      collection: collection,
+      collectionId: collection,
       image: {
         publicId: uploadedImage.public_id,
         url: uploadedImage.url,
@@ -117,7 +117,7 @@ export const createSubCollection = async (req, res) => {
     });
 
     // Populate collection details
-    await subCollection.populate("collection", "collectionName");
+    await subCollection.populate("collectionId", "collectionName");
 
     return res.status(201).json({
       success: true,
@@ -126,7 +126,7 @@ export const createSubCollection = async (req, res) => {
         id: subCollection._id,
         subCollectionName: subCollection.subCollectionName,
         description: subCollection.description,
-        collection: subCollection.collection,
+        collection: subCollection.collectionId,
         image: subCollection.image,
         createdAt: subCollection.createdAt,
       },
@@ -146,7 +146,7 @@ export const getAllSubCollections = async (req, res) => {
   try {
     const subCollections = await SubCollection.find()
       .select("-__v")
-      .populate("collection", "collectionName")
+      .populate("collectionId", "collectionName")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
       .sort({ createdAt: -1 })
@@ -174,7 +174,7 @@ export const getSubCollectionById = async (req, res) => {
 
     const subCollection = await SubCollection.findById(id)
       .select("-__v")
-      .populate("collection", "collectionName")
+      .populate("collectionId", "collectionName")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
       .lean();
@@ -231,12 +231,12 @@ export const updateSubCollection = async (req, res) => {
 
       // Determine which collection to check against
       const collectionToCheck =
-        collection !== undefined ? collection : subCollection.collection;
+        collection !== undefined ? collection : subCollection.collectionId;
 
       // Check if another subcollection with same name exists in the same collection
       const existingSubCollection = await SubCollection.findOne({
         subCollectionName: subCollectionNameStr,
-        collection: collectionToCheck,
+        collectionId: collectionToCheck,
         _id: { $ne: id },
       })
         .collation({ locale: "en", strength: 2 })
@@ -271,7 +271,7 @@ export const updateSubCollection = async (req, res) => {
         });
       }
 
-      subCollection.collection = collection;
+      subCollection.collectionId = collection;
     }
 
     // Update image if provided
@@ -317,7 +317,7 @@ export const updateSubCollection = async (req, res) => {
     await subCollection.save();
 
     // Populate collection details
-    await subCollection.populate("collection", "collectionName");
+    await subCollection.populate("collectionId", "collectionName");
 
     return res.status(200).json({
       success: true,
@@ -326,7 +326,7 @@ export const updateSubCollection = async (req, res) => {
         id: subCollection._id,
         subCollectionName: subCollection.subCollectionName,
         description: subCollection.description,
-        collection: subCollection.collection,
+        collection: subCollection.collectionId,
         image: subCollection.image,
         updatedAt: subCollection.updatedAt,
       },

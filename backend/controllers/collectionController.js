@@ -345,7 +345,7 @@ export const deleteCollection = async (req, res) => {
 
     // Check if there are any sub-collections related to this collection
     const subCollectionCount = await SubCollection.countDocuments({
-      collection: id,
+      collectionId: id,
     });
 
     if (subCollectionCount > 0) {

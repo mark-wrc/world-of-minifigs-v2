@@ -223,7 +223,7 @@ export const deleteCategory = async (req, res) => {
 
     // Check if category has any related subcategories
     const relatedSubCategories = await SubCategory.countDocuments({
-      category: id,
+      categoryId: id,
     });
 
     if (relatedSubCategories > 0) {
