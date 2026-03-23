@@ -135,7 +135,11 @@ const CheckoutSuccess = () => {
                       <CommonImage
                         src={item.imageUrl}
                         alt={item.productName}
-                        className={item.isSubItem ? "size-12" : "size-20"}
+                        className={
+                          item.isSubItem
+                            ? "w-16"
+                            : "w-28"
+                        }
                       />
                     )}
                     <div className="flex-1 flex flex-col justify-between self-stretch">

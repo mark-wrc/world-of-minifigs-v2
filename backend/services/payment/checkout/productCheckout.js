@@ -28,7 +28,15 @@ import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 export async function buildOrderFromCart(cart) {
   const orderItems = [];
   for (const item of cart.items) {
-    const product = item.productId;
+    let product = item.productId;
+    if (!product) continue;
+
+    // If product is just an ID (not populated), fetch it
+    if (!product.productName) {
+      product = await Product.findById(product)
+        .populate(POPULATE_COLORS_NAMES_ONLY)
+        .lean();
+    }
     if (!product) continue;
 
     const { price, discount, discountPrice, productName, imageUrl } =
@@ -292,11 +300,18 @@ export async function buildCartLineItems(userId) {
     };
   }
 
-  // Save draft for cart checkout
+  // Save draft for cart checkout (only active items)
   const draftId = await saveOrderDraft(userId, ORDER_TYPES.PRODUCT, {
     source: "cart",
     payload: {
-      items: cart.items, // Snapshot of current cart
+      items: cart.items
+        .filter((item) => item.productId?.isActive)
+        .map((item) => ({
+          productId: item.productId._id,
+          variantIndex: item.variantIndex,
+          quantity: Number(item.quantity) || 1,
+          productType: item.productType || item.productId?.productType,
+        })),
     },
   });
 
