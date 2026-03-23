@@ -102,7 +102,7 @@ export async function createOrderFromStripeSession(session) {
   }
 
   const userId = session.client_reference_id;
-  const { source, payload } = draft;
+  const { source, payload } = draft.payload || {};
   const isDirect = source === "direct";
 
   let orderItems = [];
