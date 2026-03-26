@@ -95,6 +95,15 @@ export const authApi = createApi({
       providesTags: ["User"],
     }),
 
+    // ==================== Change Password (Authenticated) ====================
+    changePassword: builder.mutation({
+      query: (data) => ({
+        url: "/change-password",
+        method: "PUT",
+        body: data,
+      }),
+    }),
+
     // ==================== Forgot/Reset Password ====================
     forgotPassword: builder.mutation({
       query: (data) => ({
@@ -276,6 +285,7 @@ export const {
   useLogoutMutation,
   useVerifyEmailMutation,
   useResendVerificationMutation,
+  useChangePasswordMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
 

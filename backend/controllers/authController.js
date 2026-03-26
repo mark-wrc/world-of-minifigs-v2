@@ -783,7 +783,7 @@ export const resetPassword = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(passwordStr, 10);
+    const hashedPassword = await bcrypt.hash(String(password), 10);
 
     user.password = hashedPassword;
     user.resetPasswordToken = undefined;
@@ -801,6 +801,70 @@ export const resetPassword = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Password reset failed",
+      description: "An unexpected error occurred. Please try again.",
+    });
+  }
+};
+
+//------------------------------------------------ Change Password (Authenticated) ------------------------------------------
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+        description: "Please provide both your current and new password.",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+        description: "Your account could not be found.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect current password",
+        description: "The current password you entered is incorrect.",
+      });
+    }
+
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ success: false, ...passwordError });
+    }
+
+    const isSame = await bcrypt.compare(String(newPassword), user.password);
+    if (isSame) {
+      return res.status(400).json({
+        success: false,
+        message: "Password unchanged",
+        description: "Your new password must be different from your current password.",
+      });
+    }
+
+    user.password = await bcrypt.hash(String(newPassword), 10);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated",
+      description: "Your password has been changed successfully.",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change password",
       description: "An unexpected error occurred. Please try again.",
     });
   }

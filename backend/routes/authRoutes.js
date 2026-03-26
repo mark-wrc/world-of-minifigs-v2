@@ -8,6 +8,7 @@ import {
   resendVerification,
   forgotPassword,
   resetPassword,
+  changePassword,
   getCurrentUser,
 } from "../controllers/authController.js";
 import { sendContactMessage } from "../controllers/contactFormController.js";
@@ -51,6 +52,7 @@ router.post("/contact", sendContactMessage);
 
 // Private Account/User routes (Authenticated)
 router.get("/me", authenticate, getCurrentUser);
+router.put("/change-password", authenticate, changePassword);
 
 // Cart routes
 router
