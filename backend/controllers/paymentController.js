@@ -107,6 +107,24 @@ export const confirmOrder = async (req, res) => {
     });
 
     if (existingOrder) {
+      // If the webhook created the order before Stripe finalized the invoice,
+      // patch the missing invoice fields now that the success page has loaded.
+      if (!existingOrder.payment.stripeInvoiceNumber && !existingOrder.payment.invoiceUrl) {
+        const stripe = getStripe();
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {
+          expand: ["invoice"],
+        });
+        const invoiceNumber = session.invoice?.number;
+        const invoiceUrl = session.invoice?.hosted_invoice_url;
+        if (invoiceNumber || invoiceUrl) {
+          await Order.findByIdAndUpdate(existingOrder._id, {
+            "payment.stripeInvoiceNumber": invoiceNumber,
+            "payment.invoiceUrl": invoiceUrl || undefined,
+          });
+          existingOrder.payment.stripeInvoiceNumber = invoiceNumber;
+          existingOrder.payment.invoiceUrl = invoiceUrl;
+        }
+      }
       return res.status(200).json({ success: true, order: existingOrder });
     }
 

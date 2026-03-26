@@ -134,7 +134,7 @@ const Dealer = () => {
 
       <DealerBundle bundles={bundles} onSelect={setSelectedBundleId} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-5 px-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-5 p-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
         <div className="space-y-10 overflow-visible">
           <DealerAddon
             addons={addons}

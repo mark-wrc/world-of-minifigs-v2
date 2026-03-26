@@ -43,7 +43,7 @@ const PreviewGrid = ({
       ));
 
   const grid = (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
       {itemNodes}
       {miscQuantity > 0 && <MiscellaneousPreview miscQuantity={miscQuantity} />}
     </div>
@@ -137,10 +137,10 @@ const DealerTorsoBag = ({
                 </div>
                 <div className="space-y-2">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
-                    Bonus Parts
+                    Mystery Parts
                   </span>
                   <p className="font-bold text-sm">
-                    {miscQuantity} Miscellaneous
+                    {miscQuantity} torsos
                   </p>
                 </div>
                 <div className="space-y-2">

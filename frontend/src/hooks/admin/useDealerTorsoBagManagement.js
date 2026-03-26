@@ -16,19 +16,9 @@ import {
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
-const getMiscQuantity = (target, base = 100) => {
-  // 1. Bulk bundles (500 and above) - specifically 10 per 500
-  if (target >= 500) return Math.floor(target / 500) * 10;
+const getMiscQuantity = () => 10;
 
-  // 2. Regular small bundles (e.g., 100-499) - scale linearly by base (e.g. 10 per 100)
-  if (target >= base) return Math.floor((target / base) * 10);
-
-  // 3. Mini bundles (under 100) - 10%
-  return Math.ceil(target * 0.1);
-};
-
-const getAdminTarget = (target, base = 100) =>
-  target - getMiscQuantity(target, base);
+const getAdminTarget = (target) => target - getMiscQuantity();
 
 const initialFormData = {
   bagName: "",
@@ -142,8 +132,8 @@ const useDealerTorsoBagManagement = () => {
   }, [bundles]);
 
   const targetSize = Number(crud.formData.targetBundleSize) || 100;
-  const miscQuantity = getMiscQuantity(targetSize, baseBundleSize);
-  const adminTarget = getAdminTarget(targetSize, baseBundleSize);
+  const miscQuantity = getMiscQuantity();
+  const adminTarget = getAdminTarget(targetSize);
 
   const currentTotal = useMemo(() => {
     return crud.formData.items.reduce(

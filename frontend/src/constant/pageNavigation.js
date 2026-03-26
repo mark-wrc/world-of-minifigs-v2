@@ -62,12 +62,12 @@ const NAV_LINKS = {
     path: "/purchase",
     icon: ShoppingCart,
   },
-  profile: {
-    id: "profile",
-    label: "Profile",
-    path: "/profile",
-    icon: UserRound,
-  },
+  // profile: {
+  //   id: "profile",
+  //   label: "Profile",
+  //   path: "/profile",
+  //   icon: UserRound,
+  // },
   settings: {
     id: "settings",
     label: "Settings",

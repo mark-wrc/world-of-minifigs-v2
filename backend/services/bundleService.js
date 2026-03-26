@@ -12,23 +12,10 @@ const ADDON_FOLDER = "world-of-minifigs-v2/dealers/addons";
 
 // ------------------------ Quantity Helpers ------------------------------------
 
-export const getMiscQuantity = (targetBundleSize, baseSize = 100) => {
-  // 1. Bulk bundles (500 and above) - specifically 10 per 500
-  if (targetBundleSize >= 500) {
-    return Math.floor(targetBundleSize / 500) * 10;
-  }
+export const getMiscQuantity = () => 10;
 
-  // 2. Regular small bundles (e.g., 100-499) - scale linearly by base (e.g. 10 per 100)
-  if (targetBundleSize >= baseSize) {
-    return Math.floor((targetBundleSize / baseSize) * 10);
-  }
-
-  // 3. Mini bundles (under 100) - 10%
-  return Math.ceil(targetBundleSize * 0.1);
-};
-
-export const getAdminTarget = (targetBundleSize, baseSize = 100) =>
-  targetBundleSize - getMiscQuantity(targetBundleSize, baseSize);
+export const getAdminTarget = (targetBundleSize) =>
+  targetBundleSize - getMiscQuantity();
 
 export const getBaseBundleSize = async (bundleType = "dealer") => {
   const lowestBundle = await Bundle.findOne({
@@ -41,8 +28,7 @@ export const getBaseBundleSize = async (bundleType = "dealer") => {
 // ------------------------ Torso Item Validation ------------------------------------
 
 export const validateTorsoItems = async (items, targetBundleSize) => {
-  const baseSize = await getBaseBundleSize();
-  const adminTarget = getAdminTarget(targetBundleSize, baseSize);
+  const adminTarget = getAdminTarget(targetBundleSize);
   const totalQty = items.reduce(
     (sum, item) => sum + (Number(item.quantity) || 0),
     0,
@@ -52,7 +38,7 @@ export const validateTorsoItems = async (items, targetBundleSize) => {
     return {
       isValid: false,
       message: "Invalid total quantity",
-      description: `Total designs quantity must equal ${adminTarget} (${targetBundleSize} minus ${getMiscQuantity(targetBundleSize, baseSize)} miscellaneous). Current total: ${totalQty}.`,
+      description: `Total designs quantity must equal ${adminTarget} (${targetBundleSize} minus 10 miscellaneous). Current total: ${totalQty}.`,
     };
   }
 

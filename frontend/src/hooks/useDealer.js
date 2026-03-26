@@ -113,15 +113,9 @@ export const useDealer = () => {
 
       const multiplier = bundleQty / bagSize;
 
-      // 2. Misc Ratio Check (Ensure bag designs + misc match bundle totals)
-      // Standard rule: 100-499: 10 misc per 100. 500+: 10 misc per 500.
+      // 2. Misc Check — all bundles have exactly 10 miscellaneous items
       const bundleMisc = selectedBundle.miscQuantity || 0;
-      const getSingleBagMisc = (size) => {
-        if (size >= 500) return 10 * Math.floor(size / 500);
-        return 10 * Math.floor(size / 100);
-      };
-
-      if (bundleMisc !== getSingleBagMisc(bagSize) * multiplier) {
+      if (bundleMisc !== 10 * multiplier) {
         return null;
       }
 
