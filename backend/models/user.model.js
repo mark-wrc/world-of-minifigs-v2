@@ -38,7 +38,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      match: /^[0-9]{11}$/,
     },
     addresses: {
       type: [mongoose.Schema.Types.ObjectId],

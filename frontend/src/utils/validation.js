@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-export const PHONE_REGEX = /^[0-9]{11}$/;
+export const PHONE_REGEX = /^\(\d{3}\) \d{3}-\d{4}$/;
 
 // UI-level required field check with toast feedback
 export const validateRequired = (value, label, description) => {
@@ -50,10 +50,19 @@ export const validateRequiredInMode = (
 // Validate email format
 export const validateEmail = (email) => EMAIL_REGEX.test(email.trim());
 
-// Strip non-digit characters from phone input
-export const sanitizePhone = (value) => value.replace(/\D/g, "");
+// Format phone input as (XXX) XXX-XXXX as the user types
+export const sanitizePhone = (value) => {
+  let digits = value.replace(/\D/g, "");
+  // Strip leading +1 or 1 country code
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6)
+    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+};
 
-// Validate phone is exactly 11 digits
+// Validate US phone number — must be 10 digits in (XXX) XXX-XXXX format
 export const validatePhone = (phone) => PHONE_REGEX.test(phone.trim());
 
 // Get password requirement check results

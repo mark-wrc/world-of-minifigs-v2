@@ -5,6 +5,7 @@ const sendEmail = async (option) => {
   if (
     !process.env.SMTP_HOST ||
     !process.env.SMTP_PORT ||
+    !process.env.SMTP_USER ||
     !process.env.SMTP_PASSWORD ||
     !process.env.SMTP_FROM_EMAIL
   ) {
@@ -21,7 +22,7 @@ const sendEmail = async (option) => {
     port: smtpPort,
     secure: false,
     auth: {
-      user: "apikey",
+      user: process.env.SMTP_USER, 
       pass: process.env.SMTP_PASSWORD,
     },
     tls: {

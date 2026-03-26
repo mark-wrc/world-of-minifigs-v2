@@ -93,8 +93,8 @@ export const useRegister = (onSuccess) => {
     }
 
     if (!validatePhone(formData.contactNumber)) {
-      toast.error("Contact number must be 11 digits", {
-        description: "Please enter exactly 11 numeric digits.",
+      toast.error("Invalid contact number", {
+        description: "Please enter a valid 10-digit US phone number, e.g. (555) 123-4567.",
       });
       return false;
     }
