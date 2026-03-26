@@ -111,15 +111,7 @@ export const useDealer = () => {
       // 1. Must be a divisor
       if (bundleQty % bagSize !== 0) return null;
 
-      const multiplier = bundleQty / bagSize;
-
-      // 2. Misc Check — all bundles have exactly 10 miscellaneous items
-      const bundleMisc = selectedBundle.miscQuantity || 0;
-      if (bundleMisc !== 10 * multiplier) {
-        return null;
-      }
-
-      return multiplier;
+      return bundleQty / bagSize;
     },
     [selectedBundle, isCustomBundle],
   );
