@@ -147,7 +147,7 @@ const DealerTorsoBag = ({
                   <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Full Bundle Total
                   </span>
-                  <p className="font-black text-sm">
+                  <p className="font-bold text-sm">
                     {multiplier * rawTorsoQty(torsoBags[0]) + miscQuantity}{" "}
                     Minifigs
                   </p>

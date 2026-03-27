@@ -14,7 +14,6 @@ import ResetPassword from "@/components/auth/ResetPassword";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import NotFound from "@/components/layout/NotFound";
 import Profile from "@/pages/Profile";
-import Settings from "@/pages/Settings";
 import Purchase from "@/pages/Purchase";
 import AdminPanel from "@/pages/AdminPanel";
 import Dashboard from "@/pages/admin/Dashboard";
@@ -97,7 +96,6 @@ export const publicRoutes = [
 export const privateRoutes = [
   { path: "/purchase", element: Purchase },
   { path: "/profile", element: Profile },
-  { path: "/settings", element: Settings },
   {
     path: "/dealers",
     element: Dealer,

@@ -11,6 +11,7 @@ import GlobalSearch from "@/components/layout/GlobalSearch";
 import MobileMenu from "@/components/layout/MobileMenu";
 import UserDropdown from "@/components/layout/UserDropdown";
 import Auth from "@/pages/Auth";
+import Settings from "@/pages/Settings";
 import { useThemeToggle } from "@/hooks/useToggleTheme";
 import { useLogout, getInitials } from "@/hooks/useLogin";
 import { useBanner } from "@/hooks/useBanner";
@@ -19,6 +20,7 @@ import { useCart } from "@/hooks/useCart";
 const Header = () => {
   const { darkMode, toggleDarkMode } = useThemeToggle();
   const [authOpen, setAuthOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const { user, isAuthenticated } = useSelector((state) => state.auth);
@@ -77,6 +79,7 @@ const Header = () => {
   return (
     <>
       <Auth open={authOpen} onOpenChange={setAuthOpen} />
+      <Settings open={settingsOpen} onOpenChange={setSettingsOpen} />
       <header
         className={`${headerBaseClasses} ${isTransparent ? headerTransparentClasses : headerSolidClasses}`}
       >
@@ -169,6 +172,7 @@ const Header = () => {
               userInitials={userInitials}
               handleLogout={handleLogout}
               isLoggingOut={isLoggingOut}
+              onSettingsClick={() => setSettingsOpen(true)}
             />
           ) : (
             <Button

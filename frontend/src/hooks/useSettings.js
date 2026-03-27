@@ -75,6 +75,11 @@ const useSettings = () => {
     return true;
   };
 
+  const resetForm = useCallback(() => {
+    setFormData(INITIAL_FORM);
+    setShowNewPasswordRequirements(false);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -86,8 +91,7 @@ const useSettings = () => {
       }).unwrap();
 
       handleApiSuccess(response, "Password updated");
-      setFormData(INITIAL_FORM);
-      setShowNewPasswordRequirements(false);
+      resetForm();
     } catch (error) {
       handleApiError(error, "Failed to change password");
     }
@@ -104,6 +108,7 @@ const useSettings = () => {
     handleNewPasswordFocus,
     handleNewPasswordBlur,
     handleSubmit,
+    resetForm,
   };
 };
 

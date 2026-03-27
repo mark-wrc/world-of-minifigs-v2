@@ -17,6 +17,7 @@ const UserDropdown = ({
   userInitials,
   handleLogout,
   isLoggingOut,
+  onSettingsClick,
 }) => {
 
   return (
@@ -39,14 +40,21 @@ const UserDropdown = ({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {filteredUserMenuItems.map((item) => (
-          <DropdownMenuItem key={item.id} asChild>
-            <NavLink to={item.path}>
+        {filteredUserMenuItems.map((item) =>
+          item.id === "settings" ? (
+            <DropdownMenuItem key={item.id} onClick={onSettingsClick}>
               <item.icon className="mr-2 size-4" />
               <span>{item.label}</span>
-            </NavLink>
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem key={item.id} asChild>
+              <NavLink to={item.path}>
+                <item.icon className="mr-2 size-4" />
+                <span>{item.label}</span>
+              </NavLink>
+            </DropdownMenuItem>
+          )
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleLogout}
