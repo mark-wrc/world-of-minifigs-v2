@@ -16,7 +16,7 @@ router.post(
 
 router.post(
   "/create-checkout-session",
-  express.json(),
+  express.json({ limit: "500mb" }),
   authenticate,
   createCheckoutSession,
 );

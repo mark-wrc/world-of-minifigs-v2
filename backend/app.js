@@ -111,8 +111,8 @@ app.use(cookieParser());
 // Payment routes mounted before express.json - webhook needs raw body, router handles it
 app.use("/api/v1/payment", paymentRoutes);
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ limit: "500mb", extended: true }));
 
 // Health check
 app.get("/health", (_req, res) => {

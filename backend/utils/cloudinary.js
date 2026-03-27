@@ -30,7 +30,7 @@ const configureCloudinary = () => {
 };
 
 // Validate image format and size
-export const validateImage = (image, maxSizeMB = 5) => {
+export const validateImage = (image, maxSizeMB = 25) => {
   if (!image) {
     return {
       isValid: false,
@@ -109,7 +109,7 @@ export const deleteImage = async (publicId) => {
 };
 
 // Validate media (image, gif, video)
-export const validateMedia = (file, maxImageMB = 5, maxVideoMB = 50) => {
+export const validateMedia = (file, maxImageMB = 25, maxVideoMB = 100) => {
   if (!file) {
     return {
       isValid: false,
