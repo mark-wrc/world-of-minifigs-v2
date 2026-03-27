@@ -139,9 +139,7 @@ const DealerTorsoBag = ({
                   <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Mystery Parts
                   </span>
-                  <p className="font-bold text-sm">
-                    {miscQuantity} torsos
-                  </p>
+                  <p className="font-bold text-sm">{miscQuantity} torsos</p>
                 </div>
                 <div className="space-y-2">
                   <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
@@ -187,7 +185,7 @@ const DealerTorsoBag = ({
 
               {!isCustomBundle && multiplier > 1 && (
                 <div className="absolute top-2 right-2 z-10">
-                  <Badge className="bg-background/80 backdrop-blur-sm border-accent/20 text-accent font-black text-xs">
+                  <Badge variant="accent" className="font-bold">
                     ×{multiplier}
                   </Badge>
                 </div>
@@ -197,7 +195,7 @@ const DealerTorsoBag = ({
                 <CommonImage
                   src={bag.firstImage}
                   alt={bag.bagName}
-                  className="w-24 h-24 object-contain drop-shadow-md"
+                  className="aspect-4/3 object-contain drop-shadow-md"
                 />
               </div>
 

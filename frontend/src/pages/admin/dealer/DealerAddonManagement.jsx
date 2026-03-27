@@ -68,6 +68,7 @@ const DealerAddonManagement = () => {
     handleToggleBundleItem,
     handleRemoveBundleItem,
     handleBundleItemQuantityValue,
+    handleBundleItemPricePerBag,
     handleSubmit,
     handleDialogClose,
     handleAdd,
@@ -322,12 +323,30 @@ const DealerAddonManagement = () => {
                               {formatCurrency(item.inventory.price)}
                             </span>
                           </span>
-                          <span className="text-xs font-semibold">
-                            Price per Bag:{" "}
-                            <span className="text-success dark:text-accent font-semibold">
-                              {formatCurrency(item.pricePerBag)}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold shrink-0">
+                              Price per Bag:
                             </span>
-                          </span>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-2 text-xs text-muted-foreground">
+                                $
+                              </span>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="any"
+                                className="pl-5 pr-1 text-xs w-20 h-6"
+                                value={item.pricePerBag}
+                                onChange={(e) =>
+                                  handleBundleItemPricePerBag(
+                                    item.inventoryItemId,
+                                    e.target.value,
+                                  )
+                                }
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          </div>
                         </div>
 
                         {/* Quantity controls */}

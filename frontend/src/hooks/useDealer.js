@@ -279,6 +279,7 @@ export const useDealer = () => {
           image: inventory.image,
           color: inventory.colorId,
           unitPrice: Number(inventory.price || 0),
+          pricePerBag: Math.round(Number(item.pricePerBag || 0)),
           perBagLimit,
           maxBags,
         };
@@ -318,8 +319,8 @@ export const useDealer = () => {
         const bagQty = Number(modalBagQuantities[item.inventoryItemId] || 0);
         const selectedBags = Math.max(0, Math.min(bagQty, item.maxBags));
         const selectedQuantity = selectedBags * item.perBagLimit;
-        const selectedTotal = selectedQuantity * item.unitPrice;
-        const bagPrice = item.unitPrice * item.perBagLimit;
+        const bagPrice = item.pricePerBag;
+        const selectedTotal = selectedBags * bagPrice;
         const isActive = selectedBags > 0;
         const usedPercent =
           item.maxBags > 0 ? (selectedBags / item.maxBags) * 100 : 0;
@@ -575,7 +576,7 @@ export const useDealer = () => {
     // Bundle Type Info
     isCustomBundle,
     multiplier: currentMultiplier,
-    miscQuantity,
+    miscQuantity: miscQuantity * currentMultiplier,
     displayItems,
 
     // Memos

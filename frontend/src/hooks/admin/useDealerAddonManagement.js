@@ -118,8 +118,6 @@ const useDealerAddonManagement = () => {
     .map((item) => ({
       ...item,
       inventory: item._item,
-      pricePerBag:
-        (item._item?.price || 0) * (Number(item.quantityPerBag) || 0),
     }));
 
   // ------------------------------- Bundle Item Handlers ------------------------------------
@@ -131,7 +129,12 @@ const useDealerAddonManagement = () => {
           return prev.filter((i) => i.inventoryItemId !== inventoryItemId);
         }
         return [
-          { inventoryItemId, quantityPerBag: 1, _item: inventoryItem },
+          {
+            inventoryItemId,
+            quantityPerBag: 1,
+            pricePerBag: Math.round(Number(inventoryItem.price || 0) * 100) / 100,
+            _item: inventoryItem,
+          },
           ...prev,
         ];
       });
@@ -145,18 +148,26 @@ const useDealerAddonManagement = () => {
     );
   }, []);
 
+  const handleBundleItemPricePerBag = useCallback((inventoryItemId, value) => {
+    setBundleItems((prev) =>
+      prev.map((item) =>
+        item.inventoryItemId === inventoryItemId
+          ? { ...item, pricePerBag: value === "" ? "" : Number(value) }
+          : item,
+      ),
+    );
+  }, []);
+
   const handleBundleItemQuantityValue = useCallback(
     (inventoryItemId, value) => {
       setBundleItems((prev) =>
-        prev.map((item) =>
-          item.inventoryItemId === inventoryItemId
-            ? {
-                ...item,
-                quantityPerBag:
-                  value === "" ? "" : Math.max(1, Number(value) || 1),
-              }
-            : item,
-        ),
+        prev.map((item) => {
+          if (item.inventoryItemId !== inventoryItemId) return item;
+          const newQty = value === "" ? "" : Math.max(1, Number(value) || 1);
+          const suggestedPrice =
+            newQty === "" ? item.pricePerBag : Math.round((item._item?.price || 0) * newQty * 100) / 100;
+          return { ...item, quantityPerBag: newQty, pricePerBag: suggestedPrice };
+        }),
       );
     },
     [],
@@ -170,6 +181,7 @@ const useDealerAddonManagement = () => {
         return {
           inventoryItemId: populated._id || item.inventoryItemId || "",
           quantityPerBag: item.quantityPerBag || 1,
+          pricePerBag: Math.round((item.pricePerBag ?? (populated.price || 0) * (item.quantityPerBag || 1)) * 100) / 100,
           _item: populated._id ? populated : null,
         };
       }) || [];
@@ -202,6 +214,7 @@ const useDealerAddonManagement = () => {
       payload.bundleItems = bundleItems.map((item) => ({
         inventoryItemId: item.inventoryItemId,
         quantityPerBag: Number(item.quantityPerBag),
+        pricePerBag: Number(item.pricePerBag) || 0,
       }));
       payload.price = 0;
     } else {
@@ -250,6 +263,7 @@ const useDealerAddonManagement = () => {
     handleToggleBundleItem,
     handleRemoveBundleItem,
     handleBundleItemQuantityValue,
+    handleBundleItemPricePerBag,
     handleEdit,
     handleSubmit,
     handleChange,
