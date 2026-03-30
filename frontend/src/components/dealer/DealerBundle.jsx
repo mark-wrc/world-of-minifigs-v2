@@ -7,10 +7,10 @@ const DealerBundle = ({ bundles, onSelect }) => (
   <section className="px-5 py-10 bg-input/50 dark:bg-card/50">
     <div className="text-left mb-10">
       <h2 className="text-2xl font-bold mb-2 tracking-tight">
-        Select Your Bag Quantity
+        Select Your Bag Quantities
       </h2>
       <p className="text-muted-foreground text-sm">
-        Choose up to 1000+ top-quality, 100% genuine LEGO minifigures
+        Top-quality, 100% genuine LEGO minifigures
       </p>
     </div>
 
@@ -53,10 +53,8 @@ const DealerBundle = ({ bundles, onSelect }) => (
                 key={idx}
                 className="flex items-start gap-2 text-sm leading-tight"
               >
-                <Check size={16} className="text-primary" />
-                <span className="text-muted-foreground/90 line-clamp-2">
-                  {feature}
-                </span>
+                <Check size={16} className="text-primary shrink-0" />
+                <span className="text-muted-foreground/90">{feature}</span>
               </li>
             ))}
           </ul>

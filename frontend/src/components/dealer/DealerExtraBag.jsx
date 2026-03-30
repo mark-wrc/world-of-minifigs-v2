@@ -16,12 +16,18 @@ const DealerExtraBag = ({
           <h2 className="text-2xl font-bold tracking-tight">
             Step 3 — Extra Part Bag Options
           </h2>
-          <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+          <Badge
+            variant="outline"
+            className="text-[10px] uppercase tracking-wide shrink-0"
+          >
             Optional
           </Badge>
         </div>
         {selectedBundle && (
-          <Badge variant="outline" className="flex items-center self-start md:self-auto">
+          <Badge
+            variant="outline"
+            className="flex items-center self-start md:self-auto"
+          >
             <div className="flex items-center gap-1 text-primary">
               <span className="text-lg font-bold">{totalExtraBags}</span>
               <span className="text-muted-foreground">/</span>
@@ -58,9 +64,17 @@ const DealerExtraBag = ({
               <span className="text-4xl font-extrabold text-success dark:text-accent">
                 ${bag.price}
               </span>
-              <span className="text-xs text-muted-foreground mt-1 uppercase tracking-wide font-semibold">
-                per extra bag
-              </span>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                  Per Extra Bag
+                </span>
+                <Badge
+                  variant="secondary"
+                  className="bg-primary/10 text-primary text-[9px] px-1.5 h-4 font-bold uppercase tracking-tight"
+                >
+                  100 Pcs
+                </Badge>
+              </div>
             </div>
 
             <div className="mt-2 w-full">
