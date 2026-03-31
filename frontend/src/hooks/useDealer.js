@@ -63,10 +63,11 @@ export const useDealer = () => {
 
   // ==================== Bundle Selection ====================
 
-  // Auto-select first bundle as default
+  // Auto-select 500-minifig bundle as default, fall back to first
   useEffect(() => {
     if (bundles.length > 0 && !selectedBundleId) {
-      setSelectedBundleId(bundles[0]._id);
+      const preferred = bundles.find((b) => b.minifigQuantity === 500) ?? bundles[0];
+      setSelectedBundleId(preferred._id);
     }
   }, [bundles, selectedBundleId]);
 
