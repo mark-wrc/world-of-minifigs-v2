@@ -16,9 +16,13 @@ import {
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
-const getMiscQuantity = () => 10;
+const getMiscQuantity = (bundleSize) => {
+  if (bundleSize === 1000) return 80;
+  if (bundleSize === 500) return 40;
+  return 10;
+};
 
-const getAdminTarget = (target) => target - getMiscQuantity();
+const getAdminTarget = (target) => target - getMiscQuantity(target);
 
 const initialFormData = {
   bagName: "",
@@ -132,7 +136,7 @@ const useDealerTorsoBagManagement = () => {
   }, [bundles]);
 
   const targetSize = Number(crud.formData.targetBundleSize) || 100;
-  const miscQuantity = getMiscQuantity();
+  const miscQuantity = getMiscQuantity(targetSize);
   const adminTarget = getAdminTarget(targetSize);
 
   const currentTotal = useMemo(() => {

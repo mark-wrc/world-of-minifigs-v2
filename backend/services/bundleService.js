@@ -12,10 +12,14 @@ const ADDON_FOLDER = "world-of-minifigs-v2/dealers/addons";
 
 // ------------------------ Quantity Helpers ------------------------------------
 
-export const getMiscQuantity = () => 10;
+export const getMiscQuantity = (bundleSize) => {
+  if (bundleSize === 1000) return 80;
+  if (bundleSize === 500) return 40;
+  return 10;
+};
 
 export const getAdminTarget = (targetBundleSize) =>
-  targetBundleSize - getMiscQuantity();
+  targetBundleSize - getMiscQuantity(targetBundleSize);
 
 export const getBaseBundleSize = async (bundleType = "dealer") => {
   const lowestBundle = await Bundle.findOne({
@@ -38,7 +42,7 @@ export const validateTorsoItems = async (items, targetBundleSize) => {
     return {
       isValid: false,
       message: "Invalid total quantity",
-      description: `Total designs quantity must equal ${adminTarget} (${targetBundleSize} minus 10 miscellaneous). Current total: ${totalQty}.`,
+      description: `Total designs quantity must equal ${adminTarget} (${targetBundleSize} minus ${getMiscQuantity(targetBundleSize)} miscellaneous). Current total: ${totalQty}.`,
     };
   }
 
