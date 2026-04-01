@@ -887,11 +887,11 @@ export const getAllUsers = async (req, res) => {
     ];
     const searchQuery = buildSearchQuery(search, searchFields);
 
-    const allUsers = await User.find(searchQuery)
+    const allUsers = (await User.find(searchQuery)
       .select(
         "-password -verificationToken -verificationTokenExpiry -resetPasswordToken -resetPasswordTokenExpiry -refreshToken -refreshTokenExpiry -__v",
       )
-      .lean();
+      .lean()).map((u) => ({ ...u, isTaxExempt: u.isTaxExempt ?? false }));
 
     // Sort: admins first, then by creation date (newest first)
     const sortedUsers = allUsers.sort((a, b) => {

@@ -1,5 +1,6 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { AdminFormSelect } from "@/components/shared/AdminFormInput";
 import AdminManagementHeader from "@/components/shared/AdminManagementHeader";
 import TableLayout from "@/components/table/TableLayout";
@@ -26,10 +27,12 @@ const UserManagement = () => {
     columns,
     isLoadingUsers,
     isUpdatingRole,
+    isUpdatingTaxExempt,
     handlePageChange,
     handleLimitChange,
     handleSearchChange,
     handleUpdateRole,
+    handleToggleTaxExempt,
     isCurrentUser,
     getRoleBadgeVariant,
     canUpdateRole,
@@ -79,7 +82,7 @@ const UserManagement = () => {
             <TableCell maxWidth="150px">{display(user.username)}</TableCell>
 
             {/* Email */}
-            <TableCell maxWidth="200px">{display(user.email)}</TableCell>
+            <TableCell>{display(user.email)}</TableCell>
 
             {/* Contact Number */}
             <TableCell maxWidth="150px">
@@ -110,6 +113,17 @@ const UserManagement = () => {
                   {user.role}
                 </Badge>
               )}
+            </TableCell>
+
+            {/* Tax Exempt */}
+            <TableCell className="text-center">
+              <Switch
+                checked={!!user.isTaxExempt}
+                onCheckedChange={() =>
+                  handleToggleTaxExempt(user._id, user.isTaxExempt)
+                }
+                disabled={isUpdatingTaxExempt}
+              />
             </TableCell>
 
             {/* Status */}
