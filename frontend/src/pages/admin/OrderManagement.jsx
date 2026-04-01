@@ -115,7 +115,7 @@ const OrderManagement = () => {
               </TableCell>
 
               {/* Email */}
-              <TableCell maxWidth="220px">{display(order.email)}</TableCell>
+              <TableCell>{display(order.email)}</TableCell>
 
               {/* Recipient */}
               <TableCell maxWidth="180px">
@@ -583,14 +583,12 @@ const OrderManagement = () => {
                 {formatCurrency(viewOrder?.payment?.shippingFee)}
               </span>
             </div>
-            {viewOrder?.payment?.taxAmount > 0 && (
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Tax</span>
-                <span className="text-xs">
-                  {formatCurrency(viewOrder.payment.taxAmount)}
-                </span>
-              </div>
-            )}
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Tax</span>
+              <span className="text-xs">
+                {formatCurrency(viewOrder?.payment?.taxAmount ?? 0)}
+              </span>
+            </div>
             <div className="grid grid-cols-[140px_1fr] p-3 font-semibold">
               <span>Total</span>
               <span>{formatCurrency(viewOrder?.payment?.totalAmount)}</span>
