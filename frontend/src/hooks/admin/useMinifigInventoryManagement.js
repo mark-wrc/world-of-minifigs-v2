@@ -122,12 +122,22 @@ const useMinifigInventoryManagement = () => {
 
   const handleInventoryFileRemove = useCallback(
     (index) => {
-      const targetIndex = typeof index === "number" ? index : 0;
-      handleRemoveFile(targetIndex);
-      // Invalidate cached handlers because indices shifted
-      clearHandlerCaches();
+      if (crud.dialogMode === "edit") {
+        // In edit mode, only clear the image URL — preserve metadata fields
+        setFilePreview((prev) =>
+          prev.map((item, i) =>
+            i === (typeof index === "number" ? index : 0)
+              ? { ...item, url: null, image: null }
+              : item,
+          ),
+        );
+      } else {
+        const targetIndex = typeof index === "number" ? index : 0;
+        handleRemoveFile(targetIndex);
+        clearHandlerCaches();
+      }
     },
-    [handleRemoveFile, clearHandlerCaches],
+    [crud.dialogMode, handleRemoveFile, setFilePreview, clearHandlerCaches],
   );
 
   const getItemChangeHandler = useCallback(
