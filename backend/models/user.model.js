@@ -58,6 +58,14 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isTaxExempt: {
+      type: Boolean,
+      default: false,
+    },
+    stripeCustomerId: {
+      type: String,
+      sparse: true,
+    },
     isVerified: {
       type: Boolean,
       default: false,

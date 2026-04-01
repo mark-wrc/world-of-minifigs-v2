@@ -1,5 +1,6 @@
 import { getStripe } from "../utils/stripe.js";
 import Order from "../models/order.model.js";
+import User from "../models/user.model.js";
 import {
   createOrderFromStripeSession,
   createDealerOrderFromStripeSession,
@@ -10,6 +11,44 @@ import {
   FRONTEND_URL,
   STRIPE_SESSION_CONFIG,
 } from "../services/payment/index.js";
+
+// Find existing Stripe customer or create one, caching the ID on the user
+// Returns null if Stripe is unavailable (checkout falls back to customer_email)
+const findOrCreateStripeCustomer = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  const stripe = getStripe();
+
+  // 1 — Try existing cached customer
+  if (user.stripeCustomerId) {
+    try {
+      await stripe.customers.retrieve(user.stripeCustomerId);
+      return user.stripeCustomerId;
+    } catch {
+      // Customer was deleted in Stripe — fall through to recreate
+    }
+  }
+
+  // 2 — Search by email to avoid duplicates if DB save previously failed
+  const existing = await stripe.customers.list({ email: user.email, limit: 1 });
+  if (existing.data.length > 0) {
+    const existingId = existing.data[0].id;
+    await User.findByIdAndUpdate(userId, { stripeCustomerId: existingId });
+    return existingId;
+  }
+
+  // 3 — Create new customer
+  const customer = await stripe.customers.create({
+    email: user.email,
+    name: `${user.firstName} ${user.lastName}`.trim(),
+    metadata: { userId: userId.toString() },
+    tax_exempt: user.isTaxExempt ? "exempt" : "none",
+  });
+
+  await User.findByIdAndUpdate(userId, { stripeCustomerId: customer.id });
+  return customer.id;
+};
 
 //----------------------------------- Create Checkout Session ------------------------------------------
 export const createCheckoutSession = async (req, res) => {
@@ -60,13 +99,24 @@ export const createCheckoutSession = async (req, res) => {
     const cancelUrl =
       orderType === "dealer" ? `${FRONTEND_URL}/dealers` : FRONTEND_URL;
 
+    // Try to get/create a linked Stripe customer for tax exemption support
+    // Falls back to customer_email if Stripe customer API is unavailable
+    let customerParam = {};
+    try {
+      const stripeCustomerId = await findOrCreateStripeCustomer(userId);
+      customerParam = { customer: stripeCustomerId };
+    } catch (customerErr) {
+      console.error("Stripe customer lookup failed, falling back to customer_email:", customerErr.message);
+      customerParam = { customer_email: req.user.email };
+    }
+
     const session = await getStripe().checkout.sessions.create({
       ...STRIPE_SESSION_CONFIG,
       line_items: lineItems,
       success_url: `${FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
       client_reference_id: userId.toString(),
-      customer_email: req.user.email,
+      ...customerParam,
       payment_intent_data: {
         receipt_email: req.user.email,
       },
@@ -210,6 +260,26 @@ export const stripeWebhook = async (req, res) => {
         } catch (err) {
           console.error("Webhook: error processing refund:", err);
           return res.status(500).json({ received: false });
+        }
+        break;
+      }
+
+      case "customer.updated": {
+        try {
+          const customer = event.data.object;
+          const stripeCustomerId = customer.id;
+          const taxExempt = customer.tax_exempt;
+
+          // Only sync if tax_exempt changed to a known value
+          if (taxExempt === "exempt" || taxExempt === "none") {
+            const isTaxExempt = taxExempt === "exempt";
+            await User.findOneAndUpdate(
+              { stripeCustomerId },
+              { isTaxExempt },
+            );
+          }
+        } catch (err) {
+          console.error("Webhook: error syncing customer update:", err);
         }
         break;
       }

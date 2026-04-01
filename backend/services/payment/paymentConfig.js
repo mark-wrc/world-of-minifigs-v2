@@ -8,6 +8,9 @@ export const STRIPE_SESSION_CONFIG = {
   mode: "payment",
   automatic_tax: { enabled: true },
   invoice_creation: { enabled: true },
+  customer_update: {
+    shipping: "auto",
+  },
   shipping_address_collection: {
     allowed_countries: ["US"],
   },

@@ -13,7 +13,7 @@ const App = () => {
   return (
     <>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen max-w-screen-2xl mx-auto">
+      <div className="flex flex-col min-h-screen max-w-480 mx-auto">
         <CartSheet />
         <Header />
         <main className="flex-1 pt-20">

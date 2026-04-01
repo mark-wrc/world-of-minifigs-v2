@@ -657,6 +657,16 @@ export const adminApi = createApi({
       invalidatesTags: ["User"],
     }),
 
+    // Update user tax exempt status
+    updateUserTaxExempt: builder.mutation({
+      query: ({ id, isTaxExempt }) => ({
+        url: `/users/${id}/tax-exempt`,
+        method: "PUT",
+        body: { isTaxExempt },
+      }),
+      invalidatesTags: ["User"],
+    }),
+
     // ==================== Minifig Inventory Management ====================
     getMinifigInventory: builder.query({
       query: (params = {}) => ({
@@ -768,6 +778,7 @@ export const {
 
   useGetUsersQuery,
   useUpdateUserRoleMutation,
+  useUpdateUserTaxExemptMutation,
 
   useGetMinifigInventoryQuery,
   useCreateMinifigInventoryBulkMutation,

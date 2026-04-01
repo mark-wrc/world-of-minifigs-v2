@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import { getStripe } from "../utils/stripe.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
@@ -1025,6 +1026,65 @@ export const updateUserRole = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to update user role",
+      description: "An unexpected error occurred. Please try again.",
+    });
+  }
+};
+
+export const updateUserTaxExempt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isTaxExempt } = req.body;
+
+    if (typeof isTaxExempt !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid value",
+        description: "isTaxExempt must be a boolean.",
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+        description: "The requested user does not exist.",
+      });
+    }
+
+    user.isTaxExempt = isTaxExempt;
+
+    // Sync to Stripe if customer already exists
+    let stripeSyncFailed = false;
+    if (user.stripeCustomerId) {
+      try {
+        await getStripe().customers.update(user.stripeCustomerId, {
+          tax_exempt: isTaxExempt ? "exempt" : "none",
+        });
+      } catch (stripeErr) {
+        console.error("Stripe tax exempt sync failed:", stripeErr.message);
+        stripeSyncFailed = true;
+      }
+    }
+
+    await user.save();
+
+    const userName = `${user.firstName} ${user.lastName}`.trim();
+    return res.status(200).json({
+      success: true,
+      message: "Tax exemption updated",
+      description: stripeSyncFailed
+        ? `${userName}'s tax exemption saved locally but failed to sync to Stripe. It will sync automatically on their next checkout.`
+        : `${userName} is now ${isTaxExempt ? "tax exempt" : "taxable"}.`,
+      stripeSyncFailed,
+      user: { _id: user._id, isTaxExempt: user.isTaxExempt },
+    });
+  } catch (error) {
+    console.error("updateUserTaxExempt error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update tax exemption",
       description: "An unexpected error occurred. Please try again.",
     });
   }

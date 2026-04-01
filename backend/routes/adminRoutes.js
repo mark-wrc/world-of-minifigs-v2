@@ -93,7 +93,7 @@ import {
   getOrderById,
   updateOrderStatus,
 } from "../controllers/orderController.js";
-import { getAllUsers, updateUserRole } from "../controllers/authController.js";
+import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
   createMinifigInventoryBulk,
   getAllMinifigInventory,
@@ -202,6 +202,7 @@ router.patch("/orders/:id/status", updateOrderStatus);
 // User Management routes
 router.get("/users", getAllUsers);
 router.put("/users/:id/role", updateUserRole);
+router.put("/users/:id/tax-exempt", updateUserTaxExempt);
 
 // Minifig Inventory CRUD routes
 router.post("/minifig-inventory/bulk", createMinifigInventoryBulk);

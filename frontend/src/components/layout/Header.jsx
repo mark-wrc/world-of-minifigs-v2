@@ -69,7 +69,7 @@ const Header = () => {
 
   // Header dynamic classes
   const headerBaseClasses =
-    "fixed top-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-screen-2xl flex items-center justify-between px-5 transition-all duration-300";
+    "fixed top-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-480 flex items-center justify-between px-5 transition-all duration-300";
   const headerTransparentClasses =
     "bg-linear-to-b from-black/60 via-black/50 to-transparent";
   const headerSolidClasses = "bg-popover-foreground dark:bg-input";
