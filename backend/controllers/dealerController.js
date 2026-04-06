@@ -439,7 +439,7 @@ export const getAllDealerAddons = async (req, res) => {
       populate: [
         {
           path: "bundleItems.inventoryItemId",
-          select: "minifigName price stock image colorId",
+          select: "minifigName price stock image colorId isActive",
           populate: { path: "colorId", select: "colorName hexCode" },
         },
         ...getStandardPopulateOptions(),
@@ -1039,15 +1039,24 @@ export const getDealerBundlesForUser = async (req, res) => {
 
 export const getDealerAddonsForUser = async (req, res) => {
   try {
-    const addons = await DealerAddon.find({ isActive: true })
+    const rawAddons = await DealerAddon.find({ isActive: true })
       .select("-createdBy -updatedBy -isActive -__v")
       .populate({
         path: "bundleItems.inventoryItemId",
+        match: { isActive: true },
         select: "minifigName price stock image colorId",
         populate: { path: "colorId", select: "colorName hexCode" },
       })
       .sort({ createdAt: 1 })
       .lean();
+
+    // Remove bundle items whose inventory item is inactive (populate returns null for non-matches)
+    const addons = rawAddons.map((addon) => ({
+      ...addon,
+      bundleItems: (addon.bundleItems || []).filter(
+        (item) => item.inventoryItemId !== null,
+      ),
+    }));
 
     return res.status(200).json({
       success: true,

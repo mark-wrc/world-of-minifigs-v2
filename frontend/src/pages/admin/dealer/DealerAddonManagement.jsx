@@ -305,6 +305,14 @@ const DealerAddonManagement = () => {
                             <span className="text-sm font-semibold line-clamp-1">
                               {item.inventory.minifigName}
                             </span>
+                            {item.inventory.isActive === false && (
+                              <Badge
+                                variant="destructive"
+                                className="uppercase text-[9px] px-2 py-0"
+                              >
+                                Inactive
+                              </Badge>
+                            )}
                             {(Number(item.inventory.stock || 0) <
                               Number(item.quantityPerBag || 1) ||
                               !item.inventory.stock) && (

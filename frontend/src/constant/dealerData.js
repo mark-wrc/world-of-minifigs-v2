@@ -51,13 +51,13 @@ export const dealerProcess = {
       icon: MousePointerClick,
     },
     {
-      title: "Secure Your Bag Add-Ons",
+      title: "Select your add-ons",
       description:
         "Add a specific number of extra minifig part bags and select premium parts",
       icon: Handbag,
     },
     {
-      title: "Choose Your LEGO Torso",
+      title: "Select your Torso Bag",
       description:
         "Expand your collection with our selection of premium pre-selected torso bags",
       icon: Shirt,
@@ -77,22 +77,23 @@ export const dealerIncluded = {
   description: "Each minifig in your order includes these 4 essential parts",
   items: [
     {
-      title: "1 Torso",
+      title: "1 - Torso",
       description: "Exciting Range of Premium Designs",
       icon: Shirt,
     },
     {
-      title: "1 Head",
+      title: "1 - Head",
       description: "Minimum of 20% flesh-tone minifig heads",
       icon: CircleUser,
     },
     {
-      title: "1 Hair / Headgear",
-      description: "Premium, carefully selected mix",
+      title: "1 - Hair / Headgear",
+      description:
+        "Carefully curated with a 20% flesh-tone minimum and perfect gender balance.",
       icon: Crown,
     },
     {
-      title: "1 Pair of Legs",
+      title: "1 - Pair of Legs",
       description: " Exclusive handpicked blend",
       icon: Footprints,
     },

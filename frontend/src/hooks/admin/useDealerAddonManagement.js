@@ -93,7 +93,9 @@ const useDealerAddonManagement = () => {
     totalPages,
   } = extractPaginatedData(addonsData, "addons");
 
-  const inventoryItems = inventoryData?.inventory || [];
+  const inventoryItems = (inventoryData?.inventory || []).filter(
+    (item) => item.isActive !== false,
+  );
 
   const selectedBundleItemIds = new Set(
     bundleItems.map((item) => item.inventoryItemId),
