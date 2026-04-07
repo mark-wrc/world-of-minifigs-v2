@@ -464,7 +464,15 @@ export const useDealer = () => {
           const base = addons.find((a) => a._id === id);
           if (!base) return null;
           const config = selectedAddonConfigs[id];
-          const price = config?.price ?? base.price ?? 0;
+
+          // For upgrade addons: use discountPrice if set, else original price
+          const hasDiscount =
+            base.addonType === "upgrade" &&
+            base.discountPrice !== null &&
+            base.discountPrice !== undefined;
+          const effectivePrice = hasDiscount ? base.discountPrice : (base.price ?? 0);
+          const price = config?.price ?? effectivePrice;
+
           const items = (config?.selectedItems || [])
             .filter((item) => (item.selectedQuantity || 0) > 0)
             .map((item) => ({
@@ -480,6 +488,8 @@ export const useDealer = () => {
             addonType: base.addonType,
             isFree: !price || Number(price) === 0,
             price,
+            originalPrice: hasDiscount ? (base.price ?? 0) : null,
+            hasDiscount,
             items,
             totalBags: items.reduce((s, i) => s + i.selectedBags, 0),
             itemCount: items.length,

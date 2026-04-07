@@ -20,6 +20,16 @@ const dealerAddonSchema = new mongoose.Schema(
       type: Number,
       min: [0, "Price cannot be negative"],
     },
+    discountPrice: {
+      type: Number,
+      min: [0, "Discount price cannot be negative"],
+      default: null,
+    },
+    badge: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     bundleItems: [
       {
         _id: false,

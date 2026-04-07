@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import QuantityControl from "@/components/shared/QuantityControl";
-import { Card } from "@/components/ui/card";
+import { formatCurrency } from "@/utils/formatting";
+import { Package } from "lucide-react";
 
 const DealerExtraBag = ({
   extraBags,
@@ -23,19 +24,20 @@ const DealerExtraBag = ({
             Optional
           </Badge>
         </div>
+
         {selectedBundle && (
-          <Badge
-            variant="outline"
-            className="flex items-center self-start md:self-auto"
+          <div
+            className={`self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold border ${
+              totalExtraBags > 0
+                ? "bg-accent/10 border-accent/30 text-accent-foreground dark:text-accent"
+                : "bg-muted border-border text-muted-foreground"
+            }`}
           >
-            <div className="flex items-center gap-1 text-primary">
-              <span className="text-lg font-bold">{totalExtraBags}</span>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-lg font-bold">
-                {maxExtraBags} extra bags
-              </span>
-            </div>
-          </Badge>
+            <Package className="w-3.5 h-3.5 shrink-0" />
+            <span>{totalExtraBags}</span>
+            <span className="font-normal text-xs opacity-70">/</span>
+            <span>{maxExtraBags} extra bags</span>
+          </div>
         )}
       </div>
       <p className="text-muted-foreground text-sm">
@@ -43,50 +45,81 @@ const DealerExtraBag = ({
       </p>
     </div>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
       {extraBags.map((bag) => {
-        const handleQuantityChange = (newVal) => onQtyChange(bag._id, newVal);
+        const isActive = bag.qty > 0;
+        const bagName = bag.subCollectionId?.subCollectionName || "Extra Bag";
 
         return (
-          <Card
-            key={bag._id}
-            className={`p-5 transition-all duration-300 group overflow-visible hover:shadow-2xl hover:-translate-y-2 flex flex-col gap-2 ${
-              bag.qty > 0
-                ? "border-accent ring-2 ring-accent ring-offset-2"
-                : ""
-            }`}
-          >
-            <h3 className="text-lg font-bold text-left">
-              {bag.subCollectionId?.subCollectionName || "Extra Bag"}
-            </h3>
+          <div key={bag._id}>
+            {/* ── Card ── */}
+            <div
+              className={`
+                group flex flex-col rounded-xl overflow-hidden
+                transition-all duration-300
+                hover:shadow-2xl hover:-translate-y-2
+                ${
+                  isActive
+                    ? "ring-2 ring-accent ring-offset-2 dark:ring-offset-background shadow-lg"
+                    : "shadow-sm hover:shadow-xl"
+                }
+              `}
+            >
+              {/* ── Colored header ── */}
+              <div className="relative flex flex-col gap-2 px-5 pt-5 pb-4 overflow-hidden bg-primary">
+                {/* Decorative circles */}
+                <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
+                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/5 pointer-events-none" />
 
-            <div className="w-full flex flex-col mt-2">
-              <span className="text-4xl font-extrabold text-success dark:text-accent">
-                ${bag.price}
-              </span>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                  Per Extra Bag
-                </span>
-                <Badge
-                  variant="secondary"
-                  className="bg-primary/10 text-primary text-[9px] px-1.5 h-4 font-bold uppercase tracking-tight"
-                >
-                  100 Pcs
-                </Badge>
+                {/* Chip row */}
+                <div className="flex items-center justify-between gap-2 h-5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-white/10 text-white/80">
+                    Extra Bag
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-white/10 text-white/80">
+                    100 Pcs
+                  </span>
+                </div>
+
+                {/* Icon + Name */}
+                <div className="flex items-center gap-2 mt-5">
+                  <div className="shrink-0 w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
+                    <Package
+                      className="w-4 h-4 text-primary-foreground"
+                      strokeWidth={2}
+                    />
+                  </div>
+                  <h3 className="font-extrabold text-lg uppercase text-primary-foreground leading-tight">
+                    {bagName}
+                  </h3>
+                </div>
+              </div>
+
+              {/* ── Body ── */}
+              <div className="flex flex-col flex-1 bg-card border border-t-0 border-border rounded-b-xl p-5 gap-4">
+                {/* Price */}
+                <div className="flex items-baseline gap-2 pt-2">
+                  <span className="text-4xl font-black text-success dark:text-accent leading-none">
+                    {formatCurrency(bag.price)}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    / bag
+                  </span>
+                </div>
+
+                {/* Quantity control */}
+                <div className="pt-2">
+                  <QuantityControl
+                    value={bag.qty}
+                    onChange={(val) => onQtyChange(bag._id, val)}
+                    min={0}
+                    max={bag.max}
+                    size="md"
+                  />
+                </div>
               </div>
             </div>
-
-            <div className="mt-2 w-full">
-              <QuantityControl
-                value={bag.qty}
-                onChange={handleQuantityChange}
-                min={0}
-                max={bag.max}
-                size="md"
-              />
-            </div>
-          </Card>
+          </div>
         );
       })}
     </div>

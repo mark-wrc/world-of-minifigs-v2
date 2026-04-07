@@ -342,8 +342,16 @@ export const deleteDealerBundle = async (req, res) => {
 
 export const createDealerAddon = async (req, res) => {
   try {
-    const { addonName, addonType, description, price, bundleItems, isActive } =
-      req.body;
+    const {
+      addonName,
+      addonType,
+      description,
+      price,
+      discountPrice,
+      badge,
+      bundleItems,
+      isActive,
+    } = req.body;
 
     if (!addonName || !addonName.trim()) {
       return res.status(400).json({
@@ -380,6 +388,8 @@ export const createDealerAddon = async (req, res) => {
       addonType,
       description: description?.trim() || undefined,
       price: 0,
+      discountPrice: null,
+      badge: badge?.trim() || null,
       bundleItems: [],
       isActive: isActive !== undefined ? isActive : true,
       createdBy: req.user._id,
@@ -409,6 +419,12 @@ export const createDealerAddon = async (req, res) => {
       if (hasProvidedPrice) {
         addonData.price = Number(price);
       }
+
+      const hasDiscountPrice =
+        discountPrice !== undefined &&
+        discountPrice !== null &&
+        String(discountPrice).trim() !== "";
+      addonData.discountPrice = hasDiscountPrice ? Number(discountPrice) : null;
     }
 
     const addon = await DealerAddon.create(addonData);
@@ -457,7 +473,15 @@ export const getAllDealerAddons = async (req, res) => {
 export const updateDealerAddon = async (req, res) => {
   try {
     const { id } = req.params;
-    const { addonName, description, price, bundleItems, isActive } = req.body;
+    const {
+      addonName,
+      description,
+      price,
+      discountPrice,
+      badge,
+      bundleItems,
+      isActive,
+    } = req.body;
 
     const addon = await DealerAddon.findById(id);
 
@@ -499,6 +523,7 @@ export const updateDealerAddon = async (req, res) => {
 
     if (description !== undefined)
       addon.description = description?.trim() || undefined;
+    if (badge !== undefined) addon.badge = badge?.trim() || null;
     if (isActive !== undefined) addon.isActive = isActive;
 
     // Type-specific updates (type cannot be changed)
@@ -523,6 +548,12 @@ export const updateDealerAddon = async (req, res) => {
           });
         }
         addon.price = Number(price);
+      }
+
+      if (discountPrice !== undefined) {
+        const hasDiscountPrice =
+          discountPrice !== null && String(discountPrice).trim() !== "";
+        addon.discountPrice = hasDiscountPrice ? Number(discountPrice) : null;
       }
     }
 

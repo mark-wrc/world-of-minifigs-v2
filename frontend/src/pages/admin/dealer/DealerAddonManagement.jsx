@@ -57,6 +57,7 @@ const DealerAddonManagement = () => {
     selectedBundleItemIds,
     isBundleType,
     isUpgradeType,
+    computedDiscountedPrice,
     isLoadingAddons,
     isLoadingInventory,
     isSubmitting,
@@ -123,11 +124,35 @@ const DealerAddonManagement = () => {
             {/* Price */}
             <TableCell>
               {addon.addonType === "bundle" ? (
-                <span>Per Item Picking</span>
+                <span className="text-muted-foreground">—</span>
               ) : addon.price === 0 ? (
                 "Free"
               ) : (
                 formatCurrency(addon.price)
+              )}
+            </TableCell>
+
+            {/* Discount */}
+            <TableCell>
+              {addon.addonType === "upgrade" && addon.discountPrice !== null && addon.discountPrice !== undefined && addon.price > 0 ? (
+                <span className="font-semibold text-success">
+                  {Math.round((1 - addon.discountPrice / addon.price) * 100)}%
+                </span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </TableCell>
+
+            {/* Discounted Price */}
+            <TableCell>
+              {addon.addonType === "upgrade" && addon.discountPrice !== null && addon.discountPrice !== undefined ? (
+                addon.discountPrice === 0 ? (
+                  <span className="font-semibold text-success">Free</span>
+                ) : (
+                  <span className="font-semibold text-success">{formatCurrency(addon.discountPrice)}</span>
+                )
+              ) : (
+                <span className="text-muted-foreground">—</span>
               )}
             </TableCell>
 
@@ -398,19 +423,57 @@ const DealerAddonManagement = () => {
             </div>
           )}
 
-          {/* Upgrade-specific: Manual price */}
+          {/* Upgrade-specific: Original price + discount → auto discounted price */}
           {isUpgradeType && (
-            <AdminFormInput
-              label="Price"
-              name="price"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.price}
-              onChange={handleChange}
-              disabled={isSubmitting}
-            />
+            <div className="grid grid-cols-3 gap-3">
+              <AdminFormInput
+                label="Original Price"
+                name="price"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.price}
+                onChange={handleChange}
+                disabled={isSubmitting}
+              />
+              <AdminFormInput
+                label="Discount (%)"
+                name="discount"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                placeholder="50"
+                value={formData.discount}
+                onChange={handleChange}
+                disabled={isSubmitting}
+              />
+              <AdminFormInput
+                label="Discounted Price"
+                name="discountedPrice"
+                type="text"
+                value={
+                  computedDiscountedPrice === null
+                    ? "0.00"
+                    : computedDiscountedPrice === 0
+                      ? "Free"
+                      : `$${Number(computedDiscountedPrice).toFixed(2)}`
+                }
+                disabled
+                readOnly
+              />
+            </div>
           )}
+
+          {/* Badge (optional, all types) */}
+          <AdminFormInput
+            label="Badge"
+            name="badge"
+            placeholder="e.g. Spring Exclusive"
+            value={formData.badge}
+            onChange={handleChange}
+            disabled={isSubmitting}
+          />
 
           {/* Visibility */}
           <VisibilitySwitch

@@ -86,7 +86,15 @@ export async function buildLineItemsForDealer(body, userId) {
 
       if (!addon) continue;
 
-      let finalPrice = addon.price || 0;
+      // For upgrade addons use discountPrice if set, otherwise original price
+      const upgradePrice =
+        addon.addonType === "upgrade" &&
+        addon.discountPrice !== null &&
+        addon.discountPrice !== undefined
+          ? addon.discountPrice
+          : addon.price || 0;
+
+      let finalPrice = upgradePrice;
       const finalItems = [];
 
       if (addon.addonType === "bundle" && selectedItems) {

@@ -39,7 +39,7 @@ const DealerOrderSummary = ({
           {selectedBundle && (
             <div className="space-y-3 pb-3">
               <div className="flex justify-between items-start gap-2">
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <p className="text-sm font-bold">
                     {selectedBundle.bundleName}
                   </p>
@@ -71,7 +71,7 @@ const DealerOrderSummary = ({
                     className="space-y-2 pb-2"
                   >
                     <div className="flex justify-between items-start gap-2">
-                      <div className="space-y-1">
+                      <div className="space-y-3">
                         <p className="text-sm font-bold">{addon.addonName}</p>
                         {addon.hasSubItems && !isExpanded && (
                           <p className="text-xs text-muted-foreground font-medium">
@@ -82,7 +82,7 @@ const DealerOrderSummary = ({
                           </p>
                         )}
                       </div>
-                      <div className="flex flex-col items-end space-y-1 shrink-0">
+                      <div className="flex flex-col items-end space-y-3 shrink-0">
                         <p className="text-sm font-bold text-success dark:text-accent">
                           {addon.isFree ? "Free" : formatCurrency(addon.price)}
                         </p>
@@ -112,7 +112,7 @@ const DealerOrderSummary = ({
                     {/* Expandable Details */}
                     {addon.items?.length > 0 &&
                       (isExpanded || !addon.hasSubItems) && (
-                        <div className="space-y-1 pl-2 border-l-2 border-accent/20 mt-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 pr-1">
+                        <div className="space-y-2 pl-2 border-l-2 border-accent/20 mt-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 pr-1">
                           {addon.items.map((item) => (
                             <div
                               key={item.inventoryItemId}
@@ -139,7 +139,7 @@ const DealerOrderSummary = ({
           {totalExtraBags > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-bold">Extra Bags ({totalExtraBags})</p>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {extraBags.map((bag) => (
                   <div
                     key={bag._id}
@@ -160,10 +160,10 @@ const DealerOrderSummary = ({
           {/* Totals Section */}
           <div className="pt-5 border-t border-dashed">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold uppercase tracking-tighter text-muted-foreground">
+              <span className="text-sm font-bold uppercase text-muted-foreground">
                 Total Amount
               </span>
-              <p className="text-4xl font-black text-success dark:text-accent tracking-tighter">
+              <p className="text-3xl font-black text-success dark:text-accent">
                 {formatCurrency(totalOrderPrice)}
               </p>
             </div>

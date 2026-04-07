@@ -15,6 +15,8 @@ const initialFormData = {
   addonName: "",
   addonType: "bundle",
   price: "",
+  discount: "",
+  badge: "",
   description: "",
   isActive: true,
 };
@@ -24,6 +26,8 @@ const columns = [
   { key: "addonType", label: "Type" },
   { key: "description", label: "Description" },
   { key: "price", label: "Price" },
+  { key: "discount", label: "Discount" },
+  { key: "discountPrice", label: "Discounted Price" },
   { key: "isActive", label: "Status" },
   { key: "createdAt", label: "Created At" },
   { key: "updatedAt", label: "Updated At" },
@@ -109,6 +113,15 @@ const useDealerAddonManagement = () => {
   const isBundleType = crud.formData.addonType === "bundle";
   const isUpgradeType = !isBundleType;
 
+  const computedDiscountedPrice = useMemo(() => {
+    if (!isUpgradeType) return null;
+    const price = Number(crud.formData.price || 0);
+    const discount = crud.formData.discount;
+    if (discount === "" || discount === null || discount === undefined) return null;
+    const pct = Math.min(100, Math.max(0, Number(discount)));
+    return Math.max(0, price * (1 - pct / 100));
+  }, [isUpgradeType, crud.formData.price, crud.formData.discount]);
+
   useEffect(() => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
@@ -190,10 +203,19 @@ const useDealerAddonManagement = () => {
 
     setBundleItems(existingItems);
 
+    const originalPrice = addon.addonType === "upgrade" ? (addon.price ?? "") : "";
+    const discountPrice = addon.addonType === "upgrade" ? (addon.discountPrice ?? "") : "";
+    const computedDiscount =
+      originalPrice !== "" && discountPrice !== "" && Number(originalPrice) > 0
+        ? Math.round((1 - Number(discountPrice) / Number(originalPrice)) * 100)
+        : "";
+
     crud.openEdit(addon, {
       addonName: addon.addonName || "",
       addonType: addon.addonType || "bundle",
-      price: addon.addonType === "upgrade" ? (addon.price ?? "") : "",
+      price: originalPrice,
+      discount: computedDiscount,
+      badge: addon.badge || "",
       description: addon.description || "",
       isActive: addon.isActive !== false,
     });
@@ -209,6 +231,7 @@ const useDealerAddonManagement = () => {
       addonName: sanitizeString(crud.formData.addonName),
       addonType,
       description: sanitizeString(crud.formData.description),
+      badge: crud.formData.badge?.trim() || null,
       isActive: crud.formData.isActive,
     };
 
@@ -220,7 +243,15 @@ const useDealerAddonManagement = () => {
       }));
       payload.price = 0;
     } else {
-      payload.price = Number(crud.formData.price || 0);
+      const originalPrice = Number(crud.formData.price || 0);
+      payload.price = originalPrice;
+      const discount = crud.formData.discount;
+      if (discount !== "" && discount !== null && discount !== undefined) {
+        const pct = Math.min(100, Math.max(0, Number(discount)));
+        payload.discountPrice = Math.max(0, originalPrice * (1 - pct / 100));
+      } else {
+        payload.discountPrice = null;
+      }
     }
 
     await crud.submitForm(payload);
@@ -256,6 +287,7 @@ const useDealerAddonManagement = () => {
     selectedBundleItemIds,
     isBundleType,
     isUpgradeType,
+    computedDiscountedPrice,
     isLoadingAddons,
     isLoadingInventory,
     isSubmitting,
