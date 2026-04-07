@@ -134,7 +134,7 @@ const useDealerAddonManagement = () => {
           {
             inventoryItemId,
             quantityPerBag: 1,
-            pricePerBag: Math.round(Number(inventoryItem.price || 0) * 100) / 100,
+            pricePerBag: Number(inventoryItem.price || 0).toFixed(2),
             _item: inventoryItem,
           },
           ...prev,
@@ -154,7 +154,7 @@ const useDealerAddonManagement = () => {
     setBundleItems((prev) =>
       prev.map((item) =>
         item.inventoryItemId === inventoryItemId
-          ? { ...item, pricePerBag: value === "" ? "" : Number(value) }
+          ? { ...item, pricePerBag: value }
           : item,
       ),
     );
@@ -167,7 +167,7 @@ const useDealerAddonManagement = () => {
           if (item.inventoryItemId !== inventoryItemId) return item;
           const newQty = value === "" ? "" : Math.max(1, Number(value) || 1);
           const suggestedPrice =
-            newQty === "" ? item.pricePerBag : Math.round((item._item?.price || 0) * newQty * 100) / 100;
+            newQty === "" ? item.pricePerBag : Number((item._item?.price || 0) * newQty).toFixed(2);
           return { ...item, quantityPerBag: newQty, pricePerBag: suggestedPrice };
         }),
       );
@@ -183,7 +183,7 @@ const useDealerAddonManagement = () => {
         return {
           inventoryItemId: populated._id || item.inventoryItemId || "",
           quantityPerBag: item.quantityPerBag || 1,
-          pricePerBag: Math.round((item.pricePerBag ?? (populated.price || 0) * (item.quantityPerBag || 1)) * 100) / 100,
+          pricePerBag: Number(item.pricePerBag ?? (populated.price || 0) * (item.quantityPerBag || 1)).toFixed(2),
           _item: populated._id ? populated : null,
         };
       }) || [];

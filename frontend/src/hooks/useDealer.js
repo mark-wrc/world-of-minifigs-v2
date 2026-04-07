@@ -280,7 +280,7 @@ export const useDealer = () => {
           image: inventory.image,
           color: inventory.colorId,
           unitPrice: Number(inventory.price || 0),
-          pricePerBag: Math.round(Number(item.pricePerBag || 0)),
+          pricePerBag: Number(item.pricePerBag || 0),
           perBagLimit,
           maxBags,
         };

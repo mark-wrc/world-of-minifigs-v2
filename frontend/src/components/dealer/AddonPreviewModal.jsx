@@ -62,11 +62,11 @@ const AddonPreviewModal = ({
                     <div className="flex items-start justify-between gap-2">
                       <h4
                         className="text-sm font-semibold line-clamp-1 leading-tight min-w-0"
-                        title={`${item.itemName} - ${item.perBagLimit} pcs/bag`}
+                        title={`${item.itemName} - ${item.perBagLimit === 1 ? "1 minifig" : `${item.perBagLimit} pcs/bag`}`}
                       >
                         {item.itemName}{" "}
                         <span className="text-xs font-normal">
-                          - {item.perBagLimit} pcs/bag
+                          - {item.perBagLimit === 1 ? "1 minifig" : `${item.perBagLimit} pcs/bag`}
                         </span>
                       </h4>
 

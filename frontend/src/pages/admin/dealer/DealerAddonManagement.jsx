@@ -340,9 +340,8 @@ const DealerAddonManagement = () => {
                                 $
                               </span>
                               <Input
-                                type="number"
-                                min="0"
-                                step="any"
+                                type="text"
+                                inputMode="decimal"
                                 className="pl-5 pr-1 text-xs w-20 h-6"
                                 value={item.pricePerBag}
                                 onChange={(e) =>
@@ -351,6 +350,13 @@ const DealerAddonManagement = () => {
                                     e.target.value,
                                   )
                                 }
+                                onBlur={(e) => {
+                                  const num = parseFloat(e.target.value);
+                                  handleBundleItemPricePerBag(
+                                    item.inventoryItemId,
+                                    isNaN(num) ? "0.00" : num.toFixed(2),
+                                  );
+                                }}
                                 disabled={isSubmitting}
                               />
                             </div>

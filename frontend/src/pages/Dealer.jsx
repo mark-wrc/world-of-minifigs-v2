@@ -46,7 +46,10 @@ const Dealer = () => {
 
     // Handlers
     handleExtraBagQtyChange,
-    handleSelectTorsoBag,
+    handleSetTorsoBagQuantity,
+    bagMultiplier,
+    totalAssignedBags,
+    remainingBagSlots,
 
     // Addon Preview Modal
     addonPreview,
@@ -153,10 +156,11 @@ const Dealer = () => {
           <DealerTorsoBag
             torsoBags={torsoBags}
             lastSelectedBag={lastSelectedBag}
-            onSelect={handleSelectTorsoBag}
+            onSetQuantity={handleSetTorsoBagQuantity}
             isAdmin={isAdmin}
             isCustomBundle={isCustomBundle}
             multiplier={multiplier}
+            bagMultiplier={bagMultiplier}
             miscQuantity={miscQuantity}
             displayItems={displayItems}
             localItems={localItems}
@@ -175,6 +179,11 @@ const Dealer = () => {
           {...orderSummary}
           onCheckout={handleDealerCheckout}
           isCheckoutLoading={isCheckoutLoading}
+          bagMultiplier={bagMultiplier}
+          totalAssignedBags={totalAssignedBags}
+          remainingBagSlots={remainingBagSlots}
+          onSetTorsoBagQuantity={handleSetTorsoBagQuantity}
+          allTorsoBags={torsoBags}
         />
       </div>
 

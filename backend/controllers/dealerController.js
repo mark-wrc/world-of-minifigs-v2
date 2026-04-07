@@ -119,8 +119,8 @@ const validateAddonBundleItems = async (bundleItems) => {
 
     const itemPricePerBag =
       item.pricePerBag != null
-        ? Math.round(Number(item.pricePerBag))
-        : Math.round(inventoryItem.price * qty);
+        ? Number(item.pricePerBag)
+        : Number(inventoryItem.price * qty);
     validatedItems.push({
       inventoryItemId: item.inventoryItemId,
       quantityPerBag: qty,
