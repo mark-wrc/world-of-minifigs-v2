@@ -133,7 +133,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
 
               {/* ── Body ── */}
               <div className="flex flex-col flex-1 bg-card border border-t-0 border-border rounded-b-xl p-4 gap-5">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground leading-snug line-clamp-4 flex-1 min-h-15">
                   {addon.description || "—"}
                 </p>
 
