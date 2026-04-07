@@ -9,7 +9,10 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
         <h2 className="text-2xl font-bold tracking-tight">
           Step 2 — Select your add-ons
         </h2>
-        <Badge variant="outline" className="text-[10px] uppercase tracking-wide shrink-0">
+        <Badge
+          variant="outline"
+          className="text-[10px] uppercase tracking-wide shrink-0"
+        >
           Optional
         </Badge>
       </div>
@@ -18,7 +21,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
       </p>
     </div>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(220px,1fr))]">
       {addons.map((addon) => (
         <Card
           key={addon._id}
