@@ -46,7 +46,7 @@ const Dealer = () => {
 
     // Handlers
     handleExtraBagQtyChange,
-    handleSetTorsoBagQuantity,
+    handleSelectTorsoBag,
     bagMultiplier,
     totalAssignedBags,
     remainingBagSlots,
@@ -156,7 +156,7 @@ const Dealer = () => {
           <DealerTorsoBag
             torsoBags={torsoBags}
             lastSelectedBag={lastSelectedBag}
-            onSetQuantity={handleSetTorsoBagQuantity}
+            onSelect={handleSelectTorsoBag}
             isAdmin={isAdmin}
             isCustomBundle={isCustomBundle}
             multiplier={multiplier}
@@ -182,7 +182,7 @@ const Dealer = () => {
           bagMultiplier={bagMultiplier}
           totalAssignedBags={totalAssignedBags}
           remainingBagSlots={remainingBagSlots}
-          onSetTorsoBagQuantity={handleSetTorsoBagQuantity}
+          onSetTorsoBagQuantity={handleSelectTorsoBag}
           allTorsoBags={torsoBags}
         />
       </div>
