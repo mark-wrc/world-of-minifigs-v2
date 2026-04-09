@@ -2,7 +2,7 @@ import Bundle from "../models/bundle.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
 import DealerExtraBag from "../models/dealerExtraBag.model.js";
 import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
-import MinifigInventory from "../models/minifigInventory.model.js";
+import GeneralInventory from "../models/generalInventory.model.js";
 import SubCollection from "../models/subCollection.model.js";
 import { cleanupItemImages } from "../services/imageService.js";
 import {
@@ -92,7 +92,7 @@ const validateAddonBundleItems = async (bundleItems) => {
       };
     }
 
-    const inventoryItem = await MinifigInventory.findById(
+    const inventoryItem = await GeneralInventory.findById(
       item.inventoryItemId,
     ).lean();
     if (!inventoryItem) {

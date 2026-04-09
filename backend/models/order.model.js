@@ -50,7 +50,7 @@ const dealerItemSchema = new mongoose.Schema(
             _id: false,
             invId: {
               type: mongoose.Schema.Types.ObjectId,
-              ref: "MinifigInventory",
+              ref: "GeneralInventory",
             },
             name: { type: String },
             qty: { type: Number },

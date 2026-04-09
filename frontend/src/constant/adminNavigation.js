@@ -34,10 +34,10 @@ export const adminNavigation = [
     icon: Package,
   },
   {
-    id: "minifig-inventory",
-    label: "Minifig Inventory",
-    path: "minifig-inventory",
-      icon: ChartCandlestick,
+    id: "general-inventory",
+    label: "General Inventory",
+    path: "general-inventory",
+    icon: ChartCandlestick,
   },
   {
     id: "product-color",

@@ -18,7 +18,7 @@ import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import MediaUpload from "@/components/shared/MediaUpload";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import { display } from "@/utils/formatting";
-import useMinifigInventoryManagement from "@/hooks/admin/useMinifigInventoryManagement";
+import useGeneralInventoryManagement from "@/hooks/admin/useGeneralInventoryManagement";
 
 const InventoryItemInputs = React.memo(
   ({
@@ -85,7 +85,7 @@ const InventoryItemInputs = React.memo(
   ),
 );
 
-const MinifigInventoryManagement = () => {
+const GeneralInventoryManagement = () => {
   const {
     inventory,
     colors,
@@ -123,14 +123,14 @@ const MinifigInventoryManagement = () => {
     handleNext,
     handleAdd,
     handleValueChange,
-  } = useMinifigInventoryManagement();
+  } = useGeneralInventoryManagement();
 
   return (
     <div className="space-y-5">
       {/* Admin Page Header */}
       <AdminManagementHeader
-        title="Minifig Inventory"
-        description="Manage your minifig stock and bulk upload new items"
+        title="General Inventory"
+        description="Manage your general stock and bulk upload new items"
         actionLabel="Add Inventory"
         onAction={handleAdd}
       />
@@ -203,7 +203,7 @@ const MinifigInventoryManagement = () => {
         <div className="space-y-4">
           {/* Media Upload with Metadata Inputs */}
           <MediaUpload
-            label="Minifig Inventory Image"
+            label="General Inventory Image"
             multiple={dialogMode === "add"}
             previews={filePreview}
             preview={filePreview[0]?.url}
@@ -247,4 +247,4 @@ const MinifigInventoryManagement = () => {
   );
 };
 
-export default MinifigInventoryManagement;
+export default GeneralInventoryManagement;

@@ -51,7 +51,7 @@ export const adminApi = createApi({
     "RewardBundle",
     "RewardAddon",
     "Order",
-    "MinifigInventory",
+    "GeneralInventory",
   ],
   endpoints: (builder) => ({
     // ==================== Banner Management ====================
@@ -667,40 +667,40 @@ export const adminApi = createApi({
       invalidatesTags: ["User"],
     }),
 
-    // ==================== Minifig Inventory Management ====================
-    getMinifigInventory: builder.query({
+    // ==================== General Inventory Management ====================
+    getGeneralInventory: builder.query({
       query: (params = {}) => ({
-        url: "/minifig-inventory",
+        url: "/general-inventory",
         method: "GET",
         params: buildPaginationParams(params),
       }),
-      providesTags: ["MinifigInventory"],
+      providesTags: ["GeneralInventory"],
     }),
 
-    createMinifigInventoryBulk: builder.mutation({
+    createGeneralInventoryBulk: builder.mutation({
       query: (data) => ({
-        url: "/minifig-inventory/bulk",
+        url: "/general-inventory/bulk",
         method: "POST",
         body: data,
       }),
-      invalidatesTags: ["MinifigInventory"],
+      invalidatesTags: ["GeneralInventory"],
     }),
 
-    updateMinifigInventory: builder.mutation({
+    updateGeneralInventory: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `/minifig-inventory/${id}`,
+        url: `/general-inventory/${id}`,
         method: "PUT",
         body: data,
       }),
-      invalidatesTags: ["MinifigInventory"],
+      invalidatesTags: ["GeneralInventory"],
     }),
 
-    deleteMinifigInventory: builder.mutation({
+    deleteGeneralInventory: builder.mutation({
       query: (id) => ({
-        url: `/minifig-inventory/${id}`,
+        url: `/general-inventory/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["MinifigInventory"],
+      invalidatesTags: ["GeneralInventory"],
     }),
   }),
 });
@@ -780,8 +780,8 @@ export const {
   useUpdateUserRoleMutation,
   useUpdateUserTaxExemptMutation,
 
-  useGetMinifigInventoryQuery,
-  useCreateMinifigInventoryBulkMutation,
-  useUpdateMinifigInventoryMutation,
-  useDeleteMinifigInventoryMutation,
+  useGetGeneralInventoryQuery,
+  useCreateGeneralInventoryBulkMutation,
+  useUpdateGeneralInventoryMutation,
+  useDeleteGeneralInventoryMutation,
 } = adminApi;

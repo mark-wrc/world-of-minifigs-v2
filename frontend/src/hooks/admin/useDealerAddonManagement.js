@@ -4,7 +4,7 @@ import {
   useCreateDealerAddonMutation,
   useUpdateDealerAddonMutation,
   useDeleteDealerAddonMutation,
-  useGetMinifigInventoryQuery,
+  useGetGeneralInventoryQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
@@ -86,7 +86,7 @@ const useDealerAddonManagement = () => {
     });
 
   const { data: inventoryData, isLoading: isLoadingInventory } =
-    useGetMinifigInventoryQuery({
+    useGetGeneralInventoryQuery({
       limit: "all",
       search: debouncedItemSearch || undefined,
     });

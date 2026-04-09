@@ -35,7 +35,7 @@ const dealerAddonSchema = new mongoose.Schema(
         _id: false,
         inventoryItemId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "MinifigInventory",
+          ref: "GeneralInventory",
         },
         quantityPerBag: {
           type: Number,

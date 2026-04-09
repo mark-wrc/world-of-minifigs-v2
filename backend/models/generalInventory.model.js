@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const minifigInventorySchema = new mongoose.Schema(
+const generalInventorySchema = new mongoose.Schema(
   {
     minifigName: {
       type: String,
@@ -62,7 +62,7 @@ const minifigInventorySchema = new mongoose.Schema(
 /* ----------------------------- Indexes ----------------------------- */
 
 // Fast lookup + uniqueness for name and color combo
-minifigInventorySchema.index(
+generalInventorySchema.index(
   { colorId: 1, minifigName: 1 },
   {
     unique: true,
@@ -71,13 +71,13 @@ minifigInventorySchema.index(
 );
 
 // Search optimization
-minifigInventorySchema.index({ minifigName: 1 });
-minifigInventorySchema.index({ isActive: 1 });
-minifigInventorySchema.index({ createdAt: -1 });
+generalInventorySchema.index({ minifigName: 1 });
+generalInventorySchema.index({ isActive: 1 });
+generalInventorySchema.index({ createdAt: -1 });
 
-const MinifigInventory = mongoose.model(
-  "MinifigInventory",
-  minifigInventorySchema,
+const GeneralInventory = mongoose.model(
+  "GeneralInventory",
+  generalInventorySchema,
 );
 
-export default MinifigInventory;
+export default GeneralInventory;

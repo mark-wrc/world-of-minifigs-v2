@@ -95,11 +95,11 @@ import {
 } from "../controllers/orderController.js";
 import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
-  createMinifigInventoryBulk,
-  getAllMinifigInventory,
-  updateMinifigInventory,
-  deleteMinifigInventory,
-} from "../controllers/minifigInventoryController.js";
+  createGeneralInventoryBulk,
+  getAllGeneralInventory,
+  updateGeneralInventory,
+  deleteGeneralInventory,
+} from "../controllers/generalInventoryController.js";
 
 const router = express.Router();
 
@@ -204,10 +204,10 @@ router.get("/users", getAllUsers);
 router.put("/users/:id/role", updateUserRole);
 router.put("/users/:id/tax-exempt", updateUserTaxExempt);
 
-// Minifig Inventory CRUD routes
-router.post("/minifig-inventory/bulk", createMinifigInventoryBulk);
-router.get("/minifig-inventory", getAllMinifigInventory);
-router.put("/minifig-inventory/:id", updateMinifigInventory);
-router.delete("/minifig-inventory/:id", deleteMinifigInventory);
+// General Inventory CRUD routes
+router.post("/general-inventory/bulk", createGeneralInventoryBulk);
+router.get("/general-inventory", getAllGeneralInventory);
+router.put("/general-inventory/:id", updateGeneralInventory);
+router.delete("/general-inventory/:id", deleteGeneralInventory);
 
 export default router;

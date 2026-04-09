@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useMemo } from "react";
 import {
-  useGetMinifigInventoryQuery,
-  useCreateMinifigInventoryBulkMutation,
-  useUpdateMinifigInventoryMutation,
-  useDeleteMinifigInventoryMutation,
+  useGetGeneralInventoryQuery,
+  useCreateGeneralInventoryBulkMutation,
+  useUpdateGeneralInventoryMutation,
+  useDeleteGeneralInventoryMutation,
   useGetColorsQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
-import { validateMinifigInventory } from "@/utils/validation";
+import { validateGeneralInventory } from "@/utils/validation";
 import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
@@ -38,7 +38,7 @@ const makeNewPreview = (url) => ({
   image: { url },
 });
 
-const useMinifigInventoryManagement = () => {
+const useGeneralInventoryManagement = () => {
   // ------------------------------- Media ------------------------------------
   const {
     filePreview,
@@ -51,11 +51,11 @@ const useMinifigInventoryManagement = () => {
 
   // ------------------------------- Mutations ------------------------------------
   const [createBulk, { isLoading: isCreating }] =
-    useCreateMinifigInventoryBulkMutation();
+    useCreateGeneralInventoryBulkMutation();
   const [updateItem, { isLoading: isUpdating }] =
-    useUpdateMinifigInventoryMutation();
+    useUpdateGeneralInventoryMutation();
   const [deleteItem, { isLoading: isDeleting }] =
-    useDeleteMinifigInventoryMutation();
+    useDeleteGeneralInventoryMutation();
 
   // ------------------------------- Core CRUD ------------------------------------
   const crud = useAdminCrud({
@@ -63,13 +63,13 @@ const useMinifigInventoryManagement = () => {
     createFn: createBulk,
     updateFn: updateItem,
     deleteFn: deleteItem,
-    entityName: "minifig-inventory",
+    entityName: "general-inventory",
     onReset: resetFile,
   });
 
   // ------------------------------- Fetch ------------------------------------
   const { data: inventoryData, isLoading: isLoadingInventory } =
-    useGetMinifigInventoryQuery({
+    useGetGeneralInventoryQuery({
       page: crud.page,
       limit: crud.limit,
       search: crud.search || undefined,
@@ -200,7 +200,7 @@ const useMinifigInventoryManagement = () => {
   // ------------------------------- Submit Handler ------------------------------------
   const handleSubmit = async () => {
     if (crud.dialogMode === "add") {
-      if (!validateMinifigInventory(filePreview, crud.dialogMode === "add"))
+      if (!validateGeneralInventory(filePreview, crud.dialogMode === "add"))
         return;
 
       const payload = {
@@ -218,7 +218,7 @@ const useMinifigInventoryManagement = () => {
 
       await crud.submitForm(payload);
     } else {
-      if (!validateMinifigInventory(filePreview, crud.dialogMode === "add"))
+      if (!validateGeneralInventory(filePreview, crud.dialogMode === "add"))
         return;
 
       const item = filePreview[0];
@@ -283,4 +283,4 @@ const useMinifigInventoryManagement = () => {
   };
 };
 
-export default useMinifigInventoryManagement;
+export default useGeneralInventoryManagement;

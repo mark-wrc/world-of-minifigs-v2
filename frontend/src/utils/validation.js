@@ -502,8 +502,8 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
   return true;
 };
 
-// validate all minifig inventory fields
-export const validateMinifigInventory = (items, isAddMode) => {
+// validate all general inventory fields
+export const validateGeneralInventory = (items, isAddMode) => {
   if (!items || !items.length) {
     toast.error("Items are required", {
       description: "Please add at least one item.",

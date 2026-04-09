@@ -2,7 +2,7 @@ import Bundle from "../../../models/bundle.model.js";
 import DealerAddon from "../../../models/dealerAddon.model.js";
 import DealerExtraBag from "../../../models/dealerExtraBag.model.js";
 import DealerTorsoBag from "../../../models/dealerTorsoBag.model.js";
-import MinifigInventory from "../../../models/minifigInventory.model.js";
+import GeneralInventory from "../../../models/generalInventory.model.js";
 import {
   buildStripeLineItem,
   decrementDealerAddonStock,
@@ -303,7 +303,7 @@ export async function createDealerOrderFromStripeSession(session) {
 
       if (selectedItems?.length > 0) {
         for (const sub of selectedItems) {
-          const inv = await MinifigInventory.findById(
+          const inv = await GeneralInventory.findById(
             sub.inventoryItemId,
           ).lean();
           if (inv) {

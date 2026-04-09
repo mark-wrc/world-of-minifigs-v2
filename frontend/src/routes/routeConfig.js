@@ -34,7 +34,7 @@ import SkillLevelManagement from "@/pages/admin/SkillLevelManagement";
 import DesignerManagement from "@/pages/admin/DesignerManagement";
 import OrderManagement from "@/pages/admin/OrderManagement";
 import UserManagement from "@/pages/admin/UserManagement";
-import MinifigInventoryManagement from "@/pages/admin/MinifigInventoryManagement";
+import GeneralInventoryManagement from "@/pages/admin/GeneralInventoryManagement";
 
 // Public routes
 export const publicRoutes = [
@@ -183,8 +183,8 @@ export const adminRoutes = [
         element: UserManagement,
       },
       {
-        path: "minifig-inventory",
-        element: MinifigInventoryManagement,
+        path: "general-inventory",
+        element: GeneralInventoryManagement,
       },
     ],
   },

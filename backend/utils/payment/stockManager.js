@@ -1,5 +1,5 @@
 import Product from "../../models/product.model.js";
-import MinifigInventory from "../../models/minifigInventory.model.js";
+import GeneralInventory from "../../models/generalInventory.model.js";
 import DealerAddon from "../../models/dealerAddon.model.js";
 
 // ------------------------- Product Stock Management --------------------------------
@@ -98,7 +98,7 @@ export const decrementDealerAddonStock = async (parsedAddons) => {
       if (!definition) continue;
 
       const totalNeeded = definition.quantityPerBag * bags * addonQty;
-      await MinifigInventory.findByIdAndUpdate(invId, {
+      await GeneralInventory.findByIdAndUpdate(invId, {
         $inc: { stock: -totalNeeded },
       });
     }
@@ -142,7 +142,7 @@ const restockDealerAddonItems = async (dealerItems) => {
       if (!definition) continue;
 
       const totalIncrement = definition.quantityPerBag * bags * quantity;
-      await MinifigInventory.findByIdAndUpdate(invId, {
+      await GeneralInventory.findByIdAndUpdate(invId, {
         $inc: { stock: totalIncrement },
       });
     }

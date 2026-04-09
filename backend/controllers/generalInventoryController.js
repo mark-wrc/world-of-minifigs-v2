@@ -1,4 +1,4 @@
-import MinifigInventory from "../models/minifigInventory.model.js";
+import GeneralInventory from "../models/generalInventory.model.js";
 import Color from "../models/color.model.js";
 import {
   uploadSingleImage,
@@ -14,10 +14,10 @@ import {
 import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
-const IMAGE_FOLDER = "world-of-minifigs-v2/minifig-inventory";
+const IMAGE_FOLDER = "world-of-minifigs-v2/general-inventory";
 
-//------------------------------------------------ Create Minifig Inventory (Bulk) ------------------------------------------
-export const createMinifigInventoryBulk = async (req, res) => {
+//------------------------------------------------ Create General Inventory (Bulk) ------------------------------------------
+export const createGeneralInventoryBulk = async (req, res) => {
   const { items } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -62,7 +62,7 @@ export const createMinifigInventoryBulk = async (req, res) => {
 
       // Check for duplicate name + color combo (Non-blocking warning for bulk)
       const existing = await checkNameConflict(
-        MinifigInventory,
+        GeneralInventory,
         "minifigName",
         String(minifigName).trim(),
         null,
@@ -75,7 +75,7 @@ export const createMinifigInventoryBulk = async (req, res) => {
       // Upload image via imageService (validate + upload)
       const uploadedImage = await uploadSingleImage(image, IMAGE_FOLDER);
 
-      const newInventory = await MinifigInventory.create({
+      const newInventory = await GeneralInventory.create({
         minifigName: String(minifigName).trim(),
         price: Number(price),
         stock: Number(stock),
@@ -104,7 +104,7 @@ export const createMinifigInventoryBulk = async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: `Minifig completed: ${totalSaved} saved, ${totalFailed} failed.`,
+    message: `Inventory completed: ${totalSaved} saved, ${totalFailed} failed.`,
     summary: {
       totalSaved,
       totalFailed,
@@ -113,8 +113,8 @@ export const createMinifigInventoryBulk = async (req, res) => {
   });
 };
 
-//------------------------------------------------ Get All Minifig Inventory ------------------------------------------
-export const getAllMinifigInventory = async (req, res) => {
+//------------------------------------------------ Get All General Inventory ------------------------------------------
+export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
 
@@ -143,7 +143,7 @@ export const getAllMinifigInventory = async (req, res) => {
       }
     }
 
-    const result = await paginateQuery(MinifigInventory, searchQuery, {
+    const result = await paginateQuery(GeneralInventory, searchQuery, {
       page,
       limit,
       sort: { createdAt: -1 },
@@ -164,12 +164,12 @@ export const getAllMinifigInventory = async (req, res) => {
   }
 };
 
-//------------------------------------------------ Get Single Minifig Inventory ------------------------------------------
-export const getMinifigInventoryById = async (req, res) => {
+//------------------------------------------------ Get Single General Inventory ------------------------------------------
+export const getGeneralInventoryById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const inventory = await MinifigInventory.findById(id)
+    const inventory = await GeneralInventory.findById(id)
       .populate("colorId", "colorName hexCode")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
@@ -197,13 +197,13 @@ export const getMinifigInventoryById = async (req, res) => {
   }
 };
 
-//------------------------------------------------ Update Minifig Inventory ------------------------------------------
-export const updateMinifigInventory = async (req, res) => {
+//------------------------------------------------ Update General Inventory ------------------------------------------
+export const updateGeneralInventory = async (req, res) => {
   try {
     const { id } = req.params;
     const { minifigName, price, stock, colorId, image, isActive } = req.body;
 
-    const inventory = await MinifigInventory.findById(id);
+    const inventory = await GeneralInventory.findById(id);
 
     if (!inventory) {
       return res.status(404).json({
@@ -231,7 +231,7 @@ export const updateMinifigInventory = async (req, res) => {
         (colorId && colorId !== inventory.colorId.toString())
       ) {
         const existing = await checkNameConflict(
-          MinifigInventory,
+          GeneralInventory,
           "minifigName",
           checkName,
           id,
@@ -325,12 +325,12 @@ export const updateMinifigInventory = async (req, res) => {
   }
 };
 
-//------------------------------------------------ Delete Minifig Inventory ------------------------------------------
-export const deleteMinifigInventory = async (req, res) => {
+//------------------------------------------------ Delete General Inventory ------------------------------------------
+export const deleteGeneralInventory = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const inventory = await MinifigInventory.findById(id).lean();
+    const inventory = await GeneralInventory.findById(id).lean();
 
     if (!inventory) {
       return res.status(404).json({
@@ -340,7 +340,7 @@ export const deleteMinifigInventory = async (req, res) => {
       });
     }
 
-    await MinifigInventory.findByIdAndDelete(id);
+    await GeneralInventory.findByIdAndDelete(id);
 
     // Delete image in background (fire-and-forget)
     deleteSingleImage(inventory.image?.publicId);

@@ -92,7 +92,7 @@ const useCheckoutSuccess = () => {
         order.dealerItems.addons.forEach((addon) => {
           addon.subItems?.forEach((sub) => {
             tags.push({
-              type: "MinifigInventory",
+              type: "GeneralInventory",
               id: sub.invId?.toString?.() ?? sub.invId,
             });
           });
