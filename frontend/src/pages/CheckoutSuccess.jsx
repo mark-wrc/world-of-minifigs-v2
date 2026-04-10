@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
 import CommonImage from "@/components/shared/CommonImage";
+import ColorSwatch from "@/components/shared/ColorSwatch";
 import Logo from "@/assets/media/Logo.png";
 import { formatCurrency, formatDate } from "@/utils/formatting";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
@@ -70,6 +71,15 @@ const CheckoutSuccess = () => {
   }
 
   const isDealer = order?.orderType === "dealer";
+  const di = order?.dealerItems;
+
+  // Resolve torso bags: prefer new array format, fall back to legacy single entry
+  const torsoBags =
+    di?.torsoBags?.length > 0
+      ? di.torsoBags
+      : di?.torsoBag
+        ? [{ name: di.torsoBag.name, quantity: di.torsoBag.multiplier }]
+        : [];
 
   return (
     <div className="px-5 py-10">
@@ -113,9 +123,6 @@ const CheckoutSuccess = () => {
       <div className="my-5 flex flex-wrap gap-4 items-end justify-between">
         <h2 className="text-2xl font-bold flex items-center">
           {status === "cancelled" ? "Cancelled Items" : "Order Details"}
-          <sup className=" font-bold text-muted-foreground ml-2">
-            {displayItems?.length}
-          </sup>
         </h2>
       </div>
 
@@ -123,23 +130,155 @@ const CheckoutSuccess = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column: Items */}
         <div className="lg:col-span-8 space-y-5">
-          <div className="space-y-5">
-            <div className="space-y-3">
-              {displayItems?.map((item, index) => (
-                <Card
-                  key={index}
-                  className={`${item.isSubItem ? "ml-8 border-dashed bg-muted/20" : ""}`}
-                >
+          <div className="space-y-3">
+            {/* ── Dealer Order Layout ── */}
+            {isDealer && di && (
+              <>
+                {/* Selected Bundle Card */}
+                {di.bundle && (
+                  <Card>
+                    <CardContent className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        Selected Bundle
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-base">
+                          {di.bundle.name}
+                        </span>
+                        <span className="font-bold text-base text-success dark:text-accent whitespace-nowrap">
+                          {formatCurrency(di.bundle.price)}
+                        </span>
+                      </div>
+
+                      {/* Torso Bags */}
+                      {torsoBags.length > 0 && (
+                        <div className="pt-2 border-t border-dashed space-y-2">
+                          {torsoBags.map((tb, i) => (
+                            <div
+                              key={i}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="font-medium">{tb.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                ×{tb.quantity}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Add-ons — single card, one section per addon */}
+                {di.addons?.length > 0 && (
+                  <Card>
+                    <CardContent className="space-y-4">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        Add-ons
+                      </p>
+                      {di.addons.map((addon, i) => (
+                        <div key={i} className={i > 0 ? "pt-4 border-t border-dashed" : ""}>
+                          {/* Addon name + price */}
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className="font-bold text-sm">{addon.name}</span>
+                            <span className="font-bold text-sm text-success dark:text-accent whitespace-nowrap">
+                              {addon.totalPrice > 0 ? formatCurrency(addon.totalPrice) : "Free"}
+                            </span>
+                          </div>
+
+                          {/* Sub-items */}
+                          {addon.subItems?.length > 0 && (
+                            <div className="space-y-2">
+                              {addon.subItems.map((sub, j) => (
+                                <div
+                                  key={j}
+                                  className="flex items-center gap-3 rounded-md border p-2"
+                                >
+                                  {sub.imageUrl && (
+                                    <CommonImage
+                                      src={sub.imageUrl}
+                                      alt={sub.name}
+                                      className="size-12 object-contain shrink-0"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-sm font-semibold truncate">
+                                        {sub.name}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground shrink-0">
+                                        {sub.qty} bag{sub.qty !== 1 ? "s" : ""}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                      {sub.colorName && (
+                                        <span className="text-muted-foreground">{sub.colorName}</span>
+                                      )}
+                                      {sub.colorName && sub.totalPrice > 0 && (
+                                        <span className="text-muted-foreground">·</span>
+                                      )}
+                                      {sub.totalPrice > 0 && (
+                                        <span className="font-semibold text-success dark:text-accent">
+                                          {formatCurrency(sub.totalPrice)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Extra Bags Card */}
+                {di.extraBags?.length > 0 && (
+                  <Card>
+                    <CardContent className="space-y-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        Extra Bags
+                      </p>
+                      <div className="space-y-3">
+                        {di.extraBags.map((eb, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between gap-2 text-sm"
+                          >
+                            <span className="font-semibold">
+                              {eb.name}{" "}
+                              <span className="text-muted-foreground font-normal">
+                                ({eb.quantity} bag{eb.quantity !== 1 ? "s" : ""}
+                                )
+                              </span>
+                            </span>
+                            {eb.price > 0 && (
+                              <span className="font-semibold text-success dark:text-accent whitespace-nowrap">
+                                {formatCurrency(eb.price * eb.quantity)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+
+            {/* ── Product Order Layout ── */}
+            {!isDealer &&
+              displayItems?.map((item, index) => (
+                <Card key={index}>
                   <CardContent className="flex gap-3 items-center">
                     {item.imageUrl && (
                       <CommonImage
                         src={item.imageUrl}
                         alt={item.productName}
-                        className={
-                          item.isSubItem
-                            ? "w-16"
-                            : "w-28"
-                        }
+                        className="w-28"
                       />
                     )}
                     <div className="flex-1 flex flex-col justify-between self-stretch">
@@ -156,11 +295,9 @@ const CheckoutSuccess = () => {
                             {item.productName}
                           </span>
                         )}
-                        {!item.isSubItem && (
-                          <span className="font-bold text-lg text-success dark:text-accent whitespace-nowrap">
-                            {formatCurrency(item.totalPrice)}
-                          </span>
-                        )}
+                        <span className="font-bold text-lg text-success dark:text-accent whitespace-nowrap">
+                          {formatCurrency(item.totalPrice)}
+                        </span>
                       </div>
                       <div className="space-y-1">
                         {item.description && (
@@ -188,7 +325,6 @@ const CheckoutSuccess = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
           </div>
 
           {/* Bottom Card: Shipping Details (non-cancelled only) */}
