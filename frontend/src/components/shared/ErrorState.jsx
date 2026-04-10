@@ -13,9 +13,9 @@ const ErrorState = ({
       className={`px-5 py-20 ${minHeight} flex flex-col items-center justify-center text-center`}
     >
       <h3 className="text-2xl font-extrabold mb-3 uppercase">{title}</h3>
-      <p className="text-muted-foreground">
+      <div className="text-muted-foreground">
         {description}
-      </p>
+      </div>
     </div>
   );
 };

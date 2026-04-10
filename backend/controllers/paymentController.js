@@ -12,6 +12,27 @@ import {
   STRIPE_SESSION_CONFIG,
 } from "../services/payment/index.js";
 
+// Backfills invoice number / URL onto an order if Stripe hadn't finalized the
+// invoice before the webhook fired. Mutates and returns the order.
+const patchInvoiceFields = async (order, sessionId) => {
+  if (order.payment.stripeInvoiceNumber || order.payment.invoiceUrl) return order;
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ["invoice"],
+  });
+  const invoiceNumber = session.invoice?.number;
+  const invoiceUrl = session.invoice?.hosted_invoice_url;
+  if (invoiceNumber || invoiceUrl) {
+    await Order.findByIdAndUpdate(order._id, {
+      "payment.stripeInvoiceNumber": invoiceNumber,
+      "payment.invoiceUrl": invoiceUrl || undefined,
+    });
+    order.payment.stripeInvoiceNumber = invoiceNumber;
+    order.payment.invoiceUrl = invoiceUrl;
+  }
+  return order;
+};
+
 // Find existing Stripe customer or create one, caching the ID on the user
 // Returns null if Stripe is unavailable (checkout falls back to customer_email)
 const findOrCreateStripeCustomer = async (userId) => {
@@ -151,34 +172,15 @@ export const confirmOrder = async (req, res) => {
       });
     }
 
-    // 1. Check if the webhook already created the order
-    const existingOrder = await Order.findOne({
-      "payment.stripeSessionId": sessionId,
-    });
+    // 1. Check if the order already exists (webhook may have beaten us here)
+    let order = await Order.findOne({ "payment.stripeSessionId": sessionId });
 
-    if (existingOrder) {
-      // If the webhook created the order before Stripe finalized the invoice,
-      // patch the missing invoice fields now that the success page has loaded.
-      if (!existingOrder.payment.stripeInvoiceNumber && !existingOrder.payment.invoiceUrl) {
-        const stripe = getStripe();
-        const session = await stripe.checkout.sessions.retrieve(sessionId, {
-          expand: ["invoice"],
-        });
-        const invoiceNumber = session.invoice?.number;
-        const invoiceUrl = session.invoice?.hosted_invoice_url;
-        if (invoiceNumber || invoiceUrl) {
-          await Order.findByIdAndUpdate(existingOrder._id, {
-            "payment.stripeInvoiceNumber": invoiceNumber,
-            "payment.invoiceUrl": invoiceUrl || undefined,
-          });
-          existingOrder.payment.stripeInvoiceNumber = invoiceNumber;
-          existingOrder.payment.invoiceUrl = invoiceUrl;
-        }
-      }
-      return res.status(200).json({ success: true, order: existingOrder });
+    if (order) {
+      order = await patchInvoiceFields(order, sessionId);
+      return res.status(200).json({ success: true, order });
     }
 
-    // 2. Webhook hasn't arrived yet — retrieve session from Stripe as fallback
+    // 2. Verify payment status with Stripe
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["invoice"],
@@ -191,26 +193,29 @@ export const confirmOrder = async (req, res) => {
       });
     }
 
-    // 3. Create the order from the session (same logic as webhook)
-    let result;
+    // 3. Atomically claim the draft and create the order.
+    //    getDraftAndClean uses findByIdAndDelete so only one caller (this request
+    //    or the webhook) will get the draft — the other gets null.
     const orderType = session.metadata?.orderType;
+    const result = orderType === "dealer"
+      ? await createDealerOrderFromStripeSession(session)
+      : await createOrderFromStripeSession(session);
 
-    if (orderType === "dealer") {
-      result = await createDealerOrderFromStripeSession(session);
-    } else {
-      result = await createOrderFromStripeSession(session);
+    if (result?.order) {
+      return res.status(200).json({ success: true, order: result.order });
     }
 
-    if (!result?.order) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to create order. Please contact support.",
-      });
+    // 4. Draft was already consumed by the webhook — it is currently creating the
+    //    order. Poll briefly (up to 6 s) rather than failing immediately.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      order = await Order.findOne({ "payment.stripeSessionId": sessionId });
+      if (order) return res.status(200).json({ success: true, order });
     }
 
-    return res.status(200).json({
-      success: true,
-      order: result.order,
+    return res.status(500).json({
+      success: false,
+      message: "Order creation timed out. Please contact support.",
     });
   } catch (error) {
     console.error("Confirm order error:", error);

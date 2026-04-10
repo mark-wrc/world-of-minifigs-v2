@@ -22,13 +22,12 @@ export async function saveOrderDraft(userId, orderType, payload) {
 }
 
 /**
- * Retrieves the draft by ID and deletes it (cleanup).
+ * Atomically retrieves and deletes the draft in a single DB operation.
+ * Guarantees only one caller (confirmOrder or webhook) processes it.
  */
 export async function getDraftAndClean(draftId) {
   if (!draftId) return null;
-  const draft = await OrderDraft.findById(draftId);
-  if (draft) await OrderDraft.findByIdAndDelete(draftId);
-  return draft;
+  return await OrderDraft.findByIdAndDelete(draftId);
 }
 
 // ------------------------- Shared: Create Order Record ----------------------------
