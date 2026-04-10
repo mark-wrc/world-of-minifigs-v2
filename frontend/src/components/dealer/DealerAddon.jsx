@@ -152,7 +152,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                             : formatCurrency(originalVal)}
                       </span>
                       {hasDiscount && (
-                        <span className="text-xs font-medium text-muted-foreground line-through leading-none">
+                        <span className="text-lg font-bold text-destructive line-through leading-none">
                           {formatCurrency(originalVal)}
                         </span>
                       )}
@@ -168,7 +168,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
 
                   {/* CTA button */}
                   <button
-                    className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg transition-all duration-200 group-hover:gap-2.5 ${isSelected ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground group-hover:bg-primary/90"}`}
+                    className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg transition-all duration-200 group-hover:gap-2.5 cursor-pointer ${isSelected ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground group-hover:bg-primary/90"}`}
                   >
                     {isSelected ? "Added" : "Select"}
                     <ArrowRight className="w-3.5 h-3.5" />

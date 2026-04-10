@@ -25,6 +25,7 @@ import {
 } from "@/utils/formatting";
 import { getOrderStatusConfig } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
+import CommonImage from "@/components/shared/CommonImage";
 
 const OrderManagement = () => {
   const {
@@ -469,42 +470,54 @@ const OrderManagement = () => {
           {/* Dealer Manifest View */}
           {viewOrder?.orderType === "dealer" && viewOrder.dealerItems && (
             <div className="space-y-4">
-              {/* Bundle */}
-              <div className="rounded-lg border bg-muted/30">
-                <div className="p-3 border-b bg-muted/50 font-bold text-[10px] uppercase tracking-wider">
+              {/* Bundle + Torso Bags */}
+              <div className="rounded-lg border">
+                <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
                   Selected Bundle
                 </div>
-                <div className="p-3 grid grid-cols-[1fr_auto] items-center">
-                  <span className="text-xs">
+                <div className="p-3 flex justify-between items-center">
+                  <span className="text-xs font-medium">
                     {viewOrder.dealerItems.bundle?.name}
                   </span>
-                  <span className="text-xs font-semibold">
+                  <span className="text-xs font-bold text-success dark:text-accent">
                     {formatCurrency(viewOrder.dealerItems.bundle?.price)}
                   </span>
                 </div>
-              </div>
 
-              {/* Torso Bag */}
-              {viewOrder.dealerItems.torsoBag && (
-                <div className="rounded-lg border border-dashed">
-                  <div className="p-3 border-b font-bold text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Included Torso Bag
+                {/* Torso bags */}
+                {(viewOrder.dealerItems.torsoBags?.length > 0 ||
+                  viewOrder.dealerItems.torsoBag) && (
+                  <div className="border-t px-3 py-2 space-y-3">
+                    {viewOrder.dealerItems.torsoBags?.length > 0 ? (
+                      viewOrder.dealerItems.torsoBags.map((tb, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center"
+                        >
+                          <span className="text-xs">{tb.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ×{tb.quantity}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs">
+                          {viewOrder.dealerItems.torsoBag.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ×{viewOrder.dealerItems.torsoBag.multiplier}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="p-3 grid grid-cols-[1fr_auto] items-center">
-                    <span className="text-xs">
-                      {viewOrder.dealerItems.torsoBag.name}
-                    </span>
-                    <span className="text-xs font-bold text-success capitalize">
-                      {viewOrder.dealerItems.torsoBag.multiplier}x Included
-                    </span>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Addons */}
               {viewOrder.dealerItems.addons?.length > 0 && (
                 <div className="rounded-lg border">
-                  <div className="p-3 border-b bg-muted/20 font-bold text-[10px] uppercase tracking-wider">
+                  <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
                     Add-on Selections
                   </div>
                   <div className="divide-y">
@@ -519,14 +532,46 @@ const OrderManagement = () => {
                           </span>
                         </div>
                         {addon.subItems?.length > 0 && (
-                          <div className="pl-4 border-l-2 border-muted space-y-1">
+                          <div className="space-y-2 mt-1">
                             {addon.subItems.map((sub, sIdx) => (
                               <div
                                 key={sIdx}
-                                className="text-[11px] text-muted-foreground grid grid-cols-[1fr_auto] gap-2"
+                                className="flex items-center gap-3 rounded-md border p-2"
                               >
-                                <span>↳ {sub.name}</span>
-                                <span>{sub.qty} bags</span>
+                                {sub.imageUrl && (
+                                  <CommonImage
+                                    src={sub.imageUrl}
+                                    alt={sub.name}
+                                    className="size-12 object-contain shrink-0"
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs font-semibold truncate">
+                                      {sub.name}
+                                    </p>
+                                    <span className="text-xs text-muted-foreground shrink-0">
+                                      {sub.qty} bag{sub.qty !== 1 ? "s" : ""}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-xs">
+                                    {sub.colorName && (
+                                      <span className="text-muted-foreground">
+                                        {sub.colorName}
+                                      </span>
+                                    )}
+                                    {sub.colorName && sub.totalPrice > 0 && (
+                                      <span className="text-muted-foreground">
+                                        ·
+                                      </span>
+                                    )}
+                                    {sub.totalPrice > 0 && (
+                                      <span className="font-semibold text-success dark:text-accent">
+                                        {formatCurrency(sub.totalPrice)}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -539,21 +584,20 @@ const OrderManagement = () => {
 
               {/* Extra Bags */}
               {viewOrder.dealerItems.extraBags?.length > 0 && (
-                <div className="rounded-lg border border-accent/20">
-                  <div className="p-3 border-b bg-accent/5 font-bold text-[10px] uppercase tracking-wider text-accent">
-                    Extra Part Bags
-                  </div>
+                <div className="rounded-lg border">
                   <div className="divide-y">
                     {viewOrder.dealerItems.extraBags.map((bag, idx) => (
                       <div
                         key={idx}
-                        className="p-3 grid grid-cols-[1fr_auto_auto] gap-4 items-center"
+                        className="p-3 flex justify-between items-center gap-2"
                       >
-                        <span className="text-xs">{bag.name}</span>
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {bag.quantity} × {formatCurrency(bag.price)}
-                        </span>
                         <span className="text-xs font-semibold">
+                          {bag.name}{" "}
+                          <span className="text-muted-foreground font-normal">
+                            ({bag.quantity} bag{bag.quantity !== 1 ? "s" : ""})
+                          </span>
+                        </span>
+                        <span className="text-xs font-semibold shrink-0 text-success">
                           {formatCurrency(bag.quantity * bag.price)}
                         </span>
                       </div>
@@ -571,25 +615,25 @@ const OrderManagement = () => {
             Payment Summary
           </Label>
           <div className="rounded-lg border divide-y text-sm">
-            <div className="grid grid-cols-[140px_1fr] p-3">
+            <div className="flex justify-between items-center p-3">
               <span className="font-semibold text-xs">Subtotal</span>
               <span className="text-xs">
                 {formatCurrency(viewOrder?.payment?.subtotal)}
               </span>
             </div>
-            <div className="grid grid-cols-[140px_1fr] p-3">
+            <div className="flex justify-between items-center p-3">
               <span className="font-semibold text-xs">Shipping Fee</span>
               <span className="text-xs">
                 {formatCurrency(viewOrder?.payment?.shippingFee)}
               </span>
             </div>
-            <div className="grid grid-cols-[140px_1fr] p-3">
+            <div className="flex justify-between items-center p-3">
               <span className="font-semibold text-xs">Tax</span>
               <span className="text-xs">
                 {formatCurrency(viewOrder?.payment?.taxAmount ?? 0)}
               </span>
             </div>
-            <div className="grid grid-cols-[140px_1fr] p-3 font-semibold">
+            <div className="flex justify-between items-center p-3 font-bold text-success">
               <span>Total</span>
               <span>{formatCurrency(viewOrder?.payment?.totalAmount)}</span>
             </div>

@@ -38,6 +38,14 @@ const dealerItemSchema = new mongoose.Schema(
       name: { type: String },
       multiplier: { type: Number },
     },
+    torsoBags: [
+      {
+        _id: false,
+        id: { type: mongoose.Schema.Types.ObjectId, ref: "DealerTorsoBag" },
+        name: { type: String },
+        quantity: { type: Number },
+      },
+    ],
     addons: [
       {
         _id: false,
@@ -54,6 +62,11 @@ const dealerItemSchema = new mongoose.Schema(
             },
             name: { type: String },
             qty: { type: Number },
+            imageUrl: { type: String },
+            colorName: { type: String },
+            colorHex: { type: String },
+            pricePerBag: { type: Number },
+            totalPrice: { type: Number },
           },
         ],
       },

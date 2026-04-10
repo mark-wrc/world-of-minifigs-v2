@@ -72,6 +72,7 @@ const DealerTorsoBag = ({
   isAdmin,
   isCustomBundle,
   multiplier,
+  bagMultiplier,
   miscQuantity,
   displayItems,
   localItems,
@@ -97,7 +98,9 @@ const DealerTorsoBag = ({
         <p className="text-muted-foreground text-sm">
           {torsoBags.length === 1
             ? "Your bundle includes the following curated torso designs."
-            : "Select your preferred torso bag design."}
+            : bagMultiplier > 1
+              ? `Your bundle includes ${bagMultiplier} bags — customize the split in the order summary.`
+              : "Select your preferred torso bag design."}
         </p>
       </div>
 
@@ -179,16 +182,8 @@ const DealerTorsoBag = ({
                   variant="accent"
                   className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 whitespace-nowrap z-10 uppercase tracking-widest"
                 >
-                  Selected
+                  {bagMultiplier > 1 ? `×${bag.assignedQty}` : "Selected"}
                 </Badge>
-              )}
-
-              {!isCustomBundle && multiplier > 1 && (
-                <div className="absolute top-2 right-2 z-10">
-                  <Badge variant="accent" className="font-bold">
-                    ×{multiplier}
-                  </Badge>
-                </div>
               )}
 
               <div className="flex items-center justify-center p-4 mt-2 group-hover:scale-110 transition-transform duration-500">
@@ -229,8 +224,10 @@ const DealerTorsoBag = ({
               </h3>
 
               <p className="text-muted-foreground text-sm">
-                {displayItems.length} unique designs • {multiplier} bags of the
-                same torso design
+                {displayItems.length} unique designs •{" "}
+                {multiplier === 1
+                  ? "1 bag"
+                  : `${multiplier} bag${multiplier !== 1 ? "s" : ""} of this design`}
                 {isAdmin && (
                   <span className="ml-1 text-primary"> • Drag to reorder</span>
                 )}

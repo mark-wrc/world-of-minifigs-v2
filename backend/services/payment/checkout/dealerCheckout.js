@@ -18,7 +18,7 @@ import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 // ------------ Build Stripe Line Items for Dealer Checkout ------------
 
 export async function buildLineItemsForDealer(body, userId) {
-  const { bundleId, torsoBagId, addons, extraBags } = body;
+  const { bundleId, torsoBags: torsoBagsPayload, addons, extraBags } = body;
 
   // 1. Validate & fetch bundle
   if (!bundleId) {
@@ -47,23 +47,32 @@ export async function buildLineItemsForDealer(body, userId) {
     };
   }
 
-  // 2. Validate & fetch torso bag
-  let torsoBag = null;
-  if (torsoBagId) {
-    torsoBag = await DealerTorsoBag.findOne({
-      _id: torsoBagId,
-      isActive: true,
-    }).lean();
+  // 2. Validate & fetch torso bags
+  const validatedTorsoBags = [];
+  if (Array.isArray(torsoBagsPayload) && torsoBagsPayload.length > 0) {
+    for (const entry of torsoBagsPayload) {
+      const qty = Math.max(1, Math.floor(Number(entry.quantity) || 1));
+      const bag = await DealerTorsoBag.findOne({
+        _id: entry.torsoBagId,
+        isActive: true,
+      }).lean();
 
-    if (!torsoBag) {
-      return {
-        error: {
-          status: 404,
-          message: "Torso bag not found",
-          description:
-            "The selected torso bag does not exist or is unavailable.",
-        },
-      };
+      if (!bag) {
+        return {
+          error: {
+            status: 404,
+            message: "Torso bag not found",
+            description:
+              "One of the selected torso bags does not exist or is unavailable.",
+          },
+        };
+      }
+
+      validatedTorsoBags.push({
+        torsoBagId: bag._id,
+        bagName: bag.bagName,
+        quantity: qty,
+      });
     }
   }
 
@@ -190,7 +199,12 @@ export async function buildLineItemsForDealer(body, userId) {
   }
 
   // 5. Build Stripe line items
-  const bundleName = `${bundle.minifigQuantity} Minifigs${torsoBag ? ` [${torsoBag.bagName}]` : ""}`;
+  const bagSummary = validatedTorsoBags
+    .map((tb) =>
+      tb.quantity > 1 ? `${tb.bagName}×${tb.quantity}` : tb.bagName,
+    )
+    .join(", ");
+  const bundleName = `${bundle.minifigQuantity} Minifigs${bagSummary ? ` [${bagSummary}]` : ""}`;
 
   const lineItems = [
     buildStripeLineItem(bundleName, Math.round(bundle.totalPrice * 100), 1),
@@ -230,7 +244,7 @@ export async function buildLineItemsForDealer(body, userId) {
   // 6. Save Draft Snapshot (Scalability & Character Limit Solution)
   const draftId = await saveOrderDraft(userId, ORDER_TYPES.DEALER, {
     bundleId: bundle._id,
-    torsoBagId: torsoBag?._id || undefined,
+    torsoBags: validatedTorsoBags.length > 0 ? validatedTorsoBags : undefined,
     addons: validatedAddons,
     extraBags: validatedExtraBags,
   });
@@ -255,7 +269,7 @@ export async function createDealerOrderFromStripeSession(session) {
     return null;
   }
 
-  const { bundleId, torsoBagId, addons, extraBags } = draft.payload;
+  const { bundleId, torsoBags, addons, extraBags } = draft.payload;
 
   const bundle = await Bundle.findById(bundleId).lean();
   if (!bundle) return null;
@@ -269,21 +283,35 @@ export async function createDealerOrderFromStripeSession(session) {
     },
   };
 
-  if (torsoBagId) {
-    const torsoBag = await DealerTorsoBag.findById(torsoBagId).lean();
-    if (torsoBag) {
-      const multiplier =
-        bundle.torsoBagType === "custom"
-          ? 1
-          : Math.round(
-              bundle.minifigQuantity / (torsoBag.targetBundleSize || 100),
-            );
+  if (torsoBags?.length > 0) {
+    const resolvedBags = [];
+    for (const { torsoBagId, bagName, quantity } of torsoBags) {
+      const bag = await DealerTorsoBag.findById(torsoBagId).lean();
+      resolvedBags.push({
+        id: bag?._id || torsoBagId,
+        name: bag?.bagName || bagName,
+        quantity,
+      });
+    }
+    manifest.torsoBags = resolvedBags;
 
-      manifest.torsoBag = {
-        id: torsoBag._id,
-        name: torsoBag.bagName,
-        multiplier,
-      };
+    // Backward-compat: populate legacy torsoBag field with first entry
+    if (resolvedBags.length > 0) {
+      const first = resolvedBags[0];
+      const firstBag = await DealerTorsoBag.findById(first.id).lean();
+      if (firstBag) {
+        const multiplier =
+          bundle.torsoBagType === "custom"
+            ? 1
+            : Math.round(
+                bundle.minifigQuantity / (firstBag.targetBundleSize || 100),
+              );
+        manifest.torsoBag = {
+          id: firstBag._id,
+          name: firstBag.bagName,
+          multiplier,
+        };
+      }
     }
   }
 
@@ -303,14 +331,25 @@ export async function createDealerOrderFromStripeSession(session) {
 
       if (selectedItems?.length > 0) {
         for (const sub of selectedItems) {
-          const inv = await GeneralInventory.findById(
-            sub.inventoryItemId,
-          ).lean();
+          const inv = await GeneralInventory.findById(sub.inventoryItemId)
+            .populate("colorId", "colorName hexCode")
+            .lean();
           if (inv) {
+            const bundleItem = addonBase.bundleItems?.find(
+              (bi) =>
+                bi.inventoryItemId?.toString() ===
+                sub.inventoryItemId?.toString(),
+            );
+            const pricePerBag = bundleItem?.pricePerBag || 0;
             addonManifest.subItems.push({
               invId: inv._id,
               name: inv.minifigName,
               qty: sub.selectedBags,
+              imageUrl: inv.image?.url,
+              colorName: inv.colorId?.colorName,
+              colorHex: inv.colorId?.hexCode,
+              pricePerBag,
+              totalPrice: pricePerBag * (sub.selectedBags || 0),
             });
           }
         }

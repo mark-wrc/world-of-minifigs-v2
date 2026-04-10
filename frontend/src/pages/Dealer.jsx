@@ -44,12 +44,15 @@ const Dealer = () => {
     // Order Summary
     orderSummary,
 
-    // Handlers
-    handleExtraBagQtyChange,
-    handleSelectTorsoBag,
+    // Bag split info
     bagMultiplier,
     totalAssignedBags,
     remainingBagSlots,
+
+    // Handlers
+    handleExtraBagQtyChange,
+    handleSelectTorsoBag,
+    handleTorsoBagQtyChange,
 
     // Addon Preview Modal
     addonPreview,
@@ -182,7 +185,7 @@ const Dealer = () => {
           bagMultiplier={bagMultiplier}
           totalAssignedBags={totalAssignedBags}
           remainingBagSlots={remainingBagSlots}
-          onSetTorsoBagQuantity={handleSelectTorsoBag}
+          onSetTorsoBagQuantity={handleTorsoBagQtyChange}
           allTorsoBags={torsoBags}
         />
       </div>

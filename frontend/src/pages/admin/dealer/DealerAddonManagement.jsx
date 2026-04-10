@@ -349,13 +349,11 @@ const DealerAddonManagement = () => {
                               </Badge>
                             )}
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                            {item.inventory.colorId?.colorName || "—"}
-                            {" · "}
-                            <span className="text-success dark:text-accent font-bold">
-                              {formatCurrency(item.inventory.price)}
-                            </span>
-                          </span>
+                          <ColorSwatch
+                            color={item.inventory.colorId?.hexCode}
+                            label={item.inventory.colorId?.colorName || "—"}
+                            className="text-xs text-muted-foreground"
+                          />
                           <div className="flex items-center gap-1.5">
                             <span className="text-xs font-semibold shrink-0">
                               Price per Bag:
