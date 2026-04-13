@@ -131,33 +131,33 @@ const DealerTorsoBag = ({
 
               <div className="grid grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
+                  <span className="text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Torso Pieces
                   </span>
-                  <p className="font-bold text-sm">
+                  <p className="font-bold text-xl">
                     {multiplier * rawTorsoQty(torsoBags[0])} Units
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
+                  <span className="text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Mystery Parts
                   </span>
-                  <p className="font-bold text-sm">{miscQuantity} torsos</p>
+                  <p className="font-bold text-xl">{miscQuantity} torsos</p>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
+                  <span className="text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Full Bundle Total
                   </span>
-                  <p className="font-bold text-sm">
+                  <p className="font-bold text-xl">
                     {multiplier * rawTorsoQty(torsoBags[0]) + miscQuantity}{" "}
                     Minifigs
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">
+                  <span className="text-sm uppercase font-bold text-muted-foreground whitespace-nowrap">
                     Variety
                   </span>
-                  <p className="font-bold text-sm">
+                  <p className="font-bold text-xl">
                     {torsoBags[0].items?.length || 0} Unique Designs
                   </p>
                 </div>
@@ -180,7 +180,7 @@ const DealerTorsoBag = ({
               {bag.isSelected && (
                 <Badge
                   variant="accent"
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1 whitespace-nowrap z-10 uppercase tracking-widest"
+                  className="absolute -top-3 left-1/2 -translate-x-1/2 text-sm font-bold px-3 py-1 whitespace-nowrap z-10 uppercase tracking-widest"
                 >
                   {bagMultiplier > 1 ? `×${bag.assignedQty}` : "Selected"}
                 </Badge>

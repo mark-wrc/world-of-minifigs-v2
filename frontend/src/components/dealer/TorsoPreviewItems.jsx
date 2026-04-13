@@ -24,7 +24,7 @@ const PreviewCard = ({
         </div>
       )}
 
-      <Badge variant="accent" className="absolute top-0 right-0 size-5">
+      <Badge variant="accent" className="absolute top-0 right-0 size-7 text-lg font-bold">
         {displayQuantity}
       </Badge>
 
