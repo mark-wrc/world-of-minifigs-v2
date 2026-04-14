@@ -23,7 +23,7 @@ const CartSheet = () => {
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && closeSheet()}>
-      <SheetContent className="sm:max-w-lg">
+      <SheetContent className="sm:max-w-xl">
         {sheetMode === "cart" ? (
           <CartView
             items={items}

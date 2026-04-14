@@ -1,4 +1,7 @@
-import GeneralInventory from "../models/generalInventory.model.js";
+import GeneralInventory, {
+  INVENTORY_CATEGORIES,
+} from "../models/generalInventory.model.js";
+import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
 import {
   uploadSingleImage,
@@ -38,7 +41,15 @@ export const createGeneralInventoryBulk = async (req, res) => {
     const rowId = item.rowId || i;
 
     try {
-      const { minifigName, price, stock, colorId, image } = item;
+      const {
+        minifigName,
+        price,
+        stock,
+        colorId,
+        image,
+        category,
+        collectionId,
+      } = item;
 
       // Validate required fields
       if (!minifigName || !String(minifigName).trim())
@@ -55,10 +66,21 @@ export const createGeneralInventoryBulk = async (req, res) => {
       }
       if (!colorId) throw new Error("Color is required");
       if (!image) throw new Error("Image is required");
+      if (category && !INVENTORY_CATEGORIES.includes(category))
+        throw new Error("Category must be accessories, animals, or minifigs");
+
+      if (category === "minifigs" && !collectionId)
+        throw new Error("Collection is required for minifig items");
 
       // Verify color exists
       const color = await Color.findById(colorId);
       if (!color) throw new Error("Selected color does not exist");
+
+      // Verify collection exists when provided
+      if (collectionId) {
+        const col = await Collection.findById(collectionId);
+        if (!col) throw new Error("Selected collection does not exist");
+      }
 
       // Check for duplicate name + color combo (Non-blocking warning for bulk)
       const existing = await checkNameConflict(
@@ -80,6 +102,9 @@ export const createGeneralInventoryBulk = async (req, res) => {
         price: Number(price),
         stock: Number(stock),
         colorId,
+        category,
+        collectionId:
+          category === "minifigs" && collectionId ? collectionId : null,
         image: uploadedImage,
         createdBy: req.user._id,
       });
@@ -117,11 +142,18 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
+    const { category } = req.query;
 
-    let searchQuery = {};
+    const baseFilter = {};
+
+    if (category && INVENTORY_CATEGORIES.includes(category)) {
+      baseFilter.category = category;
+    }
+
+    let searchQuery = { ...baseFilter };
 
     if (search) {
-      const baseQuery = buildSearchQuery(search, ["minifigName"]);
+      const nameQuery = buildSearchQuery(search, ["minifigName"]);
 
       // Also search by color name
       const matchingColors = await Color.find(
@@ -132,14 +164,16 @@ export const getAllGeneralInventory = async (req, res) => {
 
       const matchingColorIds = matchingColors.map((c) => c._id);
 
-      if (Object.keys(baseQuery).length > 0 && matchingColorIds.length > 0) {
+      let textConditions = [];
+      if (Object.keys(nameQuery).length > 0) textConditions.push(nameQuery);
+      if (matchingColorIds.length > 0)
+        textConditions.push({ colorId: { $in: matchingColorIds } });
+
+      if (textConditions.length > 0) {
         searchQuery = {
-          $or: [baseQuery, { colorId: { $in: matchingColorIds } }],
+          ...baseFilter,
+          $or: textConditions,
         };
-      } else if (Object.keys(baseQuery).length > 0) {
-        searchQuery = baseQuery;
-      } else if (matchingColorIds.length > 0) {
-        searchQuery = { colorId: { $in: matchingColorIds } };
       }
     }
 
@@ -149,6 +183,7 @@ export const getAllGeneralInventory = async (req, res) => {
       sort: { createdAt: -1 },
       populate: [
         { path: "colorId", select: "colorName hexCode" },
+        { path: "collectionId", select: "collectionName" },
         ...AUDIT_POPULATE,
       ],
     });
@@ -201,7 +236,16 @@ export const getGeneralInventoryById = async (req, res) => {
 export const updateGeneralInventory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { minifigName, price, stock, colorId, image, isActive } = req.body;
+    const {
+      minifigName,
+      price,
+      stock,
+      colorId,
+      image,
+      isActive,
+      category,
+      collectionId,
+    } = req.body;
 
     const inventory = await GeneralInventory.findById(id);
 
@@ -305,10 +349,50 @@ export const updateGeneralInventory = async (req, res) => {
       inventory.isActive = Boolean(isActive);
     }
 
+    if (category !== undefined) {
+      if (!INVENTORY_CATEGORIES.includes(category)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid category",
+          description: "Category must be accessories, animals, or minifigs.",
+        });
+      }
+      // Enforce collection required for minifigs
+      const effectiveCollectionId =
+        collectionId !== undefined ? collectionId : inventory.collectionId;
+      if (category === "minifigs" && !effectiveCollectionId) {
+        return res.status(400).json({
+          success: false,
+          message: "Collection is required",
+          description: "A collection must be assigned to minifig items.",
+        });
+      }
+      inventory.category = category;
+    }
+
+    if (collectionId !== undefined) {
+      if (collectionId === null) {
+        inventory.collectionId = null;
+      } else {
+        const col = await Collection.findById(collectionId);
+        if (!col) {
+          return res.status(404).json({
+            success: false,
+            message: "Collection not found",
+            description: "The selected collection does not exist.",
+          });
+        }
+        inventory.collectionId = collectionId;
+      }
+    }
+
     inventory.updatedBy = req.user._id;
     await inventory.save();
 
-    await inventory.populate({ path: "colorId", select: "colorName hexCode" });
+    await inventory.populate([
+      { path: "colorId", select: "colorName hexCode" },
+      { path: "collectionId", select: "collectionName" },
+    ]);
 
     return res.status(200).json({
       success: true,

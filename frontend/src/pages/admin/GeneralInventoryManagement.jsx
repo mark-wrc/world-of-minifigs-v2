@@ -18,7 +18,9 @@ import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import MediaUpload from "@/components/shared/MediaUpload";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import { display } from "@/utils/formatting";
-import useGeneralInventoryManagement from "@/hooks/admin/useGeneralInventoryManagement";
+import useGeneralInventoryManagement, {
+  INVENTORY_TABS,
+} from "@/hooks/admin/useGeneralInventoryManagement";
 
 const InventoryItemInputs = React.memo(
   ({
@@ -26,6 +28,9 @@ const InventoryItemInputs = React.memo(
     index,
     colors,
     isLoadingColors,
+    collections,
+    isLoadingCollections,
+    isMinifigsTab,
     isSubmitting,
     onChange,
     getValueChangeHandler,
@@ -34,7 +39,7 @@ const InventoryItemInputs = React.memo(
       <AdminFormInput
         name="minifigName"
         type="text"
-        placeholder="Enter Minifig Name"
+        placeholder="Enter Name"
         value={item.minifigName}
         onChange={onChange}
         disabled={isSubmitting}
@@ -81,16 +86,36 @@ const InventoryItemInputs = React.memo(
         isLoading={isLoadingColors}
         disabled={isSubmitting}
       />
+
+      {isMinifigsTab && (
+        <AdminFormSelect
+          name="collectionId"
+          value={item.collectionId}
+          onValueChange={getValueChangeHandler("collectionId", index)}
+          triggerClassName="text-[11px]"
+          options={collections}
+          getValue={(c) => c._id}
+          getLabel={(c) => c.collectionName}
+          placeholder="Select Collection"
+          isLoading={isLoadingCollections}
+          disabled={isSubmitting}
+          required
+        />
+      )}
     </div>
   ),
 );
 
 const GeneralInventoryManagement = () => {
   const {
+    activeTab,
+    setActiveTab,
     inventory,
     colors,
+    collections,
     isLoadingInventory,
     isLoadingColors,
+    isLoadingCollections,
     isSubmitting,
     isDeleting,
     filePreview,
@@ -135,6 +160,25 @@ const GeneralInventoryManagement = () => {
         onAction={handleAdd}
       />
 
+      {/* Category Tabs */}
+      <div className="flex gap-2 border-b">
+        {INVENTORY_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setActiveTab(tab.value)}
+            className={[
+              "px-4 py-2 text-sm font-medium transition-colors cursor-pointer",
+              activeTab === tab.value
+                ? "border-b-2 border-primary text-primary"
+                : "text-muted-foreground hover:text-foreground",
+            ].join(" ")}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Table Layout */}
       <TableLayout
         searchPlaceholder="Search by name..."
@@ -155,7 +199,7 @@ const GeneralInventoryManagement = () => {
         isLoading={isLoadingInventory}
         renderRow={(item) => (
           <>
-            {/* Minifig Name */}
+            {/* Name */}
             <TableCell>{display(item.minifigName)}</TableCell>
 
             {/* Color */}
@@ -163,8 +207,16 @@ const GeneralInventoryManagement = () => {
               <ColorSwatch
                 color={item.colorId?.hexCode}
                 label={display(item.colorId?.colorName)}
+                className="justify-center"
               />
             </TableCell>
+
+            {/* Collection — minifigs tab only */}
+            {activeTab === "minifigs" && (
+              <TableCell>
+                {display(item.collectionId?.collectionName)}
+              </TableCell>
+            )}
 
             {/* Price */}
             <PriceCell amount={item.price} />
@@ -218,6 +270,9 @@ const GeneralInventoryManagement = () => {
                 index={index}
                 colors={colors}
                 isLoadingColors={isLoadingColors}
+                collections={collections}
+                isLoadingCollections={isLoadingCollections}
+                isMinifigsTab={activeTab === "minifigs"}
                 isSubmitting={isSubmitting}
                 onChange={getItemChangeHandler(index)}
                 getValueChangeHandler={handleValueChange}

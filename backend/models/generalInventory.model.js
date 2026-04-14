@@ -1,11 +1,27 @@
 import mongoose from "mongoose";
 
+const INVENTORY_CATEGORIES = ["accessories", "animals", "minifigs"];
+
 const generalInventorySchema = new mongoose.Schema(
   {
     minifigName: {
       type: String,
       required: true,
       trim: true,
+    },
+
+    category: {
+      type: String,
+      enum: [...INVENTORY_CATEGORIES, null],
+      default: null,
+      index: true,
+    },
+
+    collectionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Collection",
+      default: null,
+      index: true,
     },
 
     price: {
@@ -80,4 +96,5 @@ const GeneralInventory = mongoose.model(
   generalInventorySchema,
 );
 
+export { INVENTORY_CATEGORIES };
 export default GeneralInventory;

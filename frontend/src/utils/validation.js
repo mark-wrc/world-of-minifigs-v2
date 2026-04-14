@@ -503,7 +503,7 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
 };
 
 // validate all general inventory fields
-export const validateGeneralInventory = (items, isAddMode) => {
+export const validateGeneralInventory = (items, isAddMode, activeTab) => {
   if (!items || !items.length) {
     toast.error("Items are required", {
       description: "Please add at least one item.",
@@ -525,6 +525,9 @@ export const validateGeneralInventory = (items, isAddMode) => {
       return false;
 
     if (!validateRequired(item.colorId || item.color, `${prefix}Color`))
+      return false;
+
+    if (activeTab === "minifigs" && !validateRequired(item.collectionId, `${prefix}Collection`))
       return false;
 
     if (isAddMode && !item.image && !item.url) {

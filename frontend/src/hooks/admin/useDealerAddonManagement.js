@@ -5,7 +5,15 @@ import {
   useUpdateDealerAddonMutation,
   useDeleteDealerAddonMutation,
   useGetGeneralInventoryQuery,
+  useGetCollectionsQuery,
 } from "@/redux/api/adminApi";
+
+export const ADDON_ITEM_CATEGORIES = [
+  { value: "accessories", label: "Accessories" },
+  { value: "animals", label: "Animals" },
+  { value: "minifigs", label: "Minifigs" },
+];
+
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateDealerAddon } from "@/utils/validation";
@@ -24,7 +32,6 @@ const initialFormData = {
 const columns = [
   { key: "addonName", label: "Add-on" },
   { key: "addonType", label: "Type" },
-  { key: "description", label: "Description" },
   { key: "price", label: "Price" },
   { key: "discount", label: "Discount" },
   { key: "discountPrice", label: "Discounted Price" },
@@ -39,6 +46,9 @@ const DEBOUNCE_MS = 300;
 const useDealerAddonManagement = () => {
   // ------------------------------- Bundle Items State ------------------------------------
   const [bundleItems, setBundleItems] = useState([]);
+
+  // ------------------------------- Item Category Filter ------------------------------------
+  const [itemCategory, setItemCategory] = useState("accessories");
 
   // ------------------------------- Inventory Search (debounced) ------------------------------------
   const [itemSearch, setItemSearch] = useState("");
@@ -85,11 +95,19 @@ const useDealerAddonManagement = () => {
       search: crud.search || undefined,
     });
 
-  const { data: inventoryData, isLoading: isLoadingInventory } =
-    useGetGeneralInventoryQuery({
-      limit: "all",
-      search: debouncedItemSearch || undefined,
-    });
+  const {
+    data: inventoryData,
+    isLoading: isInventoryLoading,
+    isFetching: isInventoryFetching,
+  } = useGetGeneralInventoryQuery({
+    limit: "all",
+    search: debouncedItemSearch || undefined,
+    category: itemCategory,
+  });
+
+  const isLoadingInventory = isInventoryLoading || isInventoryFetching;
+
+  const { data: collectionsData } = useGetCollectionsQuery({ limit: "all" });
 
   const {
     items: addons,
@@ -110,6 +128,29 @@ const useDealerAddonManagement = () => {
     [inventoryItems],
   );
 
+  // For minifigs: group items by collection, returns [{collectionName, items:[]}]
+  const groupedMinifigItems = useMemo(() => {
+    if (itemCategory !== "minifigs") return null;
+    const collectionMap = new Map();
+    for (const item of sortedInventoryItems) {
+      const colId = item.collectionId?._id || item.collectionId || null;
+      const colName = item.collectionId?.collectionName || "Uncategorized";
+      const key = colId || "__none__";
+      if (!collectionMap.has(key)) {
+        collectionMap.set(key, { collectionName: colName, items: [] });
+      }
+      collectionMap.get(key).items.push(item);
+    }
+    // Sort: named collections alphabetically, then Uncategorized last
+    return [...collectionMap.entries()]
+      .sort(([ka, a], [kb, b]) => {
+        if (ka === "__none__") return 1;
+        if (kb === "__none__") return -1;
+        return a.collectionName.localeCompare(b.collectionName);
+      })
+      .map(([, group]) => group);
+  }, [itemCategory, sortedInventoryItems]);
+
   const isBundleType = crud.formData.addonType === "bundle";
   const isUpgradeType = !isBundleType;
 
@@ -125,6 +166,12 @@ const useDealerAddonManagement = () => {
   useEffect(() => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
+
+  // Reset item search when category changes
+  useEffect(() => {
+    setItemSearch("");
+    setDebouncedItemSearch("");
+  }, [itemCategory]);
 
   const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
 
@@ -282,6 +329,7 @@ const useDealerAddonManagement = () => {
     columns,
     inventoryItems,
     sortedInventoryItems,
+    groupedMinifigItems,
     bundleItems,
     bundleDisplayItems,
     selectedBundleItemIds,
@@ -293,6 +341,8 @@ const useDealerAddonManagement = () => {
     isSubmitting,
     isDeleting,
     itemSearch,
+    itemCategory,
+    setItemCategory,
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,

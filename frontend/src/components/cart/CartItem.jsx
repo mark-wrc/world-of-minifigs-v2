@@ -24,8 +24,13 @@ const CartItem = ({ item, onChange, onRemove }) => {
   const handleRemove = () => onRemove(productId, variantIndex);
 
   return (
-    <div className="flex gap-3 group pb-5 border-b last:border-0 last:pb-0">
-      <CommonImage src={image} alt={productName} className="size-28" />
+    <div className="flex items-center gap-3 group pb-5 border-b last:border-0 last:pb-0">
+      <CommonImage
+        src={image}
+        alt={productName}
+        className="w-32"
+        objectFit="object-contain"
+      />
 
       <div className="flex-1 flex flex-col justify-between">
         <div>
@@ -43,7 +48,7 @@ const CartItem = ({ item, onChange, onRemove }) => {
 
           <div className="mt-1 space-y-2">
             <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-xs font-bold">${displayPrice}</span>
+              <span className="text-sm font-bold">${displayPrice}</span>
               {hasDiscount && (
                 <span className="text-xs text-muted-foreground line-through">
                   ${originalPrice}
@@ -56,7 +61,7 @@ const CartItem = ({ item, onChange, onRemove }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mt-2">
           <QuantityControl
             value={quantity}
             onChange={handleQuantityChange}

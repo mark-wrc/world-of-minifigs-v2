@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useGetGeneralInventoryQuery,
   useCreateGeneralInventoryBulkMutation,
   useUpdateGeneralInventoryMutation,
   useDeleteGeneralInventoryMutation,
   useGetColorsQuery,
+  useGetCollectionsQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
@@ -13,13 +14,22 @@ import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
+export const INVENTORY_TABS = [
+  { value: "accessories", label: "Accessories" },
+  { value: "animals", label: "Animals" },
+  { value: "minifigs", label: "Minifigs" },
+];
+
 const initialFormData = {
   isActive: true,
 };
 
-const columns = [
-  { key: "minifigName", label: "Minifig Name" },
+const BASE_COLUMNS = [
+  { key: "minifigName", label: "Name" },
   { key: "color", label: "Color" },
+];
+const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
+const TAIL_COLUMNS = [
   { key: "price", label: "Price" },
   { key: "stock", label: "Stock" },
   { key: "isActive", label: "Status" },
@@ -29,16 +39,21 @@ const columns = [
 ];
 
 // Factory for preview item
-const makeNewPreview = (url) => ({
+const makeNewPreview = (url, { category = "", collectionId = "" } = {}) => ({
   url,
   minifigName: "",
   price: "",
   stock: "",
   color: "",
+  category,
+  collectionId,
   image: { url },
 });
 
 const useGeneralInventoryManagement = () => {
+  // ------------------------------- Tab State ------------------------------------
+  const [activeTab, setActiveTab] = useState("accessories");
+
   // ------------------------------- Media ------------------------------------
   const {
     filePreview,
@@ -68,14 +83,20 @@ const useGeneralInventoryManagement = () => {
   });
 
   // ------------------------------- Fetch ------------------------------------
-  const { data: inventoryData, isLoading: isLoadingInventory } =
+  const { data: inventoryData, isLoading, isFetching: isFetchingInventory } =
     useGetGeneralInventoryQuery({
       page: crud.page,
       limit: crud.limit,
       search: crud.search || undefined,
+      category: activeTab,
     });
 
+  const isLoadingInventory = isLoading || isFetchingInventory;
+
   const { data: colorsData, isLoading: isLoadingColors } = useGetColorsQuery();
+
+  const { data: collectionsData, isLoading: isLoadingCollections } =
+    useGetCollectionsQuery({ limit: "all" });
 
   const {
     items: inventory,
@@ -88,9 +109,24 @@ const useGeneralInventoryManagement = () => {
     [colorsData],
   );
 
+  const collections = useMemo(
+    () => sortByName(collectionsData?.collections, "collectionName"),
+    [collectionsData],
+  );
+
+  const columns = useMemo(() => {
+    const mid = activeTab === "minifigs" ? [MINIFIG_COLLECTION_COLUMN] : [];
+    return [...BASE_COLUMNS, ...mid, ...TAIL_COLUMNS];
+  }, [activeTab]);
+
   useEffect(() => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
+
+  // Reset to page 1 when the active tab changes
+  useEffect(() => {
+    crud.handlePageChange(1);
+  }, [activeTab]);
 
   const isSubmitting = crud.dialogMode === "edit" ? isUpdating : isCreating;
 
@@ -107,7 +143,9 @@ const useGeneralInventoryManagement = () => {
         );
       }
     } else {
-      await handleFileChange(e, { mapFile: makeNewPreview });
+      await handleFileChange(e, {
+        mapFile: (url) => makeNewPreview(url, { category: activeTab }),
+      });
     }
   };
 
@@ -123,7 +161,6 @@ const useGeneralInventoryManagement = () => {
   const handleInventoryFileRemove = useCallback(
     (index) => {
       if (crud.dialogMode === "edit") {
-        // In edit mode, only clear the image URL — preserve metadata fields
         setFilePreview((prev) =>
           prev.map((item, i) =>
             i === (typeof index === "number" ? index : 0)
@@ -185,9 +222,11 @@ const useGeneralInventoryManagement = () => {
       {
         url: item.image?.url,
         minifigName: item.minifigName,
-        price: item.price,
+        price: Number(item.price).toFixed(2),
         stock: item.stock,
         color: item.colorId?._id || item.colorId,
+        category: item.category || activeTab,
+        collectionId: item.collectionId?._id || item.collectionId || "",
         image: item.image,
       },
     ]);
@@ -200,7 +239,13 @@ const useGeneralInventoryManagement = () => {
   // ------------------------------- Submit Handler ------------------------------------
   const handleSubmit = async () => {
     if (crud.dialogMode === "add") {
-      if (!validateGeneralInventory(filePreview, crud.dialogMode === "add"))
+      if (
+        !validateGeneralInventory(
+          filePreview,
+          crud.dialogMode === "add",
+          activeTab,
+        )
+      )
         return;
 
       const payload = {
@@ -209,6 +254,8 @@ const useGeneralInventoryManagement = () => {
           price: Number(item.price),
           stock: Number(item.stock),
           colorId: item.color,
+          category: activeTab,
+          collectionId: activeTab === "minifigs" ? item.collectionId : null,
           image:
             typeof item.url === "string" && item.url.startsWith("data:")
               ? item.url
@@ -218,7 +265,13 @@ const useGeneralInventoryManagement = () => {
 
       await crud.submitForm(payload);
     } else {
-      if (!validateGeneralInventory(filePreview, crud.dialogMode === "add"))
+      if (
+        !validateGeneralInventory(
+          filePreview,
+          crud.dialogMode === "add",
+          activeTab,
+        )
+      )
         return;
 
       const item = filePreview[0];
@@ -228,6 +281,8 @@ const useGeneralInventoryManagement = () => {
         price: Number(item.price),
         stock: Number(item.stock),
         colorId: item.color,
+        category: activeTab,
+        collectionId: activeTab === "minifigs" ? item.collectionId : null,
         isActive: crud.formData.isActive,
         ...(typeof item.url === "string" &&
           item.url.startsWith("data:") && { image: item.url }),
@@ -248,12 +303,10 @@ const useGeneralInventoryManagement = () => {
 
   const handleValueChange = useCallback(
     (field, index) => {
-      // For non-indexed calls (e.g. VisibilitySwitch), return a new handler
       if (typeof index !== "number") {
         return (value) =>
           crud.setFormData((prev) => ({ ...prev, [field]: value }));
       }
-      // For indexed calls, delegate to the cached version
       return getValueChangeHandler(field, index);
     },
     [crud.setFormData, getValueChangeHandler],
@@ -262,6 +315,8 @@ const useGeneralInventoryManagement = () => {
   // ------------------------------- Return ------------------------------------
   return {
     ...crud,
+    activeTab,
+    setActiveTab,
     filePreview,
     fileInputRef,
     inventory,
@@ -269,8 +324,10 @@ const useGeneralInventoryManagement = () => {
     totalPages,
     columns,
     colors,
+    collections,
     isLoadingInventory,
     isLoadingColors,
+    isLoadingCollections,
     isSubmitting,
     isDeleting,
     handleInventoryFileChange,

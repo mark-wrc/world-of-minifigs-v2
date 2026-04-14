@@ -31,7 +31,49 @@ import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import { formatCurrency, display } from "@/utils/formatting";
 import CommonImage from "@/components/shared/CommonImage";
-import useDealerAddonManagement from "@/hooks/admin/useDealerAddonManagement";
+import useDealerAddonManagement, {
+  ADDON_ITEM_CATEGORIES,
+} from "@/hooks/admin/useDealerAddonManagement";
+
+const InventoryDropdownItem = ({ inv, checked, onCheckedChange }) => (
+  <DropdownMenuCheckboxItem
+    checked={checked}
+    onCheckedChange={onCheckedChange}
+    onSelect={(e) => e.preventDefault()}
+    className="py-2"
+  >
+    <div className="flex items-center gap-2 w-full min-w-0">
+      {/* Thumbnail */}
+      <CommonImage
+        src={inv.image?.url}
+        alt={inv.minifigName}
+        className="w-12 aspect-4/3"
+      />
+
+      {/* Info */}
+      <div className="flex flex-col min-w-0 flex-1 gap-2">
+        <span className="text-sm font-medium leading-tight line-clamp-1">
+          {inv.minifigName}
+        </span>
+        <ColorSwatch
+          color={inv.colorId?.hexCode}
+          label={inv.colorId?.colorName || "—"}
+          className="text-xs text-muted-foreground"
+        />
+      </div>
+
+      {/* Out of stock badge */}
+      {(inv.stock === 0 || !inv.stock) && (
+        <Badge
+          variant="destructive"
+          className="uppercase text-[8px] px-1 leading-none shrink-0"
+        >
+          Out of Stock
+        </Badge>
+      )}
+    </div>
+  </DropdownMenuCheckboxItem>
+);
 
 const DealerAddonManagement = () => {
   const {
@@ -52,6 +94,9 @@ const DealerAddonManagement = () => {
     handleNext,
     columns,
     sortedInventoryItems,
+    groupedMinifigItems,
+    itemCategory,
+    setItemCategory,
     bundleItems,
     bundleDisplayItems,
     selectedBundleItemIds,
@@ -118,15 +163,10 @@ const DealerAddonManagement = () => {
             {/* Type */}
             <TableCell className="capitalize">{addon.addonType}</TableCell>
 
-            {/* Description */}
-            <TableCell maxWidth="300px">{display(addon.description)}</TableCell>
-
             {/* Price */}
             <TableCell>
               {addon.addonType === "bundle" ? (
                 <span className="text-muted-foreground">—</span>
-              ) : addon.price === 0 ? (
-                "Free"
               ) : (
                 formatCurrency(addon.price)
               )}
@@ -134,7 +174,10 @@ const DealerAddonManagement = () => {
 
             {/* Discount */}
             <TableCell>
-              {addon.addonType === "upgrade" && addon.discountPrice !== null && addon.discountPrice !== undefined && addon.price > 0 ? (
+              {addon.addonType === "upgrade" &&
+              addon.discountPrice !== null &&
+              addon.discountPrice !== undefined &&
+              addon.price > 0 ? (
                 <span className="font-semibold text-success">
                   {Math.round((1 - addon.discountPrice / addon.price) * 100)}%
                 </span>
@@ -145,11 +188,15 @@ const DealerAddonManagement = () => {
 
             {/* Discounted Price */}
             <TableCell>
-              {addon.addonType === "upgrade" && addon.discountPrice !== null && addon.discountPrice !== undefined ? (
+              {addon.addonType === "upgrade" &&
+              addon.discountPrice !== null &&
+              addon.discountPrice !== undefined ? (
                 addon.discountPrice === 0 ? (
                   <span className="font-semibold text-success">Free</span>
                 ) : (
-                  <span className="font-semibold text-success">{formatCurrency(addon.discountPrice)}</span>
+                  <span className="font-semibold text-success">
+                    {formatCurrency(addon.discountPrice)}
+                  </span>
                 )
               ) : (
                 <span className="text-muted-foreground">—</span>
@@ -250,6 +297,28 @@ const DealerAddonManagement = () => {
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent>
+                    {/* Category tabs */}
+                    <div className="flex border-b px-1 pt-1">
+                      {ADDON_ITEM_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.value}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setItemCategory(cat.value);
+                          }}
+                          className={[
+                            "flex-1 py-2 text-sm font-medium transition-colors cursor-pointer",
+                            itemCategory === cat.value
+                              ? "border-b-2 border-primary text-primary"
+                              : "text-muted-foreground hover:text-foreground",
+                          ].join(" ")}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
                     <DropdownMenuLabel className="border-b">
                       <div className="flex items-center gap-2">
                         <Search className="size-4 text-muted-foreground shrink-0" />
@@ -265,7 +334,7 @@ const DealerAddonManagement = () => {
                       </div>
                     </DropdownMenuLabel>
 
-                    <div className="max-h-60 overflow-y-auto p-1">
+                    <div className="max-h-60 overflow-y-auto pt-2">
                       {isLoadingInventory ? (
                         <div className="p-2 text-sm text-center text-muted-foreground">
                           Loading...
@@ -274,31 +343,34 @@ const DealerAddonManagement = () => {
                         <div className="p-2 text-sm text-center text-muted-foreground">
                           No items found
                         </div>
+                      ) : itemCategory === "minifigs" && groupedMinifigItems ? (
+                        groupedMinifigItems.map((group) => (
+                          <div key={group.collectionName}>
+                            <div className="p-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              {group.collectionName}
+                            </div>
+                            {group.items.map((inv) => (
+                              <InventoryDropdownItem
+                                key={inv._id}
+                                inv={inv}
+                                checked={selectedBundleItemIds.has(inv._id)}
+                                onCheckedChange={() =>
+                                  handleToggleBundleItem(inv._id, inv)
+                                }
+                              />
+                            ))}
+                          </div>
+                        ))
                       ) : (
                         sortedInventoryItems.map((inv) => (
-                          <DropdownMenuCheckboxItem
+                          <InventoryDropdownItem
                             key={inv._id}
+                            inv={inv}
                             checked={selectedBundleItemIds.has(inv._id)}
                             onCheckedChange={() =>
                               handleToggleBundleItem(inv._id, inv)
                             }
-                            onSelect={(e) => e.preventDefault()}
-                          >
-                            <div className="flex items-center justify-between gap-4 w-full">
-                              <ColorSwatch
-                                color={inv.colorId?.hexCode}
-                                label={inv.minifigName}
-                              />
-                              {(inv.stock === 0 || !inv.stock) && (
-                                <Badge
-                                  variant="destructive"
-                                  className="uppercase text-[8px] px-1 leading-none"
-                                >
-                                  Out of Stock
-                                </Badge>
-                              )}
-                            </div>
-                          </DropdownMenuCheckboxItem>
+                          />
                         ))
                       )}
                     </div>
