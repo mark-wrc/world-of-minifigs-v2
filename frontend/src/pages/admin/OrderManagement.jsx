@@ -22,6 +22,7 @@ import {
   formatDate,
   display,
   formatFullName,
+  formatPhone,
 } from "@/utils/formatting";
 import { getOrderStatusConfig } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
@@ -319,6 +320,14 @@ const OrderManagement = () => {
                 {viewOrder?.email || "—"}
               </span>
             </div>
+            {viewOrder?.shipping?.address?.phone && (
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Contact Number</span>
+                <span className="text-xs">
+                  {formatPhone(viewOrder.shipping.address.phone)}
+                </span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -394,6 +403,14 @@ const OrderManagement = () => {
                   {viewOrder?.shipping?.address?.country || "—"}
                 </span>
               </div>
+              {viewOrder?.shipping?.address?.phone && (
+                <div className="grid grid-cols-[140px_1fr] p-3">
+                  <span className="font-semibold text-xs">Contact Number</span>
+                  <span className="text-xs">
+                    {formatPhone(viewOrder.shipping.address.phone)}
+                  </span>
+                </div>
+              )}
             </div>
           </section>
         )}

@@ -8,9 +8,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
 import CommonImage from "@/components/shared/CommonImage";
-import ColorSwatch from "@/components/shared/ColorSwatch";
-import Logo from "@/assets/media/Logo.png";
-import { formatCurrency, formatDate } from "@/utils/formatting";
+import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 
 const CheckoutSuccess = () => {
@@ -178,12 +176,19 @@ const CheckoutSuccess = () => {
                         Add-ons
                       </p>
                       {di.addons.map((addon, i) => (
-                        <div key={i} className={i > 0 ? "pt-4 border-t border-dashed" : ""}>
+                        <div
+                          key={i}
+                          className={i > 0 ? "pt-4 border-t border-dashed" : ""}
+                        >
                           {/* Addon name + price */}
                           <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className="font-bold text-sm">{addon.name}</span>
+                            <span className="font-bold text-sm">
+                              {addon.name}
+                            </span>
                             <span className="font-bold text-sm text-success dark:text-accent whitespace-nowrap">
-                              {addon.totalPrice > 0 ? formatCurrency(addon.totalPrice) : "Free"}
+                              {addon.totalPrice > 0
+                                ? formatCurrency(addon.totalPrice)
+                                : "Free"}
                             </span>
                           </div>
 
@@ -213,10 +218,14 @@ const CheckoutSuccess = () => {
                                     </div>
                                     <div className="flex items-center gap-1.5 text-xs">
                                       {sub.colorName && (
-                                        <span className="text-muted-foreground">{sub.colorName}</span>
+                                        <span className="text-muted-foreground">
+                                          {sub.colorName}
+                                        </span>
                                       )}
                                       {sub.colorName && sub.totalPrice > 0 && (
-                                        <span className="text-muted-foreground">·</span>
+                                        <span className="text-muted-foreground">
+                                          ·
+                                        </span>
                                       )}
                                       {sub.totalPrice > 0 && (
                                         <span className="font-semibold text-success dark:text-accent">
@@ -388,6 +397,16 @@ const CheckoutSuccess = () => {
                           {order?.shipping?.address?.postalCode || "—"}
                         </p>
                       </div>
+                      {order?.shipping?.address?.phone && (
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase text-muted-foreground">
+                            Contact Number
+                          </p>
+                          <p className="text-base font-semibold">
+                            {formatPhone(order.shipping.address.phone)}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

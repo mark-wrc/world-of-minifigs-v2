@@ -69,3 +69,19 @@ export const display = (value) =>
 
 export const sortByName = (items = [], key) =>
   [...items].sort((a, b) => (a[key] || "").localeCompare(b[key] || ""));
+
+// Formats E.164 phone numbers (e.g. +18017810705) to (801) 781-0705.
+// Falls back to the raw value for unrecognized formats.
+export const formatPhone = (phone) => {
+  if (!phone) return "—";
+  const digits = phone.replace(/\D/g, "");
+  // US 10-digit or 11-digit starting with 1
+  const ten =
+    digits.length === 10
+      ? digits
+      : digits.length === 11 && digits[0] === "1"
+        ? digits.slice(1)
+        : null;
+  if (ten) return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
+  return phone;
+};

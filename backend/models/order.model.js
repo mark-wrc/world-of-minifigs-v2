@@ -144,6 +144,7 @@ const orderSchema = new mongoose.Schema(
         state: { type: String },
         postalCode: { type: String },
         country: { type: String },
+        phone: { type: String },
       },
       carrier: { type: String },
       trackingNumber: { type: String },

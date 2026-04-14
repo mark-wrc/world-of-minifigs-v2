@@ -16,6 +16,7 @@ export const extractShippingAddress = (session) => {
     state: shipping.address?.state,
     postalCode: shipping.address?.postal_code,
     country: shipping.address?.country,
+    phone: session.customer_details?.phone || undefined,
   };
 };
 
