@@ -238,12 +238,11 @@ export const useDealer = () => {
     setLastClickedBagId(null);
   }, [selectedBundleId]);
 
-  // Auto-select first bag when bags load (all slots if only one, qty 1 if multiple)
+  // Auto-select first (oldest) bag when bags load — always assign all slots to it
   useEffect(() => {
     const hasSelection = Object.values(torsoBagSplitQuantities).some((q) => q > 0);
     if (torsoBags.length > 0 && !hasSelection && bagMultiplier > 0) {
-      const initialQty = torsoBags.length === 1 ? bagMultiplier : 1;
-      setTorsoBagSplitQuantities({ [torsoBags[0]._id]: initialQty });
+      setTorsoBagSplitQuantities({ [torsoBags[0]._id]: bagMultiplier });
       setLastClickedBagId(torsoBags[0]._id);
     }
   }, [torsoBags, torsoBagSplitQuantities, bagMultiplier]);
@@ -405,14 +404,32 @@ export const useDealer = () => {
       return;
     }
 
-    // Not yet in order — add with qty 1 if there are slots available
+    // Not yet in order — add with qty 1, stealing a slot from the bag with the most qty
     setTorsoBagSplitQuantities((prev) => {
       const usedByOthers = Object.entries(prev).reduce(
         (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
         0,
       );
-      if (usedByOthers >= bagMultiplier) return prev;
-      return { ...prev, [bagId]: 1 };
+
+      if (usedByOthers < bagMultiplier) {
+        // Free slot available — just add
+        return { ...prev, [bagId]: 1 };
+      }
+
+      // All slots taken — steal one from the bag with the highest qty
+      const donorEntry = Object.entries(prev)
+        .filter(([id]) => id !== bagId)
+        .sort(([, a], [, b]) => b - a)[0];
+
+      if (!donorEntry) return prev;
+      const [donorId, donorQty] = donorEntry;
+      const next = { ...prev, [bagId]: 1 };
+      if (donorQty - 1 > 0) {
+        next[donorId] = donorQty - 1;
+      } else {
+        delete next[donorId];
+      }
+      return next;
     });
   };
 
