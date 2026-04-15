@@ -83,25 +83,31 @@ export const getDisplayItems = (order, summarize = false) => {
 
   // 1. Standard Product Items
   if (order.orderType === "product" || order.productItems) {
-    return order.productItems || order.items || [];
+    return order.productItems || [];
   }
 
   // 2. Dealer Items (Manifest)
   if (order.orderType === "dealer" && order.dealerItems) {
-    const { bundle, torsoBag, addons, extraBags } = order.dealerItems;
+    const { bundle, torsoBags, addons, extraBags } = order.dealerItems;
     const items = [];
 
     // 1. Bundle + Torso Bag (Integrated)
     if (bundle) {
+      const torsoDescription =
+        torsoBags?.length > 0
+          ? torsoBags
+              .map(
+                (tb) =>
+                  `${tb.name}${tb.quantity > 1 ? ` (${tb.quantity}x)` : ""}`,
+              )
+              .join(", ")
+          : undefined;
       items.push({
         _id: bundle.id,
         productName: bundle.name,
         quantity: 1,
         totalPrice: bundle.price,
-        // Add torso bag info directly to bundle description
-        description: torsoBag
-          ? `${torsoBag.name}${torsoBag.multiplier > 1 ? ` (${torsoBag.multiplier}x)` : ""}`
-          : undefined,
+        description: torsoDescription,
       });
     }
 
@@ -151,8 +157,7 @@ export const getDisplayItems = (order, summarize = false) => {
     return order.rewardItems;
   }
 
-  // Fallback for transition period
-  return order.items || [];
+  return [];
 };
 
 // Derive order tabs from fetched statuses (backend source of truth)

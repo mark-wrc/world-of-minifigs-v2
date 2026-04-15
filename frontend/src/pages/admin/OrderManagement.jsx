@@ -510,31 +510,19 @@ const OrderManagement = () => {
                 </div>
 
                 {/* Torso bags */}
-                {(viewOrder.dealerItems.torsoBags?.length > 0 ||
-                  viewOrder.dealerItems.torsoBag) && (
+                {viewOrder.dealerItems.torsoBags?.length > 0 && (
                   <div className="border-t px-3 py-2 space-y-3">
-                    {viewOrder.dealerItems.torsoBags?.length > 0 ? (
-                      viewOrder.dealerItems.torsoBags.map((tb, i) => (
-                        <div
-                          key={i}
-                          className="flex justify-between items-center"
-                        >
-                          <span className="text-xs">{tb.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            ×{tb.quantity}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs">
-                          {viewOrder.dealerItems.torsoBag.name}
-                        </span>
+                    {viewOrder.dealerItems.torsoBags.map((tb, i) => (
+                      <div
+                        key={i}
+                        className="flex justify-between items-center"
+                      >
+                        <span className="text-xs">{tb.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ×{viewOrder.dealerItems.torsoBag.multiplier}
+                          ×{tb.quantity}
                         </span>
                       </div>
-                    )}
+                    ))}
                   </div>
                 )}
               </div>

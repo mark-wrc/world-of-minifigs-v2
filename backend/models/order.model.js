@@ -33,11 +33,6 @@ const dealerItemSchema = new mongoose.Schema(
       name: { type: String },
       price: { type: Number },
     },
-    torsoBag: {
-      id: { type: mongoose.Schema.Types.ObjectId, ref: "DealerTorsoBag" },
-      name: { type: String },
-      multiplier: { type: Number },
-    },
     torsoBags: [
       {
         _id: false,

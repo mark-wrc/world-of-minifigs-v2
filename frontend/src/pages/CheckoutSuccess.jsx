@@ -71,13 +71,7 @@ const CheckoutSuccess = () => {
   const isDealer = order?.orderType === "dealer";
   const di = order?.dealerItems;
 
-  // Resolve torso bags: prefer new array format, fall back to legacy single entry
-  const torsoBags =
-    di?.torsoBags?.length > 0
-      ? di.torsoBags
-      : di?.torsoBag
-        ? [{ name: di.torsoBag.name, quantity: di.torsoBag.multiplier }]
-        : [];
+  const torsoBags = di?.torsoBags ?? [];
 
   return (
     <div className="px-5 py-10">
@@ -204,7 +198,7 @@ const CheckoutSuccess = () => {
                                     <CommonImage
                                       src={sub.imageUrl}
                                       alt={sub.name}
-                                      className="size-12 object-contain shrink-0"
+                                      className="w-16 object-contain shrink-0"
                                     />
                                   )}
                                   <div className="flex-1 min-w-0 space-y-2">

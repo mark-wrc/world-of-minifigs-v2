@@ -61,7 +61,8 @@ const ensureSpace = (doc, y, needed = 35) => {
 const fetchImageAsBase64 = async (url, maxPx = 150) => {
   if (!url) return null;
   try {
-    const res = await fetch(url);
+    const secureUrl = url.replace(/^http:\/\//i, "https://");
+    const res = await fetch(secureUrl);
     if (!res.ok) return null;
     const blob = await res.blob();
     const blobUrl = URL.createObjectURL(blob);
@@ -70,14 +71,17 @@ const fetchImageAsBase64 = async (url, maxPx = 150) => {
       img.onload = () => {
         const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
         const canvas = document.createElement("canvas");
-        canvas.width  = Math.round(img.width  * scale);
+        canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(blobUrl);
         resolve(canvas.toDataURL("image/png"));
       };
-      img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(null); };
+      img.onerror = () => {
+        URL.revokeObjectURL(blobUrl);
+        resolve(null);
+      };
       img.src = blobUrl;
     });
   } catch {
@@ -484,12 +488,7 @@ export const exportOrderToPdf = async (order) => {
 
     // Bundle + torso bags combined into one table
     if (di.bundle) {
-      const torsoBags =
-        di.torsoBags?.length > 0
-          ? di.torsoBags
-          : di.torsoBag
-            ? [{ name: di.torsoBag.name, quantity: di.torsoBag.multiplier }]
-            : [];
+      const torsoBags = di.torsoBags ?? [];
 
       // Row 0 = bundle, rows 1+ = torso bag entries
       const bundleBody = [
@@ -642,8 +641,7 @@ export const exportOrderToPdf = async (order) => {
     }
   }
 
-  const totalLabel =
-    order.status === "cancelled" ? "REFUND AMOUNT" : "TOTAL";
+  const totalLabel = order.status === "cancelled" ? "REFUND AMOUNT" : "TOTAL";
   summaryRows.push([totalLabel, formatCurrency(order.payment?.totalAmount)]);
 
   const totalRowIndex = summaryRows.length - 1;
@@ -677,7 +675,8 @@ export const exportOrderToPdf = async (order) => {
       data.cell.styles.fontStyle = "bold";
       data.cell.styles.fontSize = 14;
       if (data.column.index === 1) {
-        data.cell.styles.textColor = order.status === "cancelled" ? C.red : C.accentText;
+        data.cell.styles.textColor =
+          order.status === "cancelled" ? C.red : C.accentText;
       } else {
         data.cell.styles.textColor = C.gray900;
       }

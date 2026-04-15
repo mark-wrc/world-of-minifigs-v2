@@ -305,25 +305,6 @@ export async function createDealerOrderFromStripeSession(session) {
       });
     }
     manifest.torsoBags = resolvedBags;
-
-    // Backward-compat: populate legacy torsoBag field with first entry
-    if (resolvedBags.length > 0) {
-      const first = resolvedBags[0];
-      const firstBag = await DealerTorsoBag.findById(first.id).lean();
-      if (firstBag) {
-        const multiplier =
-          bundle.torsoBagType === "custom"
-            ? 1
-            : Math.round(
-                bundle.minifigQuantity / (firstBag.targetBundleSize || 100),
-              );
-        manifest.torsoBag = {
-          id: firstBag._id,
-          name: firstBag.bagName,
-          multiplier,
-        };
-      }
-    }
   }
 
   if (addons?.length > 0) {

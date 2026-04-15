@@ -107,34 +107,24 @@ export const decrementDealerAddonStock = async (parsedAddons) => {
 };
 
 const restockDealerAddonItems = async (dealerItems) => {
-  const addons = dealerItems?.addons || dealerItems?.selectedAddons; // Handle manifest vs details
+  const addons = dealerItems?.addons;
   if (!addons?.length) return;
 
   for (const addonEntry of addons) {
-    // Note: The new manifest uses 'id' instead of 'addonId' and 'subItems' instead of 'selectedItems'
-    const addonId = addonEntry.id || addonEntry.addonId;
+    const addonId = addonEntry.id;
     const quantity = Number(addonEntry.quantity) || 1;
-    const subItems = addonEntry.subItems || addonEntry.selectedItems;
+    const subItems = addonEntry.subItems;
 
     const addon = await DealerAddon.findById(addonId).lean();
     if (!addon || addon.addonType !== "bundle") continue;
 
-    const itemsToProcess =
-      subItems && Array.isArray(subItems)
-        ? subItems
-        : (addon.bundleItems || []).map((bi) => ({
-            invId: bi.inventoryItemId,
-            qty: 1, // Fallback
-          }));
+    if (!subItems?.length) continue;
 
-    for (const selItem of itemsToProcess) {
-      // Handle invId (new) vs inventoryItemId (old)
-      const invId =
-        selItem.invId?._id || selItem.invId || selItem.inventoryItemId;
+    for (const selItem of subItems) {
+      const invId = selItem.invId?._id ?? selItem.invId;
       if (!invId) continue;
 
-      // Handle qty (new) vs selectedBags (old)
-      const bags = Number(selItem.qty || selItem.selectedBags || 0);
+      const bags = Number(selItem.qty || 0);
       if (bags === 0) continue;
 
       const definition = addon.bundleItems.find(
@@ -181,10 +171,9 @@ const restockTorsoBagItems = async (dealerItems) => {
 
 export const restockOrder = async (order) => {
   if (order.orderType === "dealer") {
-    const dealerItems = order.dealerItems || order.dealerDetails;
-    await restockDealerAddonItems(dealerItems);
-    await restockTorsoBagItems(dealerItems);
+    await restockDealerAddonItems(order.dealerItems);
+    await restockTorsoBagItems(order.dealerItems);
   } else {
-    await incrementProductStockForItems(order.productItems || order.items);
+    await incrementProductStockForItems(order.productItems);
   }
 };
