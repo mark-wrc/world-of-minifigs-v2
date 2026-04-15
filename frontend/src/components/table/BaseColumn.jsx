@@ -69,14 +69,16 @@ export const PriceCell = ({ amount }) => {
   );
 };
 
-// Actions for view, edit, and delete functions
+// Actions for view, edit, delete, and export functions
 export const ActionsColumn = ({
   onView,
   onEdit,
   onDelete,
+  onExport,
   viewTitle = "View",
   editTitle = "Update",
   deleteTitle = "Delete",
+  exportTitle = "Export",
 }) => {
   return (
     <td className="p-3 flex items-center justify-center gap-2">
@@ -111,6 +113,16 @@ export const ActionsColumn = ({
               }}
             >
               {editTitle}
+            </DropdownMenuItem>
+          )}
+          {onExport && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                onExport();
+              }}
+            >
+              {exportTitle}
             </DropdownMenuItem>
           )}
           {onDelete && (

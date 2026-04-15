@@ -375,6 +375,7 @@ export async function createDealerOrderFromStripeSession(session) {
       name: eb.bagName,
       quantity: eb.quantity,
       price: eb.price,
+      totalPrice: eb.price * eb.quantity,
     }));
   }
 

@@ -24,7 +24,6 @@ const OrderCard = ({ orderCard }) => {
               <p className="font-bold text-lg">Invoice #{invoiceLabel}</p>
 
               <Badge
-                variant="outline"
                 className={`text-xs font-medium flex items-center ${statusConfig.iconColor}`}
               >
                 {statusConfig.label}

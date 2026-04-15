@@ -78,6 +78,7 @@ const dealerItemSchema = new mongoose.Schema(
         name: { type: String },
         quantity: { type: Number },
         price: { type: Number },
+        totalPrice: { type: Number },
       },
     ],
   },

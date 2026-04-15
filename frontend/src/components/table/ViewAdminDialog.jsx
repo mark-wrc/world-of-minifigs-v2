@@ -15,6 +15,7 @@ const ViewAdminDialog = ({
   title = "Details",
   children,
   className = "sm:max-w-xl",
+  footerActions,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -32,6 +33,7 @@ const ViewAdminDialog = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
+          {footerActions}
         </DialogFooter>
       </DialogContent>
     </Dialog>

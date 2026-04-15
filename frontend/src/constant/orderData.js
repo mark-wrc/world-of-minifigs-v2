@@ -19,7 +19,7 @@ export const STATUS_CONFIG = {
   },
   shipped: {
     label: "Shipped",
-    variant: "default",
+    variant: "info",
     header: "Your order is on its way!",
     icon: Truck,
     iconColor: "text-blue-600 bg-blue-100 ring-blue-200",
@@ -78,12 +78,6 @@ export const getOrderStatusConfig = (order) => {
   return STATUS_CONFIG[status] || STATUS_CONFIG.paid;
 };
 
-/**
- * Extracts a flat list of display-friendly items from any order type.
- * Used for thumbnails, order cards, and basic lists.
- * @param {Object} order - The order object
- * @param {Boolean} summarize - If true, groups large item lists (e.g., dealer addons) into single summary items.
- */
 export const getDisplayItems = (order, summarize = false) => {
   if (!order) return [];
 

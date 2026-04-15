@@ -1,7 +1,9 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import AdminManagementHeader from "@/components/shared/AdminManagementHeader";
 import TableLayout from "@/components/table/TableLayout";
+import { exportOrderToPdf } from "@/utils/exportOrderPdf";
 import {
   ActionsColumn,
   TableCell,
@@ -153,6 +155,7 @@ const OrderManagement = () => {
                 onEdit={
                   transitions.length > 0 ? () => handleEdit(order) : undefined
                 }
+                onExport={() => exportOrderToPdf(order)}
               />
             </>
           );
@@ -256,6 +259,9 @@ const OrderManagement = () => {
         open={viewModalOpen}
         onOpenChange={handleViewModalChange}
         title="Order Details"
+        footerActions={
+          <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
+        }
       >
         {/* ── Order Information ── */}
         <section className="space-y-2">
@@ -277,7 +283,9 @@ const OrderManagement = () => {
                 </a>
               ) : (
                 <span className="text-xs">
-                  {viewOrder?.payment?.stripeInvoiceNumber || "—"}
+                  {viewOrder?.payment?.stripeInvoiceNumber ||
+                    viewOrder?._id?.substring(0, 7) ||
+                    "—"}
                 </span>
               )}
             </div>
@@ -322,7 +330,7 @@ const OrderManagement = () => {
             </div>
             {viewOrder?.shipping?.address?.phone && (
               <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Contact Number</span>
+                <span className="font-semibold text-xs">Contact No.</span>
                 <span className="text-xs">
                   {formatPhone(viewOrder.shipping.address.phone)}
                 </span>
@@ -405,7 +413,7 @@ const OrderManagement = () => {
               </div>
               {viewOrder?.shipping?.address?.phone && (
                 <div className="grid grid-cols-[140px_1fr] p-3">
-                  <span className="font-semibold text-xs">Contact Number</span>
+                  <span className="font-semibold text-xs">Contact No.</span>
                   <span className="text-xs">
                     {formatPhone(viewOrder.shipping.address.phone)}
                   </span>
@@ -429,7 +437,7 @@ const OrderManagement = () => {
                 </span>
               </div>
               <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Tracking Number</span>
+                <span className="font-semibold text-xs">Tracking No.</span>
                 <span className="text-xs">
                   {viewOrder.shipping.trackingNumber || "—"}
                 </span>
@@ -454,7 +462,7 @@ const OrderManagement = () => {
         {/* ── Order Items ── */}
         <section className="space-y-2">
           <Label className="font-semibold text-xs uppercase">
-            {viewOrder?.orderType === "dealer" ? "Order Manifest" : "Items"}
+            {viewOrder?.orderType === "dealer" ? "Order Details" : "Items"}
           </Label>
 
           {/* Standard Product View */}
@@ -559,7 +567,7 @@ const OrderManagement = () => {
                                   <CommonImage
                                     src={sub.imageUrl}
                                     alt={sub.name}
-                                    className="size-12 object-contain shrink-0"
+                                    className="w-14 object-contain shrink-0"
                                   />
                                 )}
                                 <div className="flex-1 min-w-0 space-y-2">
@@ -568,7 +576,10 @@ const OrderManagement = () => {
                                       {sub.name}
                                     </p>
                                     <span className="text-xs text-muted-foreground shrink-0">
-                                      {sub.qty} bag{sub.qty !== 1 ? "s" : ""}
+                                      {sub.qty}{" "}
+                                      {/minifig/i.test(addon.name)
+                                        ? sub.qty !== 1 ? "minifigs" : "minifig"
+                                        : sub.qty !== 1 ? "bags" : "bag"}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1 text-xs">
@@ -615,7 +626,9 @@ const OrderManagement = () => {
                           </span>
                         </span>
                         <span className="text-xs font-semibold shrink-0 text-success">
-                          {formatCurrency(bag.quantity * bag.price)}
+                          {formatCurrency(
+                            bag.totalPrice ?? bag.quantity * bag.price,
+                          )}
                         </span>
                       </div>
                     ))}
@@ -645,13 +658,13 @@ const OrderManagement = () => {
               </span>
             </div>
             <div className="flex justify-between items-center p-3">
-              <span className="font-semibold text-xs">Tax</span>
+              <span className="font-semibold text-xs">Sales Tax</span>
               <span className="text-xs">
                 {formatCurrency(viewOrder?.payment?.taxAmount ?? 0)}
               </span>
             </div>
-            <div className="flex justify-between items-center p-3 font-bold text-success">
-              <span>Total</span>
+            <div className={`flex justify-between items-center p-3 font-bold ${viewOrder?.status === "cancelled" ? "text-destructive" : "text-success"}`}>
+              <span>{viewOrder?.status === "cancelled" ? "Refund Amount" : "Total"}</span>
               <span>{formatCurrency(viewOrder?.payment?.totalAmount)}</span>
             </div>
           </div>

@@ -48,7 +48,7 @@ const AddonPreviewModal = ({
                   </div>
                 )}
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {/* Image */}
                   <CommonImage
                     src={item.image?.url}
@@ -57,7 +57,7 @@ const AddonPreviewModal = ({
                   />
 
                   {/* Right Content */}
-                  <div className="flex flex-col gap-1 flex-1">
+                  <div className="flex flex-col gap-2 flex-1">
                     {/* Name + Total */}
                     <div className="flex items-start justify-between gap-2">
                       <h4
@@ -86,7 +86,7 @@ const AddonPreviewModal = ({
                     </span>
 
                     {/* Quantity Control */}
-                    <div className="mt-1 flex items-center">
+                    <div className="mt-2 flex items-center">
                       <QuantityControl
                         value={item.selectedBags}
                         onChange={(val) =>

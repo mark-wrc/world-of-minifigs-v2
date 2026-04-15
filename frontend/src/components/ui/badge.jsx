@@ -21,6 +21,8 @@ const badgeVariants = cva(
           "bg-accent dark:text-secondary-foreground hover:bg-accent/90 border-none",
         success:
           "bg-success text-success-foreground [a&]:hover:bg-success/90 border-none",
+        info:
+          "bg-blue-200 text-blue-600 [a&]:hover:bg-blue/90 border-none",
       },
     },
     defaultVariants: {
