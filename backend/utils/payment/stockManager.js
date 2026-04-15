@@ -1,6 +1,7 @@
 import Product from "../../models/product.model.js";
 import GeneralInventory from "../../models/generalInventory.model.js";
 import DealerAddon from "../../models/dealerAddon.model.js";
+import DealerTorsoBag from "../../models/dealerTorsoBag.model.js";
 
 // ------------------------- Product Stock Management --------------------------------
 
@@ -149,11 +150,40 @@ const restockDealerAddonItems = async (dealerItems) => {
   }
 };
 
+// ------------------------- Torso Bag Stock Management --------------------------------
+
+export const decrementTorsoBagStock = async (torsoBags) => {
+  if (!torsoBags || !Array.isArray(torsoBags)) return;
+  for (const { torsoBagId, quantity } of torsoBags) {
+    const id = torsoBagId?._id ?? torsoBagId;
+    if (!id) continue;
+    const qty = Number(quantity) || 1;
+    await DealerTorsoBag.findByIdAndUpdate(id, {
+      $inc: { stock: -qty },
+    });
+  }
+};
+
+const restockTorsoBagItems = async (dealerItems) => {
+  const torsoBags = dealerItems?.torsoBags;
+  if (!torsoBags?.length) return;
+  for (const bag of torsoBags) {
+    const id = bag.id?._id ?? bag.id;
+    if (!id) continue;
+    const qty = Number(bag.quantity) || 1;
+    await DealerTorsoBag.findByIdAndUpdate(id, {
+      $inc: { stock: qty },
+    });
+  }
+};
+
 // ------------------------- Generic Restock Dispatcher -----------------------------
 
 export const restockOrder = async (order) => {
   if (order.orderType === "dealer") {
-    await restockDealerAddonItems(order.dealerItems || order.dealerDetails);
+    const dealerItems = order.dealerItems || order.dealerDetails;
+    await restockDealerAddonItems(dealerItems);
+    await restockTorsoBagItems(dealerItems);
   } else {
     await incrementProductStockForItems(order.productItems || order.items);
   }

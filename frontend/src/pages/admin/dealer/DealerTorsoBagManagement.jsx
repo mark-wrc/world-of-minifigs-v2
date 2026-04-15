@@ -106,6 +106,17 @@ const DealerTorsoBagManagement = () => {
             {/* Designs Count */}
             <TableCell>{bag.items?.length} Designs</TableCell>
 
+            {/* Stock */}
+            <TableCell>
+              {bag.stock === 0 ? (
+                <Badge variant="destructive">Out of Stock</Badge>
+              ) : bag.stock < 50 ? (
+                <Badge variant="accent">{bag.stock} remaining</Badge>
+              ) : (
+                <Badge variant="success">{bag.stock} available</Badge>
+              )}
+            </TableCell>
+
             {/* Status */}
             <StatusCell isActive={bag.isActive} />
 
@@ -135,7 +146,7 @@ const DealerTorsoBagManagement = () => {
         className="sm:max-w-4xl"
       >
         <div className="space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             {/* Bag Name */}
             <AdminFormInput
               label="Bag Name"
@@ -147,7 +158,17 @@ const DealerTorsoBagManagement = () => {
               className="col-span-2"
               required
             />
-
+            {/* Stock */}
+            <AdminFormInput
+              label="Stock"
+              name="stock"
+              type="number"
+              min="0"
+              placeholder="0"
+              value={formData.stock}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
             {/* Target Size */}
             <AdminFormSelect
               label="Target Size"

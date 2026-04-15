@@ -15,5 +15,6 @@ export {
   decrementProductStock,
   decrementProductStockForItems,
   decrementDealerAddonStock,
+  decrementTorsoBagStock,
   restockOrder,
 } from "./stockManager.js";

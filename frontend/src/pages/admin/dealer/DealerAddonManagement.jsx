@@ -527,7 +527,7 @@ const DealerAddonManagement = () => {
                     ? "0.00"
                     : computedDiscountedPrice === 0
                       ? "Free"
-                      : `$${Number(computedDiscountedPrice).toFixed(2)}`
+                      : formatCurrency(computedDiscountedPrice)
                 }
                 disabled
                 readOnly

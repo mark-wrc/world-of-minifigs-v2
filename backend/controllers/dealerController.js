@@ -779,7 +779,7 @@ export const deleteDealerExtraBag = async (req, res) => {
 
 export const createDealerTorsoBag = async (req, res) => {
   try {
-    const { bagName, items, targetBundleSize, isActive } = req.body;
+    const { bagName, items, targetBundleSize, isActive, stock } = req.body;
 
     // Validate required fields
     if (!bagName) {
@@ -827,6 +827,7 @@ export const createDealerTorsoBag = async (req, res) => {
       bagName: bagName.trim(),
       items: uploadedItems,
       targetBundleSize: resolvedTarget,
+      stock: stock !== undefined ? Math.max(0, Number(stock) || 0) : 0,
       isActive: isActive !== undefined ? isActive : true,
       createdBy: req.user._id,
     });
@@ -877,7 +878,7 @@ export const getAllDealerTorsoBags = async (req, res) => {
 export const updateDealerTorsoBag = async (req, res) => {
   try {
     const { id } = req.params;
-    const { bagName, items, targetBundleSize, isActive } = req.body;
+    const { bagName, items, targetBundleSize, isActive, stock } = req.body;
 
     const torsoBag = await DealerTorsoBag.findById(id);
 
@@ -906,6 +907,7 @@ export const updateDealerTorsoBag = async (req, res) => {
     }
 
     if (isActive !== undefined) torsoBag.isActive = isActive;
+    if (stock !== undefined) torsoBag.stock = Math.max(0, Number(stock) || 0);
     if (targetBundleSize) torsoBag.targetBundleSize = targetBundleSize;
 
     // Process items if provided
@@ -1121,7 +1123,7 @@ export const getDealerExtraBagsForUser = async (req, res) => {
 
 export const getDealerTorsoBagsForUser = async (req, res) => {
   try {
-    const query = { isActive: true };
+    const query = { isActive: true, stock: { $gt: 0 } };
 
     // Filter by target bundle size when provided
     if (req.query.targetBundleSize) {

@@ -27,6 +27,7 @@ const getAdminTarget = (target) => target - getMiscQuantity(target);
 const initialFormData = {
   bagName: "",
   targetBundleSize: 100,
+  stock: 0,
   isActive: true,
   items: [],
 };
@@ -35,6 +36,7 @@ const columns = [
   { key: "bagName", label: "Bag Name" },
   { key: "targetBundleSize", label: "Target" },
   { key: "itemCount", label: "Total Designs" },
+  { key: "stock", label: "Stock" },
   { key: "isActive", label: "Status" },
   { key: "createdAt", label: "Created At" },
   { key: "updatedAt", label: "Updated At" },
@@ -160,6 +162,7 @@ const useDealerTorsoBagManagement = () => {
     crud.openEdit(bag, {
       bagName: bag.bagName || "",
       targetBundleSize: bag.targetBundleSize || 100,
+      stock: bag.stock ?? 0,
       isActive: bag.isActive !== false,
       items: existingItems,
     });
@@ -242,6 +245,7 @@ const useDealerTorsoBagManagement = () => {
     const payload = {
       bagName: sanitizeString(crud.formData.bagName),
       targetBundleSize: targetSize,
+      stock: Math.max(0, Number(crud.formData.stock) || 0),
       isActive: crud.formData.isActive,
       items,
     };

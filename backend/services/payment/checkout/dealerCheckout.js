@@ -6,6 +6,7 @@ import GeneralInventory from "../../../models/generalInventory.model.js";
 import {
   buildStripeLineItem,
   decrementDealerAddonStock,
+  decrementTorsoBagStock,
 } from "../../../utils/payment/index.js";
 import {
   createOrderRecord,
@@ -64,6 +65,16 @@ export async function buildLineItemsForDealer(body, userId) {
             message: "Torso bag not found",
             description:
               "One of the selected torso bags does not exist or is unavailable.",
+          },
+        };
+      }
+
+      if ((bag.stock ?? 0) < qty) {
+        return {
+          error: {
+            status: 400,
+            message: "Torso bag out of stock",
+            description: `"${bag.bagName}" does not have enough stock to fulfill this order.`,
           },
         };
       }
@@ -372,15 +383,19 @@ export async function createDealerOrderFromStripeSession(session) {
     items: manifest,
   });
 
-  if (result?.created && addons?.length > 0) {
-    // Note: Stock manager expects a specific ID/qty/items format
-    await decrementDealerAddonStock(
-      addons.map((a) => ({
-        id: a.addonId,
-        qty: 1,
-        items: a.selectedItems,
-      })),
-    );
+  if (result?.created) {
+    if (torsoBags?.length > 0) {
+      await decrementTorsoBagStock(torsoBags);
+    }
+    if (addons?.length > 0) {
+      await decrementDealerAddonStock(
+        addons.map((a) => ({
+          id: a.addonId,
+          qty: 1,
+          items: a.selectedItems,
+        })),
+      );
+    }
   }
 
   return result;
