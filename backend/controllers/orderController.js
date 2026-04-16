@@ -1,5 +1,10 @@
 import Order from "../models/order.model.js";
 import {
+  sendShippingNotificationEmail,
+  sendDeliveryConfirmationEmail,
+  sendOrderCancelledEmail,
+} from "../services/orderEmailService.js";
+import {
   normalizePagination,
   buildSearchQuery,
   paginateQuery,
@@ -200,6 +205,8 @@ export const cancelOrder = async (req, res) => {
 
     await order.save();
 
+    sendOrderCancelledEmail(order).catch(() => {});
+
     return res
       .status(200)
       .json(
@@ -237,10 +244,16 @@ export const getAllOrders = async (req, res) => {
       limit,
       sort: { createdAt: -1 },
       select: "-payment.stripeSessionId -payment.stripePaymentIntentId -__v",
-      populate: {
-        path: "userId",
-        select: "firstName lastName",
-      },
+      populate: [
+        {
+          path: "userId",
+          select: "firstName lastName",
+        },
+        {
+          path: "cancellation.cancelledById",
+          select: "firstName lastName",
+        },
+      ],
     });
 
     return res.status(200).json(createPaginationResponse(result, "orders"));
@@ -268,10 +281,16 @@ export const getOrderById = async (req, res) => {
       });
     }
 
-    const order = await Order.findById(id).populate({
-      path: "userId",
-      select: "firstName lastName",
-    });
+    const order = await Order.findById(id).populate([
+      {
+        path: "userId",
+        select: "firstName lastName",
+      },
+      {
+        path: "cancellation.cancelledById",
+        select: "firstName lastName",
+      },
+    ]);
 
     if (!order) {
       return res.status(404).json({
@@ -375,6 +394,8 @@ export const updateOrderStatus = async (req, res) => {
 
       await order.save();
 
+      sendOrderCancelledEmail(order).catch(() => {});
+
       return res
         .status(200)
         .json(
@@ -411,6 +432,8 @@ export const updateOrderStatus = async (req, res) => {
       order.shipping.shippedAt = new Date();
       await order.save();
 
+      sendShippingNotificationEmail(order).catch(() => {});
+
       return res.status(200).json({
         success: true,
         message: "Order marked as shipped",
@@ -427,6 +450,8 @@ export const updateOrderStatus = async (req, res) => {
       order.status = ORDER_STATUSES.DELIVERED;
       order.shipping.deliveredAt = new Date();
       await order.save();
+
+      sendDeliveryConfirmationEmail(order).catch(() => {});
 
       return res.status(200).json({
         success: true,

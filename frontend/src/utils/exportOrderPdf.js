@@ -288,23 +288,21 @@ export const exportOrderToPdf = async (order) => {
     { align: "right" },
   );
 
-  const pillW = 26;
+  const statusLabelUpper = statusLabel.toUpperCase();
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  const textW = doc.getTextWidth(statusLabelUpper);
+  const pillW = Math.max(26, textW + 6);
   const pillH = 7;
   const pillX = PAGE_W - M - pillW;
   const pillY = 22;
+
   rect(doc, pillX, pillY, pillW, pillH, statusColor);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
   rgb(doc, C.white);
   // Visually centered: baseline = pillY + (pillH + capHeight) / 2  (capHeight ≈ 2mm at 7.5pt)
-  doc.text(
-    statusLabel.toUpperCase(),
-    pillX + pillW / 2,
-    pillY + (pillH + 2) / 2,
-    {
-      align: "center",
-    },
-  );
+  doc.text(statusLabelUpper, pillX + pillW / 2, pillY + (pillH + 2) / 2, {
+    align: "center",
+  });
 
   // "Order Summary" baseline centered on the right column (center ≈ y=19.5)
   doc.setFontSize(22);
@@ -324,35 +322,40 @@ export const exportOrderToPdf = async (order) => {
   const invoiceNumber =
     order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7) || "—";
   const hasInvoiceLink = !!(invoiceUrl && order.payment?.stripeInvoiceNumber);
+  const orderRows = [
+    ["Invoice No.", invoiceNumber],
+    ["Status", statusLabel],
+    [
+      "Order Type",
+      order.orderType
+        ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1)
+        : "—",
+    ],
+    [
+      "Paid At",
+      order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—",
+    ],
+  ];
+
   y = kvTable(
     doc,
     y,
-    [
-      ["Invoice No.", invoiceNumber],
-      ["Status", statusLabel],
-      [
-        "Order Type",
-        order.orderType
-          ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1)
-          : "—",
-      ],
-      [
-        "Paid At",
-        order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—",
-      ],
-    ],
-    hasInvoiceLink
-      ? (data) => {
-          if (
-            data.section !== "body" ||
-            data.row.index !== 0 ||
-            data.column.index !== 1
-          )
-            return;
-          data.cell.styles.textColor = C.brand;
-          data.cell.styles.fontStyle = "bold";
-        }
-      : undefined,
+    orderRows,
+    (data) => {
+      if (data.section !== "body" || data.column.index !== 1) return;
+
+      // Invoice Number (Row 0)
+      if (data.row.index === 0 && hasInvoiceLink) {
+        data.cell.styles.textColor = C.brand;
+        data.cell.styles.fontStyle = "bold";
+      }
+
+      // Status (Row 1)
+      if (data.row.index === 1) {
+        data.cell.styles.textColor = statusColor;
+        data.cell.styles.fontStyle = "bold";
+      }
+    },
     hasInvoiceLink
       ? (data) => {
           if (
@@ -425,21 +428,25 @@ export const exportOrderToPdf = async (order) => {
   // ════════════════════════════════════════════════════════════════
   if (order.shipping?.carrier) {
     y = ensureSpace(doc, y);
-    y = sectionHeader(doc, y, "Shipping & Tracking");
-    const trackingLink = order.shipping.trackingLink;
+    y = sectionHeader(doc, y, "Tracking Information");
+    const tr = order.shipping || {};
+    const trackingRows = [
+      ["Carrier", safe(tr.carrier)],
+      ["Tracking No.", safe(tr.trackingNumber)],
+    ];
+    const trackingLink = tr.trackingLink;
+    const linkRowIndex = trackingRows.length;
+    trackingRows.push(["Tracking Link", safe(trackingLink)]);
+
     y = kvTable(
       doc,
       y,
-      [
-        ["Carrier", safe(order.shipping.carrier)],
-        ["Tracking No.", safe(order.shipping.trackingNumber)],
-        ["Tracking Link", safe(trackingLink)],
-      ],
+      trackingRows,
       trackingLink
         ? (data) => {
             if (
               data.section !== "body" ||
-              data.row.index !== 2 ||
+              data.row.index !== linkRowIndex ||
               data.column.index !== 1
             )
               return;
@@ -609,32 +616,59 @@ export const exportOrderToPdf = async (order) => {
   }
 
   // ════════════════════════════════════════════════════════════════
-  // PAYMENT SUMMARY  (Total Paid as last row inside the table)
+  // REFUND DETAILS (If Cancelled)
+  // ════════════════════════════════════════════════════════════════
+  if (order.status === "cancelled") {
+    y += 4;
+    y = ensureSpace(doc, y, 45);
+    y = sectionHeader(doc, y, "Refund Details");
+
+    const refundRows = [];
+    if (order.refund?.stripeRefundId) {
+      refundRows.push(["Refund ID", safe(order.refund.stripeRefundId)]);
+    }
+    if (order.refund?.status === "completed" && order.refund?.arn) {
+      refundRows.push(["ARN", safe(order.refund.arn)]);
+    }
+    refundRows.push(
+      [
+        "Cancelled On",
+        formatDate(order.cancellation?.cancelledAt || order.updatedAt),
+      ],
+      [
+        "Cancelled By",
+        order.cancellation?.cancelledById
+          ? formatFullName(order.cancellation.cancelledById)
+          : order.cancellation?.cancelledByRole === "admin"
+            ? "Admin"
+            : "Customer",
+      ],
+      ["Reason", safe(order.cancellation?.reason)],
+    );
+    if (order.cancellation?.notes) {
+      refundRows.push(["Notes", safe(order.cancellation.notes)]);
+    }
+
+    y = kvTable(doc, y, refundRows);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // PAYMENT SUMMARY
   // ════════════════════════════════════════════════════════════════
   y += 4;
-  y = ensureSpace(doc, y, 50);
+  y = ensureSpace(doc, y, 45);
   y = sectionHeader(doc, y, "Payment Summary");
 
+  const totalLabel = order.status === "cancelled" ? "REFUND AMOUNT" : "TOTAL";
   const summaryRows = [
     ["Subtotal", formatCurrency(order.payment?.subtotal)],
     ["Shipping Fee", formatCurrency(order.payment?.shippingFee)],
     ["Sales Tax", formatCurrency(order.payment?.taxAmount)],
-  ];
-  if (order.status === "cancelled") {
-    summaryRows.push([
-      "Refund Amount",
+    [
+      totalLabel,
       formatCurrency(order.refund?.amount || order.payment?.totalAmount),
-    ]);
-    if (order.cancellation?.reason) {
-      summaryRows.push([
-        "Cancellation Reason",
-        safe(order.cancellation.reason),
-      ]);
-    }
-  }
-
-  const totalLabel = order.status === "cancelled" ? "REFUND AMOUNT" : "TOTAL";
-  summaryRows.push([totalLabel, formatCurrency(order.payment?.totalAmount)]);
+    ],
+  ];
 
   const totalRowIndex = summaryRows.length - 1;
 
@@ -663,14 +697,18 @@ export const exportOrderToPdf = async (order) => {
     },
     body: summaryRows,
     didParseCell: (data) => {
-      if (data.section !== "body" || data.row.index !== totalRowIndex) return;
-      data.cell.styles.fontStyle = "bold";
-      data.cell.styles.fontSize = 14;
-      if (data.column.index === 1) {
-        data.cell.styles.textColor =
-          order.status === "cancelled" ? C.red : C.accentText;
-      } else {
-        data.cell.styles.textColor = C.gray900;
+      if (data.section !== "body") return;
+
+      // Style Total at the bottom
+      if (data.row.index === totalRowIndex) {
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.fontSize = 14;
+        if (data.column.index === 1) {
+          data.cell.styles.textColor =
+            order.status === "cancelled" ? C.red : C.accentText;
+        } else {
+          data.cell.styles.textColor = C.gray900;
+        }
       }
     },
   });

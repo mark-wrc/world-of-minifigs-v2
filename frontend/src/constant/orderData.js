@@ -50,7 +50,7 @@ export const STATUS_CONFIG = {
 export const REFUND_STATUS_CONFIG = {
   pending: {
     label: "Refund Processing",
-    variant: "secondary",
+    variant: "warning",
     header: "Refund in progress",
     icon: Clock,
     iconColor: "text-amber-600 bg-amber-100 ring-amber-200",
@@ -59,7 +59,7 @@ export const REFUND_STATUS_CONFIG = {
   },
   completed: {
     label: "Refunded",
-    variant: "outline",
+    variant: "destructive",
     header: "Refund Confirmed",
     icon: RefreshCw,
     iconColor: "text-destructive bg-destructive/10 ring-destructive/20",

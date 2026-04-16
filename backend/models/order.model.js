@@ -162,6 +162,7 @@ const orderSchema = new mongoose.Schema(
       },
       cancelledById: {
         type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
       },
       isLocked: { type: Boolean, default: false },
       lockExpiresAt: { type: Date },

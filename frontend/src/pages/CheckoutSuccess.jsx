@@ -342,7 +342,7 @@ const CheckoutSuccess = () => {
                   {/* DELIVERY ADDRESS */}
                   <div className="space-y-5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Delivery Address
+                      Shipping Address
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                       <div className="space-y-1">
@@ -394,7 +394,7 @@ const CheckoutSuccess = () => {
                       {order?.shipping?.address?.phone && (
                         <div className="space-y-1">
                           <p className="text-xs uppercase text-muted-foreground">
-                            Contact Number
+                            Contact No.
                           </p>
                           <p className="text-base font-semibold">
                             {formatPhone(order.shipping.address.phone)}
@@ -434,16 +434,16 @@ const CheckoutSuccess = () => {
                     </div>
                   )}
 
-                  {/* SHIPMENT INFORMATION */}
+                  {/* TRACKING INFORMATION */}
                   {(status === "shipped" || status === "delivered") && (
                     <div className="space-y-5">
                       <div className="border-t pt-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Shipment Information
+                          Tracking Information
                         </p>
                       </div>
                       {order?.shipping?.trackingLink ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                           <div className="space-y-1">
                             <p className="text-xs uppercase text-muted-foreground">
                               Carrier
@@ -454,12 +454,13 @@ const CheckoutSuccess = () => {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs uppercase text-muted-foreground">
-                              Tracking Number
+                              Tracking No.
                             </p>
                             <p className="text-base font-semibold">
                               {order?.shipping?.trackingNumber || "—"}
                             </p>
                           </div>
+
                           <div className="space-y-1">
                             <p className="text-xs uppercase text-muted-foreground">
                               Tracking Link
@@ -528,33 +529,35 @@ const CheckoutSuccess = () => {
 
               {status === "cancelled" && (
                 <div className="pt-5 mt-5 border-t border-dashed space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Cancelled On</span>
-                    <span className="font-bold">
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="text-sm shrink-0">Cancelled On</span>
+                    <span className="font-bold text-right text-sm">
                       {order?.cancellation?.cancelledAt
                         ? formatDate(order.cancellation.cancelledAt)
                         : "—"}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Reason</span>
-                    <span className="font-bold">
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="text-sm shrink-0">Cancelled By</span>
+                    <span className="font-bold text-right text-sm">
+                      {order?.cancellation?.cancelledByRole === "admin"
+                        ? "Support Team"
+                        : "Customer"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-start gap-4">
+                    <span className="text-sm shrink-0">Reason</span>
+                    <span className="font-bold text-right text-sm">
                       {order?.cancellation?.reason || "—"}
                     </span>
                   </div>
-                  {order?.cancellation?.cancelledByRole === "admin" &&
-                    order?.cancellation?.notes && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Notes</span>
-                        <span className="font-bold">
-                          {order.cancellation.notes}
-                        </span>
-                      </div>
-                    )}
-                  {order?.cancellation?.cancelledByRole === "admin" && (
-                    <p className="text-sm text-destructive font-semibold">
-                      This order was cancelled by our support team.
-                    </p>
+                  {order?.cancellation?.notes && (
+                    <div className="flex justify-between items-start gap-4">
+                      <span className="text-sm shrink-0">Notes</span>
+                      <span className="text-right text-sm">
+                        {order.cancellation.notes}
+                      </span>
+                    </div>
                   )}
                   {order?.refund?.status === "pending" && (
                     <div className="text-sm">

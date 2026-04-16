@@ -8,7 +8,6 @@ import {
   ActionsColumn,
   TableCell,
   TimestampCells,
-  StatusCell,
   PriceCell,
 } from "@/components/table/BaseColumn";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
@@ -17,7 +16,7 @@ import {
   AdminFormTextarea,
   AdminFormSelect,
 } from "@/components/shared/AdminFormInput";
-import StatusBadge from "@/components/shared/StatusBadge";
+import { Badge } from "@/components/ui/badge";
 import ViewAdminDialog from "@/components/table/ViewAdminDialog";
 import {
   formatCurrency,
@@ -135,9 +134,11 @@ const OrderManagement = () => {
               <PriceCell amount={order.payment?.totalAmount} />
 
               {/* Status */}
-              <StatusCell variant={statusConfig.variant}>
-                {statusConfig.label}
-              </StatusCell>
+              <TableCell>
+                <Badge className={`font-medium ${statusConfig.iconColor}`}>
+                  {statusConfig.label}
+                </Badge>
+              </TableCell>
 
               {/* ARN */}
               <TableCell maxWidth="200px" className="font-mono text-xs">
@@ -292,9 +293,23 @@ const OrderManagement = () => {
             <div className="grid grid-cols-[140px_1fr] p-3">
               <span className="font-semibold text-xs">Status</span>
               <div className="flex items-center">
-                <StatusBadge variant={getOrderStatusConfig(viewOrder).variant}>
+                <span
+                  className={`text-xs font-semibold ${
+                    getOrderStatusConfig(viewOrder).variant === "success"
+                      ? "text-success"
+                      : getOrderStatusConfig(viewOrder).variant === "info"
+                        ? "text-blue-600"
+                        : getOrderStatusConfig(viewOrder).variant ===
+                            "destructive"
+                          ? "text-destructive"
+                          : getOrderStatusConfig(viewOrder).variant ===
+                              "secondary"
+                            ? "text-amber-600"
+                            : "text-muted-foreground"
+                  }`}
+                >
                   {getOrderStatusConfig(viewOrder).label}
-                </StatusBadge>
+                </span>
               </div>
             </div>
             <div className="grid grid-cols-[140px_1fr] p-3">
@@ -427,7 +442,7 @@ const OrderManagement = () => {
         {viewOrder?.shipping?.carrier && (
           <section className="space-y-2">
             <Label className="font-semibold text-xs uppercase">
-              Shipping & Tracking
+              Tracking Information
             </Label>
             <div className="rounded-lg border divide-y text-sm">
               <div className="grid grid-cols-[140px_1fr] p-3">
@@ -437,7 +452,9 @@ const OrderManagement = () => {
                 </span>
               </div>
               <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Tracking No.</span>
+                <span className="font-semibold text-xs text-nowrap">
+                  Tracking No.
+                </span>
                 <span className="text-xs">
                   {viewOrder.shipping.trackingNumber || "—"}
                 </span>
@@ -566,8 +583,12 @@ const OrderManagement = () => {
                                     <span className="text-xs text-muted-foreground shrink-0">
                                       {sub.qty}{" "}
                                       {/minifig/i.test(addon.name)
-                                        ? sub.qty !== 1 ? "minifigs" : "minifig"
-                                        : sub.qty !== 1 ? "bags" : "bag"}
+                                        ? sub.qty !== 1
+                                          ? "minifigs"
+                                          : "minifig"
+                                        : sub.qty !== 1
+                                          ? "bags"
+                                          : "bag"}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1 text-xs">
@@ -627,6 +648,66 @@ const OrderManagement = () => {
           )}
         </section>
 
+        {/* ── Refund Details ── */}
+        {viewOrder?.status === "cancelled" && (
+          <section className="space-y-2">
+            <Label className="font-semibold text-xs uppercase text-destructive">
+              Refund Details
+            </Label>
+            <div className="rounded-lg border divide-y text-sm">
+              {viewOrder.refund?.stripeRefundId && (
+                <div className="flex justify-between items-start p-3 gap-4">
+                  <span className="font-semibold text-xs shrink-0">
+                    Refund ID
+                  </span>
+                  <span className="text-xs text-right font-mono">
+                    {viewOrder.refund.stripeRefundId}
+                  </span>
+                </div>
+              )}
+              {viewOrder.refund?.status === "completed" &&
+                viewOrder.refund?.arn && (
+                  <div className="flex justify-between items-start p-3 gap-4">
+                    <span className="font-semibold text-xs shrink-0">ARN</span>
+                    <span className="text-xs text-right font-mono">
+                      {viewOrder.refund.arn}
+                    </span>
+                  </div>
+                )}
+              <div className="flex justify-between items-start p-3">
+                <span className="font-semibold text-xs">Cancelled On</span>
+                <span className="text-xs text-right">
+                  {formatDate(
+                    viewOrder?.cancellation?.cancelledAt || viewOrder.updatedAt,
+                  )}
+                </span>
+              </div>
+              <div className="flex justify-between items-start p-3">
+                <span className="font-semibold text-xs">Cancelled By</span>
+                <span className="text-xs text-right">
+                  {viewOrder.cancellation?.cancelledById
+                    ? formatFullName(viewOrder.cancellation.cancelledById)
+                    : viewOrder.cancellation?.cancelledByRole || "—"}
+                </span>
+              </div>
+              <div className="flex justify-between items-start p-3">
+                <span className="font-semibold text-xs">Reason</span>
+                <span className="text-xs text-right">
+                  {viewOrder.cancellation?.reason || "—"}
+                </span>
+              </div>
+              {viewOrder.cancellation?.notes && (
+                <div className="flex justify-between items-start p-3 gap-4">
+                  <span className="font-semibold text-xs shrink-0">Notes</span>
+                  <span className="text-xs text-right">
+                    {viewOrder.cancellation.notes}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* ── Payment Summary ── */}
         <section className="space-y-2">
           <Label className="font-semibold text-xs uppercase">
@@ -651,58 +732,23 @@ const OrderManagement = () => {
                 {formatCurrency(viewOrder?.payment?.taxAmount ?? 0)}
               </span>
             </div>
-            <div className={`flex justify-between items-center p-3 font-bold ${viewOrder?.status === "cancelled" ? "text-destructive" : "text-success"}`}>
-              <span>{viewOrder?.status === "cancelled" ? "Refund Amount" : "Total"}</span>
-              <span>{formatCurrency(viewOrder?.payment?.totalAmount)}</span>
+            <div
+              className={`flex justify-between items-center p-3 font-bold ${viewOrder?.status === "cancelled" ? "text-destructive" : "text-success"}`}
+            >
+              <span>
+                {viewOrder?.status === "cancelled" ? "Refund Amount" : "Total"}
+              </span>
+              <span>
+                {formatCurrency(
+                  viewOrder?.status === "cancelled"
+                    ? viewOrder?.refund?.amount ||
+                        viewOrder?.payment?.totalAmount
+                    : viewOrder?.payment?.totalAmount,
+                )}
+              </span>
             </div>
           </div>
         </section>
-
-        {/* ── Refund ── */}
-        {viewOrder?.refund?.status && viewOrder.refund.status !== "none" && (
-          <section className="space-y-2">
-            <Label className="font-semibold text-xs uppercase">Refund</Label>
-            <div className="rounded-lg border divide-y text-sm">
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Status</span>
-                <span className="text-xs capitalize">
-                  {viewOrder.refund.status || "—"}
-                </span>
-              </div>
-              {viewOrder.refund.amount != null && (
-                <div className="grid grid-cols-[140px_1fr] p-3">
-                  <span className="font-semibold text-xs">Amount</span>
-                  <span className="text-xs">
-                    {formatCurrency(viewOrder.refund.amount)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ── Cancellation ── */}
-        {viewOrder?.cancellation?.reason && (
-          <section className="space-y-2">
-            <Label className="font-semibold text-xs uppercase text-destructive">
-              Cancellation
-            </Label>
-            <div className="rounded-lg border divide-y text-sm">
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Reason</span>
-                <span className="text-xs">
-                  {viewOrder.cancellation.reason || "—"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Cancelled By</span>
-                <span className="text-xs capitalize">
-                  {viewOrder.cancellation.cancelledByRole || "—"}
-                </span>
-              </div>
-            </div>
-          </section>
-        )}
       </ViewAdminDialog>
     </div>
   );
