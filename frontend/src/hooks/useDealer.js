@@ -303,6 +303,8 @@ export const useDealer = () => {
           itemName: inventory.minifigName,
           image: inventory.image,
           color: inventory.colorId,
+          category: inventory.category,
+          collectionId: inventory.collectionId,
           unitPrice: Number(inventory.price || 0),
           pricePerBag: Number(item.pricePerBag || 0),
           perBagLimit,

@@ -1077,8 +1077,11 @@ export const getDealerAddonsForUser = async (req, res) => {
       .populate({
         path: "bundleItems.inventoryItemId",
         match: { isActive: true },
-        select: "minifigName price stock image colorId",
-        populate: { path: "colorId", select: "colorName hexCode" },
+        select: "minifigName price stock image colorId category collectionId",
+        populate: [
+          { path: "colorId", select: "colorName hexCode" },
+          { path: "collectionId", select: "collectionName" },
+        ],
       })
       .sort({ createdAt: 1 })
       .lean();

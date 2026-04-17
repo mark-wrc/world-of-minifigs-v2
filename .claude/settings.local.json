@@ -3,7 +3,11 @@
     "allow": [
       "Bash(grep -E \"\\\\.\\(tsx?|jsx?\\)$\")",
       "WebFetch(domain:docs.stripe.com)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(cd /d)",
+      "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src\" -type f \\\\\\( -name \"*dealer*\" -o -name \"*addon*\" -o -name \"*minifig*\" \\\\\\))",
+      "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src/components/dealer\" -type f)",
+      "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src\" -type f -path \"*/pages/*dealer*\")"
     ]
   }
 }

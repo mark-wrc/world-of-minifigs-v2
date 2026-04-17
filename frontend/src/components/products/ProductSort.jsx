@@ -16,7 +16,9 @@ const ProductSort = ({
   className = "",
   showLabel = true,
   labelText = "Sort by:",
+  labelClassName = "",
   variant = "default", // "default" | "mobile"
+  options = SORT_OPTIONS,
 }) => {
   const isMobile = variant === "mobile";
 
@@ -25,7 +27,7 @@ const ProductSort = ({
       {showLabel && (
         <Label
           htmlFor={id}
-          className={isMobile ? "text-sm whitespace-nowrap" : ""}
+          className={`${isMobile ? "text-sm whitespace-nowrap" : ""} ${labelClassName}`}
         >
           {labelText}
         </Label>
@@ -35,7 +37,7 @@ const ProductSort = ({
           <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>
-          {SORT_OPTIONS.map((option) => (
+          {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
