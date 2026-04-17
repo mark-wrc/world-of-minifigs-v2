@@ -2,7 +2,7 @@
 
 export const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-export const SHIPPING_RATE_AMOUNT = 1000; // $10.00 in cents
+export const SHIPPING_RATE_AMOUNT = 1280; // $12.80 in cents
 
 export const STRIPE_SESSION_CONFIG = {
   mode: "payment",
