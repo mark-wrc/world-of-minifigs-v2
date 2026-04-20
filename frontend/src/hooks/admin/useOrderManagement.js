@@ -18,11 +18,9 @@ const columns = [
   { key: "invoice", label: "Invoice Number" },
   { key: "customer", label: "Customer" },
   { key: "email", label: "Email" },
-  { key: "recipient", label: "Recipient" },
   { key: "orderType", label: "Type" },
   { key: "totalAmount", label: "Total" },
   { key: "status", label: "Status" },
-  { key: "arn", label: "ARN" },
   { key: "createdAt", label: "Created At" },
   { key: "actions", label: "Actions" },
 ];

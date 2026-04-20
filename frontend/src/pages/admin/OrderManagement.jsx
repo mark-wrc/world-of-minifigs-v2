@@ -120,11 +120,6 @@ const OrderManagement = () => {
               {/* Email */}
               <TableCell>{display(order.email)}</TableCell>
 
-              {/* Recipient */}
-              <TableCell maxWidth="180px">
-                {display(order.shipping?.address?.name)}
-              </TableCell>
-
               {/* Order Type */}
               <TableCell className="capitalize">
                 {display(order.orderType)}
@@ -138,13 +133,6 @@ const OrderManagement = () => {
                 <Badge className={`font-medium ${statusConfig.iconColor}`}>
                   {statusConfig.label}
                 </Badge>
-              </TableCell>
-
-              {/* ARN */}
-              <TableCell maxWidth="200px" className="font-mono text-xs">
-                {order.refund?.status === "completed" && order.refund?.arn
-                  ? order.refund.arn
-                  : "—"}
               </TableCell>
 
               {/* Created At */}
