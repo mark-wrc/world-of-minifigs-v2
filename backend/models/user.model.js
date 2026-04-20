@@ -54,6 +54,12 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "customer", "dealer"],
       default: "customer",
     },
+    dealerStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+      index: true,
+    },
     isActive: {
       type: Boolean,
       default: true,

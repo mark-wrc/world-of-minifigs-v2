@@ -17,6 +17,7 @@ const Register = ({
   isSubmitDisabled,
   handleChange,
   handleCheckboxChange,
+  handleDealerCheckboxChange,
   handlePasswordFocus,
   handlePasswordBlur,
   handleSubmit,
@@ -160,6 +161,24 @@ const Register = ({
           onChange={handleChange}
           required
         />
+      </div>
+
+      {/* Apply as Dealer */}
+      <div className="flex items-start gap-2 text-sm my-5 p-3 rounded-md border border-dashed">
+        <Checkbox
+          id="reg-dealer"
+          checked={formData.applyAsDealer}
+          onCheckedChange={handleDealerCheckboxChange}
+        />
+        <div>
+          <Label htmlFor="reg-dealer" className="text-primary">
+            Apply as a Dealer
+          </Label>
+          <p className="text-xs text-muted-foreground mt-2">
+            Ready to become a dealer? Submit your application to get started!
+            We’ll review it and keep you posted via email.
+          </p>
+        </div>
       </div>
 
       {/* Terms and Conditions */}

@@ -5,6 +5,11 @@ import crypto from "crypto";
 import sendEmail from "../utils/sendEmail.js";
 import { getVerificationEmailTemplate } from "../utils/Email/verifyEmail.js";
 import { getResetPasswordTemplate } from "../utils/Email/passwordEmail.js";
+import {
+  getDealerApprovedEmailTemplate,
+  getDealerRejectedEmailTemplate,
+  getAdminDealerNotificationTemplate,
+} from "../utils/Email/dealerEmail.js";
 import { generateTokens, verifyRefreshToken } from "../utils/generateToken.js";
 import {
   normalizePagination,
@@ -21,8 +26,15 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 //------------------------------------------------ Register User ------------------------------------------
 export const register = async (req, res) => {
   try {
-    const { firstName, lastName, username, email, contactNumber, password } =
-      req.body;
+    const {
+      firstName,
+      lastName,
+      username,
+      email,
+      contactNumber,
+      password,
+      applyAsDealer,
+    } = req.body;
 
     // Validate required fields (basic check before normalization)
     if (
@@ -95,6 +107,7 @@ export const register = async (req, res) => {
         verificationToken,
         verificationTokenExpiry,
         isVerified: false,
+        dealerStatus: applyAsDealer ? "pending" : "none",
       });
     } catch (error) {
       // Handle Mongoose validation errors
@@ -140,7 +153,6 @@ export const register = async (req, res) => {
       });
       emailSent = true;
     } catch (emailErrorCaught) {
-      // Log detailed error for monitoring/debugging
       console.error("Error sending verification email:", {
         userId: user._id,
         email: user.email,
@@ -148,6 +160,25 @@ export const register = async (req, res) => {
         stack: emailErrorCaught.stack,
         timestamp: new Date().toISOString(),
       });
+    }
+
+    // Notify admin of new dealer application
+    if (applyAsDealer) {
+      const adminEmail = process.env.SMTP_FROM_EMAIL;
+      if (adminEmail) {
+        try {
+          await sendEmail({
+            email: adminEmail,
+            subject: `New Dealer Application — ${user.firstName} ${user.lastName}`,
+            message: getAdminDealerNotificationTemplate(user),
+          });
+        } catch (adminEmailErr) {
+          console.error(
+            "Error sending admin dealer notification:",
+            adminEmailErr.message,
+          );
+        }
+      }
     }
 
     // Remove sensitive data from response
@@ -159,26 +190,34 @@ export const register = async (req, res) => {
       email: user.email,
       contactNumber: user.contactNumber,
       role: user.role,
+      dealerStatus: user.dealerStatus,
       isVerified: user.isVerified,
     };
+
+    const isDealerApplicant =
+      applyAsDealer === true || applyAsDealer === "true";
 
     // Return appropriate response based on email sending status
     if (emailSent) {
       res.status(201).json({
         success: true,
         message: "Your account has been created",
-        description: "Please check your email to verify your account.",
+        description: isDealerApplicant
+          ? "Please verify your account via email. Your dealer application is under review, and we’ll notify you by email once a decision has been made."
+          : "Please check your email to verify your account.",
         user: userResponse,
+        isDealerApplicant,
       });
     } else {
-      // Account created but email failed - inform user they can resend
       res.status(201).json({
         success: true,
         message: "Your account has been created",
-        description:
-          "We couldn't send the verification email. Please enter your registered email to get a new verification link.",
+        description: isDealerApplicant
+          ? "We couldn't send the verification email. Please use 'Resend verification' to get your link. Your dealer application is under review."
+          : "We couldn't send the verification email. Please enter your registered email to get a new verification link.",
         user: userResponse,
-        emailSent: false, // Flag for frontend to show resend option
+        emailSent: false,
+        isDealerApplicant,
       });
     }
   } catch (error) {
@@ -830,7 +869,10 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(String(currentPassword), user.password);
+    const isMatch = await bcrypt.compare(
+      String(currentPassword),
+      user.password,
+    );
     if (!isMatch) {
       return res.status(400).json({
         success: false,
@@ -849,7 +891,8 @@ export const changePassword = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Password unchanged",
-        description: "Your new password must be different from your current password.",
+        description:
+          "Your new password must be different from your current password.",
       });
     }
 
@@ -887,11 +930,13 @@ export const getAllUsers = async (req, res) => {
     ];
     const searchQuery = buildSearchQuery(search, searchFields);
 
-    const allUsers = (await User.find(searchQuery)
-      .select(
-        "-password -verificationToken -verificationTokenExpiry -resetPasswordToken -resetPasswordTokenExpiry -refreshToken -refreshTokenExpiry -__v",
-      )
-      .lean()).map((u) => ({ ...u, isTaxExempt: u.isTaxExempt ?? false }));
+    const allUsers = (
+      await User.find(searchQuery)
+        .select(
+          "-password -verificationToken -verificationTokenExpiry -resetPasswordToken -resetPasswordTokenExpiry -refreshToken -refreshTokenExpiry -__v",
+        )
+        .lean()
+    ).map((u) => ({ ...u, isTaxExempt: u.isTaxExempt ?? false }));
 
     // Sort: admins first, then by creation date (newest first)
     const sortedUsers = allUsers.sort((a, b) => {
@@ -993,9 +1038,34 @@ export const updateUserRole = async (req, res) => {
       });
     }
 
-    // Update role
+    // Update role and sync dealerStatus
+    const previousRole = user.role;
     user.role = role;
+    if (role === "dealer") {
+      user.dealerStatus = "approved";
+    } else if (previousRole === "dealer" && role === "customer") {
+      user.dealerStatus = "rejected";
+    }
     await user.save();
+
+    // Send dealer status email
+    try {
+      if (role === "dealer") {
+        await sendEmail({
+          email: user.email,
+          subject: `Dealer Application Approved - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+          message: getDealerApprovedEmailTemplate(user),
+        });
+      } else if (previousRole === "dealer" && role === "customer") {
+        await sendEmail({
+          email: user.email,
+          subject: `Dealer Application Update - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+          message: getDealerRejectedEmailTemplate(user),
+        });
+      }
+    } catch (emailErr) {
+      console.error("Error sending dealer status email:", emailErr.message);
+    }
 
     // Remove sensitive data from response
     const {

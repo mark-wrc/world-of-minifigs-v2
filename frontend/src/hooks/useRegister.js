@@ -23,6 +23,7 @@ export const useRegister = (onSuccess) => {
     password: "",
     confirmPassword: "",
     agreeToTerms: false,
+    applyAsDealer: false,
   });
 
   const [showPasswordRequirements, setShowPasswordRequirements] =
@@ -51,6 +52,10 @@ export const useRegister = (onSuccess) => {
 
   const handleCheckboxChange = (checked) => {
     setFormData((prev) => ({ ...prev, agreeToTerms: checked }));
+  };
+
+  const handleDealerCheckboxChange = (checked) => {
+    setFormData((prev) => ({ ...prev, applyAsDealer: checked }));
   };
 
   const handlePasswordFocus = () => {
@@ -165,6 +170,7 @@ export const useRegister = (onSuccess) => {
         email: formData.email.trim().toLowerCase(),
         contactNumber: formData.contactNumber.trim(),
         password: formData.password.trim(),
+        applyAsDealer: formData.applyAsDealer,
       };
 
       const response = await register(userData).unwrap();
@@ -186,6 +192,7 @@ export const useRegister = (onSuccess) => {
           description:
             response?.description ||
             "Your account has been created. Please check your email to verify.",
+          duration: response?.isDealerApplicant ? 8000 : 4000,
         });
       }
 
@@ -211,6 +218,7 @@ export const useRegister = (onSuccess) => {
     isSubmitDisabled: isLoading || !formData.agreeToTerms,
     handleChange,
     handleCheckboxChange,
+    handleDealerCheckboxChange,
     handlePasswordFocus,
     handlePasswordBlur,
     handleSubmit,

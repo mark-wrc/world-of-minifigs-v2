@@ -7,7 +7,11 @@
       "Bash(cd /d)",
       "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src\" -type f \\\\\\( -name \"*dealer*\" -o -name \"*addon*\" -o -name \"*minifig*\" \\\\\\))",
       "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src/components/dealer\" -type f)",
-      "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src\" -type f -path \"*/pages/*dealer*\")"
+      "Bash(find \"Brick Extreme/world-of-minifigs-v2/frontend/src\" -type f -path \"*/pages/*dealer*\")",
+      "Bash(grep -E \"\\\\.\\(jsx|js\\)$\")",
+      "Bash(grep -E \"frontend.*\\\\.\\(jsx|js\\)$\")",
+      "Bash(grep -E \"\\\\.jsx$\")",
+      "Bash(grep -E \"\\\\.js$\")"
     ]
   }
 }
