@@ -1,6 +1,13 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AdminManagementHeader from "@/components/shared/AdminManagementHeader";
 import TableLayout from "@/components/table/TableLayout";
 import { exportOrderToPdf } from "@/utils/exportOrderPdf";
@@ -25,7 +32,7 @@ import {
   formatFullName,
   formatPhone,
 } from "@/utils/formatting";
-import { getOrderStatusConfig } from "@/constant/orderData";
+import { getOrderStatusConfig, STATUS_CONFIG } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
 import CommonImage from "@/components/shared/CommonImage";
 
@@ -64,6 +71,8 @@ const OrderManagement = () => {
     setTrackingLink,
     setCancelReason,
     setCancelNotes,
+    statusFilter,
+    handleStatusFilterChange,
     handleEdit,
     handleView,
     getAvailableTransitions,
@@ -99,6 +108,24 @@ const OrderManagement = () => {
         columns={columns}
         data={orders}
         isLoading={isLoadingOrders}
+        searchExtra={
+          <Select
+            value={statusFilter || "all"}
+            onValueChange={handleStatusFilterChange}
+          >
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
         renderRow={(order) => {
           const invoice =
             order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7);

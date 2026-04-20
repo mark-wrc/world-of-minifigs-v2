@@ -23,18 +23,22 @@ const TableLayout = ({
   endItem = 0,
   onPrevious,
   onNext,
+  searchExtra,
 }) => {
   return (
     <div className="space-y-5 pt-5">
       <div className="flex items-center justify-between">
         {/* Show entries */}
         <ShowEntries value={entriesValue} onValueChange={onEntriesChange} />
-        {/* Search bar */}
-        <SearchBar
-          placeholder={searchPlaceholder}
-          value={searchValue}
-          onChange={onSearchChange}
-        />
+        {/* Search bar + extra controls */}
+        <div className="flex items-center gap-2">
+          {searchExtra}
+          <SearchBar
+            placeholder={searchPlaceholder}
+            value={searchValue}
+            onChange={onSearchChange}
+          />
+        </div>
       </div>
 
       {/* Table */}

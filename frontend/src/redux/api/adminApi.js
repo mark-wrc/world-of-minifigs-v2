@@ -21,7 +21,13 @@ const baseQueryWithAuth = async (args, api, extraOptions) => {
 };
 
 // Helper function to build pagination and search params
-const buildPaginationParams = ({ page, limit, search, category } = {}) => {
+const buildPaginationParams = ({
+  page,
+  limit,
+  search,
+  category,
+  status,
+} = {}) => {
   return {
     ...(page && { page }),
     ...(limit && { limit }),
@@ -29,6 +35,7 @@ const buildPaginationParams = ({ page, limit, search, category } = {}) => {
       typeof search === "string" &&
       search.trim() && { search: search.trim() }),
     ...(category && { category }),
+    ...(status && { status }),
   };
 };
 

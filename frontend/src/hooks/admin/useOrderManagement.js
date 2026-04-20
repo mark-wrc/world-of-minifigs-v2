@@ -35,6 +35,17 @@ const useOrderManagement = () => {
     entityName: "order",
   });
 
+  // ------------------------------- Status Filter ------------------------------------
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const handleStatusFilterChange = useCallback((value) => {
+    setStatusFilter(value === "all" ? "" : value);
+  }, []);
+
+  useEffect(() => {
+    crud.handlePageChange(1);
+  }, [statusFilter]);
+
   // ------------------------------- Modal States ------------------------------------
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -67,6 +78,7 @@ const useOrderManagement = () => {
     page: crud.page,
     limit: crud.limit,
     search: crud.search || undefined,
+    status: statusFilter || undefined,
   });
 
   const { data: configData, isLoading: isLoadingConfig } =
@@ -223,6 +235,8 @@ const useOrderManagement = () => {
     setTrackingLink,
     setCancelReason,
     setCancelNotes,
+    statusFilter,
+    handleStatusFilterChange,
     handleEdit,
     handleView,
     handleStatusModalChange,
