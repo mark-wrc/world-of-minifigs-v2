@@ -13,9 +13,15 @@ const fmt = (n) =>
 const formatDate = (d) => {
   if (!d) return "—";
   const date = new Date(d);
-  return date.toLocaleDateString("en-US", { dateStyle: "long" }) +
+  return (
+    date.toLocaleDateString("en-US", { dateStyle: "long" }) +
     " at " +
-    date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    })
+  );
 };
 
 // ── Base wrapper ───────────────────────────────────────────────────────────────
@@ -227,7 +233,9 @@ const refundSection = (order) => {
     ),
     kv("Cancelled By", cancelledBy),
     kv("Reason", order.cancellation?.reason || "—"),
-    order.cancellation?.notes ? kv("Notes", order.cancellation.notes, true) : "",
+    order.cancellation?.notes
+      ? kv("Notes", order.cancellation.notes, true)
+      : "",
   ]
     .filter(Boolean)
     .join("");
@@ -239,10 +247,7 @@ const refundSection = (order) => {
   );
 };
 
-const buildPaymentSummaryHtml = (
-  order,
-  { totalColor = "#0f172a" } = {},
-) => {
+const buildPaymentSummaryHtml = (order, { totalColor = "#0f172a" } = {}) => {
   const p = order.payment || {};
   const isCancelled = order.status === "cancelled";
   const refundAmount = order.refund?.amount ?? p.totalAmount;
@@ -293,12 +298,28 @@ const trackingSection = (order) => {
     .filter(Boolean)
     .join("");
 
-  return openSection("Tracking Information", `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>`, {
-    divider: false,
-  });
+  return openSection(
+    "Tracking Information",
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>`,
+    {
+      divider: false,
+    },
+  );
 };
 
 // ── Templates ──────────────────────────────────────────────────────────────────
+
+export const getAdminNewOrderTemplate = (order, customerName) => {
+  const ref =
+    order.payment?.stripeInvoiceNumber ||
+    String(order._id).substring(0, 7).toUpperCase();
+  const customer = customerName || order.email || "a customer";
+
+  return `
+    <p>Hi Admin,</p>
+    <p>A new order has been placed by <strong>${customer}</strong> with an invoice number of <strong>${ref}</strong>.</p>
+  `;
+};
 
 export const getShippingNotificationTemplate = (order) =>
   wrap(
@@ -313,7 +334,7 @@ export const getShippingNotificationTemplate = (order) =>
         ${kv("Invoice Number", invoiceLink(order))}
         ${kv("Status", `<span style="color:#2563eb;font-weight:600;">Shipped</span>`, true)}
       </table>`,
-      { divider: false }
+      { divider: false },
     )}
     ${trackingSection(order)}
     ${buildItemsHtml(order)}
@@ -336,7 +357,7 @@ export const getDeliveryConfirmationTemplate = (order) =>
         ${kv("Invoice Number", invoiceLink(order))}
         ${kv("Status", `<span style="color:#22c55e;font-weight:600;">Delivered</span>`, true)}
       </table>`,
-      { divider: false }
+      { divider: false },
     )}
     ${trackingSection(order)}
     ${buildItemsHtml(order)}

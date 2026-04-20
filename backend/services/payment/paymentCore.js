@@ -1,11 +1,14 @@
 import Order from "../../models/order.model.js";
 import OrderDraft from "../../models/orderDraft.model.js";
+import User from "../../models/user.model.js";
 import {
   extractShippingAddress,
   extractBillingDetails,
   extractSessionTotals,
 } from "../../utils/payment/index.js";
 import { ORDER_STATUSES, ORDER_TYPES } from "../../constants/orderConstants.js";
+import sendEmail from "../../utils/sendEmail.js";
+import { getAdminNewOrderTemplate } from "../../utils/Email/orderEmails.js";
 
 // ------------------------- Draft Management (Scalability) -------------------------
 
@@ -81,5 +84,24 @@ export async function createOrderRecord(
   }
 
   const order = await Order.create(orderData);
+
+  const adminEmail = process.env.SMTP_FROM_EMAIL;
+  if (adminEmail) {
+    User.findById(userId, "firstName lastName email")
+      .then((user) => {
+        const customerName = user
+          ? `${user.firstName} ${user.lastName}`.trim() || user.email
+          : order.email;
+        return sendEmail({
+          email: adminEmail,
+          subject: `New Order Received - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+          message: getAdminNewOrderTemplate(order, customerName),
+        });
+      })
+      .catch((err) =>
+        console.error("Admin new order email failed:", err.message),
+      );
+  }
+
   return { order, created: true };
 }
