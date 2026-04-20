@@ -12,7 +12,7 @@ const useAdminCrud = ({
 }) => {
   // ------------------------------- Table State ------------------------------------
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState("10");
+  const [limit, setLimit] = useState("50");
   const [search, setSearch] = useState("");
   const [totalItems, setTotalItems] = useState(externalTotalItems);
 
@@ -20,8 +20,7 @@ const useAdminCrud = ({
     setTotalItems(externalTotalItems);
   }, [externalTotalItems]);
 
-  const entriesPerPage =
-    limit === "all" ? totalItems : parseInt(limit, 10) || 10;
+  const entriesPerPage = parseInt(limit, 10) || 50;
 
   const totalPages = Math.ceil(totalItems / entriesPerPage);
   const startItem = totalItems === 0 ? 0 : (page - 1) * entriesPerPage + 1;

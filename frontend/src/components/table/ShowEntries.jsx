@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { entryOptions } from "@/constant/entryTableData";
 
-const ShowEntries = ({ value, onValueChange, defaultValue = "10" }) => {
+const ShowEntries = ({ value, onValueChange, defaultValue = "50" }) => {
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor="entryOptions">Show</Label>
