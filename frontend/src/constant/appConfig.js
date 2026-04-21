@@ -7,7 +7,7 @@ export const APP_ADDRESS = "Lehi, Utah, 84043";
 
 export const APP_COMPANY_NAME = "World of Minifigs/Brick Extreme LLC";
 
-export const SMTP_FROM_EMAIL = "support@brickextreme.com";
+export const SMTP_FROM_EMAIL = "Mark@worldofminifigs.com";
 
 export const APP_SOCIAL_LINKS = {
   facebook: "https://www.facebook.com/profile.php?id=61552234252330",

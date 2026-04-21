@@ -9,10 +9,11 @@ export const getDealerApprovedEmailTemplate = (user) => {
     <ul>
       <li>Log in at <a href="${process.env.FRONTEND_URL}">${process.env.FRONTEND_URL}</a> and explore the <strong>Dealer</strong> section.</li>
       <li>Browse our latest inventory and stock up on high-demand items.</li>
-      <li>If you have any questions about pricing, ordering, or shipping, just reply to this email, or for faster response contact us at <strong>(760) 800-8400</strong>. We're happy to help.</li>
+      <li>Be sure to check out our add-ons section for an exciting collection of minifigs, animals, and accessories!</li>
+      <li>If you have any questions about pricing, ordering, or shipping, just reply to this email, or for a faster response contact us at <strong>(760) 800-8400</strong>. We're happy to help.</li>
     </ul>
     <p>We're excited to have you as part of our growing network of successful dealers!</p>
-    <p>Best regards,<br/>${process.env.SMTP_FROM_NAME || "World of Minifigs"}</p>
+    <p><strong>Best regards,</strong><br/>Mark Storey<br/>(760) 800-8400</p>
   `;
 };
 
