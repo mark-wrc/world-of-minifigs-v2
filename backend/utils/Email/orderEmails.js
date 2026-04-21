@@ -27,6 +27,24 @@ const formatDate = (d) => {
 // ── Base wrapper ───────────────────────────────────────────────────────────────
 // accentColor controls the top border stripe per template
 
+const wrapAdmin = (body, accentColor = "#2563eb") => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${appName()}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;line-height:1.6;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;">
+    <tr><td align="center" style="padding:40px 16px 48px;">
+      <table cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:580px;background-color:#ffffff;border-radius:12px;border-top:5px solid ${accentColor};border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
+        ${body}
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
 const wrap = (body, accentColor = "#0ea5e9") => `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -200,26 +218,6 @@ const buildItemsHtml = (order) => {
 
 // ── Section helpers ────────────────────────────────────────────────────────────
 
-const shippingSection = (order) => {
-  const addr = order.shipping?.address;
-  if (!addr) return "";
-  const street = [addr.line1, addr.line2].filter(Boolean).join(", ") || "—";
-  const cityLine = [addr.city, addr.state, addr.postalCode]
-    .filter(Boolean)
-    .join(", ");
-  return openSection(
-    "Shipping Address",
-    `<table width="100%" cellpadding="0" cellspacing="0" border="0">
-      ${kv("Recipient", addr.name || "—")}
-      ${kv("Address", street)}
-      ${kv("City", cityLine || "—")}
-      ${kv("Country", addr.country || "—")}
-      ${kv("Contact No.", addr.phone || "—", true)}
-    </table>`,
-    { divider: false },
-  );
-};
-
 const refundSection = (order) => {
   if (order.status !== "cancelled") return "";
   const cancelledBy =
@@ -283,7 +281,6 @@ const buildPaymentSummaryHtml = (order, { totalColor = "#0f172a" } = {}) => {
 
 const trackingSection = (order) => {
   const tr = order.shipping || {};
-  const isDelivered = order.status === "delivered";
   const rows = [
     kv("Carrier", tr.carrier || "—"),
     kv("Tracking No.", tr.trackingNumber || "—"),
@@ -310,15 +307,27 @@ const trackingSection = (order) => {
 // ── Templates ──────────────────────────────────────────────────────────────────
 
 export const getAdminNewOrderTemplate = (order, customerName) => {
-  const ref =
-    order.payment?.stripeInvoiceNumber ||
-    String(order._id).substring(0, 7).toUpperCase();
   const customer = customerName || order.email || "a customer";
 
-  return `
-    <p>Hi Admin,</p>
-    <p>A new order has been placed by <strong>${customer}</strong> with an invoice number of <strong>${ref}</strong>.</p>
-  `;
+  return wrapAdmin(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">New Order Received</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;">A new order has been placed by <strong style="color:#0f172a;">${customer}</strong>.</p>
+    </td></tr>
+    ${openSection(
+      "Order Information",
+      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${kv("Invoice Number", invoiceLink(order))}
+        ${kv("Customer", customer)}
+        ${kv("Order Type", `<span style="text-transform:capitalize;">${order.orderType || "product"}</span>`, true)}
+      </table>`,
+      { divider: false },
+    )}
+    ${buildItemsHtml(order)}
+    ${buildPaymentSummaryHtml(order, { totalColor: "#16a34a" })}
+  `,
+  );
 };
 
 export const getShippingNotificationTemplate = (order) =>
