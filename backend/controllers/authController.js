@@ -1020,6 +1020,15 @@ export const updateUserRole = async (req, res) => {
       });
     }
 
+    // Prevent updating role of unverified users
+    if (!user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not verified",
+        description: "The user must verify their email before their role can be changed.",
+      });
+    }
+
     // Prevent updating admin role - admins cannot change other admins' roles
     if (user.role === "admin") {
       return res.status(403).json({
@@ -1120,6 +1129,14 @@ export const updateUserTaxExempt = async (req, res) => {
         success: false,
         message: "User not found",
         description: "The requested user does not exist.",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not verified",
+        description: "The user must verify their email before tax exempt status can be changed.",
       });
     }
 

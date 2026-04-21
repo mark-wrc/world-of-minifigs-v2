@@ -20,7 +20,6 @@ const columns = [
   { key: "contactNumber", label: "Contact No." },
   { key: "role", label: "Role" },
   { key: "taxExempt", label: "Tax Exempt" },
-  { key: "status", label: "Status" },
   { key: "verified", label: "Verified" },
   { key: "createdAt", label: "Joined Date" },
 ];

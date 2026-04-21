@@ -92,7 +92,14 @@ const UserManagement = () => {
             {/* Role */}
             <TableCell className="text-center">
               {canUpdateRole(user) ? (
-                <div className="flex justify-center">
+                <div
+                  className="flex justify-center"
+                  title={
+                    !user.isVerified
+                      ? "User must verify their email before role can be changed"
+                      : undefined
+                  }
+                >
                   <AdminFormSelect
                     value={user.role}
                     onValueChange={(newRole) =>
@@ -102,7 +109,7 @@ const UserManagement = () => {
                       { value: "customer", label: "Customer" },
                       { value: "dealer", label: "Dealer" },
                     ]}
-                    disabled={isUpdatingRole}
+                    disabled={isUpdatingRole || !user.isVerified}
                   />
                 </div>
               ) : (
@@ -117,17 +124,22 @@ const UserManagement = () => {
 
             {/* Tax Exempt */}
             <TableCell className="text-center">
-              <Switch
-                checked={!!user.isTaxExempt}
-                onCheckedChange={() =>
-                  handleToggleTaxExempt(user._id, user.isTaxExempt)
+              <div
+                title={
+                  !user.isVerified
+                    ? "User must verify their email before tax exempt can be toggled"
+                    : undefined
                 }
-                disabled={isUpdatingTaxExempt}
-              />
+              >
+                <Switch
+                  checked={!!user.isTaxExempt}
+                  onCheckedChange={() =>
+                    handleToggleTaxExempt(user._id, user.isTaxExempt)
+                  }
+                  disabled={isUpdatingTaxExempt || !user.isVerified}
+                />
+              </div>
             </TableCell>
-
-            {/* Status */}
-            <StatusCell isActive={user.isActive} />
 
             {/* Verified */}
             <StatusCell
