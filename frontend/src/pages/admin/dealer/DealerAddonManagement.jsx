@@ -459,18 +459,30 @@ const DealerAddonManagement = () => {
                         </div>
 
                         {/* Quantity controls */}
-                        <QuantityControl
-                          value={item.quantityPerBag}
-                          onChange={(value) =>
-                            handleBundleItemQuantityValue(
-                              item.inventoryItemId,
-                              value,
-                            )
+                        <div
+                          title={
+                            Number(item.inventory.stock || 0) === 0
+                              ? `${item.inventory.minifigName || "This item"} is out of stock`
+                              : undefined
                           }
-                          min={1}
-                          max={Number(item.inventory.stock || 0)}
-                          allowInput
-                        />
+                        >
+                          <QuantityControl
+                            value={item.quantityPerBag}
+                            onChange={(value) =>
+                              handleBundleItemQuantityValue(
+                                item.inventoryItemId,
+                                value,
+                              )
+                            }
+                            min={1}
+                            max={Math.max(1, Number(item.inventory.stock || 0))}
+                            allowInput
+                            disabled={
+                              Number(item.inventory.stock || 0) === 0 ||
+                              isSubmitting
+                            }
+                          />
+                        </div>
 
                         {/* Remove */}
                         <Button

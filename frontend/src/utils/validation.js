@@ -57,8 +57,7 @@ export const sanitizePhone = (value) => {
   if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
   digits = digits.slice(0, 10);
   if (digits.length <= 3) return digits;
-  if (digits.length <= 6)
-    return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
 };
 
@@ -474,18 +473,41 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
       return false;
     }
 
+    const outOfStock = [];
+
     for (let i = 0; i < bundleItems.length; i++) {
       const item = bundleItems[i];
       if (!item.inventoryItemId) {
         toast.error(`Item ${i + 1}: Inventory item is required`);
         return false;
       }
-      if (
-        !validatePositiveNumber(item.quantityPerBag, `Item ${i + 1} Quantity`, {
-          min: 1,
-        })
-      )
+
+      const inv = item.inventory || item._item;
+      const itemName = inv?.minifigName || `Item ${i + 1}`;
+      const stock = Number(inv?.stock || 0);
+
+      if (stock === 0) {
+        outOfStock.push(itemName);
+      } else if (
+        !validatePositiveNumber(item.quantityPerBag, `"${itemName}" Quantity`, { min: 1 })
+      ) {
         return false;
+      }
+    }
+
+    if (outOfStock.length > 0) {
+      toast.error(
+        outOfStock.length === 1
+          ? `"${outOfStock[0]}" is out of stock`
+          : `${outOfStock.length} items are out of stock`,
+        {
+          description:
+            outOfStock.length === 1
+              ? "Remove this item or update its stock before saving."
+              : `${outOfStock.map((n) => `"${n}"`).join(", ")} — remove them or update their stock before saving.`,
+        },
+      );
+      return false;
     }
   }
 
@@ -527,7 +549,10 @@ export const validateGeneralInventory = (items, isAddMode, activeTab) => {
     if (!validateRequired(item.colorId || item.color, `${prefix}Color`))
       return false;
 
-    if (activeTab === "minifigs" && !validateRequired(item.collectionId, `${prefix}Collection`))
+    if (
+      activeTab === "minifigs" &&
+      !validateRequired(item.collectionId, `${prefix}Collection`)
+    )
       return false;
 
     if (isAddMode && !item.image && !item.url) {

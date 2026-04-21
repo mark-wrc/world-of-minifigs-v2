@@ -45,6 +45,7 @@ const QuantityControl = ({
   min = 1,
   max = Infinity,
   allowInput = false,
+  disabled = false,
   className = "",
   size = "sm",
 }) => {
@@ -116,7 +117,7 @@ const QuantityControl = ({
       <ControlButton
         icon={Minus}
         onClick={handleDecrement}
-        disabled={numericValue <= min}
+        disabled={disabled || numericValue <= min}
         label="Decrease quantity"
       />
 
@@ -134,7 +135,8 @@ const QuantityControl = ({
                 e.preventDefault();
               }
             }}
-            readOnly={!onChange}
+            readOnly={!onChange || disabled}
+            disabled={disabled}
             className={`border-0 focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none p-0 text-center font-bold h-full w-full bg-transparent ${config.input}`}
             aria-label="Quantity input"
           />
@@ -152,7 +154,7 @@ const QuantityControl = ({
       <ControlButton
         icon={Plus}
         onClick={handleIncrement}
-        disabled={numericValue >= safeMax}
+        disabled={disabled || numericValue >= safeMax}
         label="Increase quantity"
       />
     </div>
