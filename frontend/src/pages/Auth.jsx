@@ -21,9 +21,9 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   useEffect(() => {
+    setActiveTab(defaultTab);
     if (!open) {
       setShowForgotPassword(false);
-      setActiveTab(defaultTab);
     }
   }, [open, defaultTab]);
 

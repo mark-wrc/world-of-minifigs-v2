@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Carousel,
@@ -10,9 +10,22 @@ import { motion } from "framer-motion";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CommonImage from "@/components/shared/CommonImage";
+import Auth from "@/pages/Auth";
 import { useBanner } from "@/hooks/useBanner";
 
+const AUTH_PATH_TABS = {
+  "/register": "register",
+  "/login": "login",
+};
+
 const Banner = () => {
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authTab, setAuthTab] = useState("login");
+
+  const openAuth = (tab) => {
+    setAuthTab(tab);
+    setAuthOpen(true);
+  };
   const {
     banners,
     isLoading,
@@ -51,6 +64,12 @@ const Banner = () => {
 
   return (
     <section className="relative w-full overflow-hidden -mt-20">
+      <Auth
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        defaultTab={authTab}
+      />
+
       {/* Pagination Indicators */}
       {banners.length > 1 && (
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
@@ -151,16 +170,31 @@ const Banner = () => {
                           "flex gap-3 pt-5 " + banner.buttonsContainerClass
                         }
                       >
-                        {banner.buttons.map((btn, btnIndex) => (
-                          <Button
-                            key={btnIndex}
-                            asChild
-                            variant={btn.buttonVariant}
-                            className="h-12"
-                          >
-                            <Link to={btn.href || "#"}>{btn.label}</Link>
-                          </Button>
-                        ))}
+                        {banner.buttons.map((btn, btnIndex) => {
+                          const authTabValue = AUTH_PATH_TABS[btn.href];
+                          if (authTabValue) {
+                            return (
+                              <Button
+                                key={btnIndex}
+                                variant={btn.buttonVariant}
+                                className="h-12"
+                                onClick={() => openAuth(authTabValue)}
+                              >
+                                {btn.label}
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button
+                              key={btnIndex}
+                              asChild
+                              variant={btn.buttonVariant}
+                              className="h-12"
+                            >
+                              <Link to={btn.href || "#"}>{btn.label}</Link>
+                            </Button>
+                          );
+                        })}
                       </motion.div>
                     )}
                   </motion.div>

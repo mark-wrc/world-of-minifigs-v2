@@ -14,7 +14,7 @@ const Home = () => {
       <CollectionsCarousel />
       <FeaturedCollections />
       {/* <RewardProgram /> */}
-      <DealerCTA />
+      {/* <DealerCTA /> */}
     </div>
   );
 };

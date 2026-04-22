@@ -25,6 +25,8 @@ const BANNER_VALID_PATHS = [
   "/designer",
   "/privacy-policy",
   "/terms-of-use",
+  "/register",
+  "/login",
 ];
 
 const isBannerButtonLinkValid = (href) => {

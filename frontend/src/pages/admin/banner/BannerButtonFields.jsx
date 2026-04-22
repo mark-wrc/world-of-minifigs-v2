@@ -56,7 +56,7 @@ const BannerButtonFields = ({
                 <Input
                   id={`btn-href-${i}`}
                   name={`btn-href-${i}`}
-                  placeholder="/products, /collections..."
+                  placeholder="/products, /collections, /register..."
                   value={btn.href}
                   onChange={handleNestedChange("buttons", i, "href")}
                   disabled={isSubmitting}
