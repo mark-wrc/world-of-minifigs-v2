@@ -41,7 +41,7 @@ export const contactFaqs = {
   faq: [
     {
       question: "1. Where are you located?",
-      answer: "We are located in Lehi, Utah.",
+      answer: "We are located in Pleasant Grove, Utah.",
     },
     {
       question: "2. Do you have a physical store?",

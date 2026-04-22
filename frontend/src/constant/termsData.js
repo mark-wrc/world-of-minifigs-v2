@@ -188,7 +188,7 @@ export const termsData = {
       id: "governing",
       title: "Governing Law and Jurisdiction",
       description:
-        "These Terms shall be governed by and construed following the laws of the State of Utah, without regard to its conflict of law principles. Any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the state and federal courts located in Lehi, Utah.",
+        "These Terms shall be governed by and construed following the laws of the State of Utah, without regard to its conflict of law principles. Any dispute arising out of or relating to these Terms shall be subject to the exclusive jurisdiction of the state and federal courts located in Pleasant Grove, Utah.",
       icon: Scale,
     },
     {

@@ -3,7 +3,7 @@ export const APP_NAME = "World of Minifigs";
 export const APP_DESCRIPTION =
   "World of Minifigs is a platform for creating and sharing LEGO minifigures.";
 
-export const APP_ADDRESS = "Lehi, Utah, 84043";
+export const APP_ADDRESS = "2416 W 700 S, Suite 121, Pleasant Grove, UT, 84062";
 
 export const APP_COMPANY_NAME = "World of Minifigs/Brick Extreme LLC";
 
