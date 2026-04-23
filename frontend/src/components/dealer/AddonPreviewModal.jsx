@@ -16,6 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
 import CommonImage from "@/components/shared/CommonImage";
 import QuantityControl from "@/components/shared/QuantityControl";
 import ProductSort from "@/components/products/ProductSort";
@@ -148,12 +153,25 @@ const AddonPreviewModal = ({
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  {/* Image */}
-                  <CommonImage
-                    src={item.image?.url}
-                    alt={item.itemName}
-                    className="w-24 aspect-4/3"
-                  />
+                  {/* Image with hover preview */}
+                  <HoverCard openDelay={150} closeDelay={80}>
+                    <HoverCardTrigger asChild>
+                      <div className="shrink-0 cursor-zoom-in">
+                        <CommonImage
+                          src={item.image?.url}
+                          alt={item.itemName}
+                          className="w-24"
+                        />
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent>
+                      <CommonImage
+                        src={item.image?.url}
+                        alt={item.itemName}
+                        className="w-80"
+                      />
+                    </HoverCardContent>
+                  </HoverCard>
 
                   {/* Right Content */}
                   <div className="flex flex-col gap-2 flex-1">
