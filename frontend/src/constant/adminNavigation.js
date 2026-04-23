@@ -106,23 +106,23 @@ export const adminNavigation = [
       },
     ],
   },
-  {
-    id: "reward-program",
-    label: "Reward Program",
-    icon: Gem,
-    children: [
-      {
-        id: "reward-bundles",
-        label: "Reward Bundles",
-        path: "reward-bundles",
-      },
-      {
-        id: "reward-addons",
-        label: "Reward Add-ons",
-        path: "reward-addons",
-      },
-    ],
-  },
+  // {
+  //   id: "reward-program",
+  //   label: "Reward Program",
+  //   icon: Gem,
+  //   children: [
+  //     {
+  //       id: "reward-bundles",
+  //       label: "Reward Bundles",
+  //       path: "reward-bundles",
+  //     },
+  //     {
+  //       id: "reward-addons",
+  //       label: "Reward Add-ons",
+  //       path: "reward-addons",
+  //     },
+  //   ],
+  // },
   {
     id: "skill-level",
     label: "Skill Level",
