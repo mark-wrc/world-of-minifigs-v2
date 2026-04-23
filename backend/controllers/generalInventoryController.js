@@ -3,6 +3,7 @@ import GeneralInventory, {
 } from "../models/generalInventory.model.js";
 import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
+import DealerAddon from "../models/dealerAddon.model.js";
 import {
   uploadSingleImage,
   replaceSingleImage,
@@ -421,6 +422,23 @@ export const deleteGeneralInventory = async (req, res) => {
         success: false,
         message: "Inventory item not found",
         description: "The requested inventory item does not exist.",
+      });
+    }
+
+    // Block deletion when this inventory item is still referenced by dealer add-ons
+    const usedByDealerAddons = await DealerAddon.find(
+      { "bundleItems.inventoryItemId": id },
+      "addonName",
+    ).lean();
+
+    if (usedByDealerAddons.length > 0) {
+      const addonNames = usedByDealerAddons
+        .map((a) => `"${a.addonName}"`)
+        .join(", ");
+      return res.status(409).json({
+        success: false,
+        message: "Inventory item is in use",
+        description: `This item is used in the following dealer add-on(s): ${addonNames}. Remove it from those add-ons before deleting.`,
       });
     }
 

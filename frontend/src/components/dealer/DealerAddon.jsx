@@ -60,23 +60,12 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
         const originalVal = Number(addon.price || 0);
 
         const isSelected = addon.isSelected;
-        const isOutOfStock = addon.isOutOfStock;
 
         return (
           <div key={addon._id} className="relative mt-1">
-            {/* ── Out of Stock centered badge ── */}
-            {isOutOfStock && (
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap">
-                <span className="inline-flex items-center bg-destructive text-white text-[11px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-md">
-                  Out of Stock
-                </span>
-              </div>
-            )}
-
             {/* ── Card ── */}
             <div
               onClick={() => {
-                if (isOutOfStock) return;
                 addon.hasItems ? onPreview(addon) : onSelect(addon._id);
               }}
               className={`
@@ -88,7 +77,6 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                     ? "ring-2 ring-accent ring-offset-2 dark:ring-offset-background shadow-lg"
                     : "shadow-sm hover:shadow-xl"
                 }
-                ${isOutOfStock ? "opacity-50 grayscale cursor-not-allowed" : ""}
               `}
             >
               {/* ── Colored header ── */}
@@ -110,10 +98,10 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                     {addon.badge || label}
                   </span>
 
-                  {savingsPct && !isOutOfStock && (
+                  {savingsPct && (
                     <span className="inline-flex items-center gap-0.5 bg-success text-white text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md">
                       <Sparkles className="w-2.5 h-2.5" />
-                      {savingsPct}% off
+                      {savingsPct}% off!
                     </span>
                   )}
                 </div>

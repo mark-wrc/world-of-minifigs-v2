@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import CommonImage from "@/components/shared/CommonImage";
 import QuantityControl from "@/components/shared/QuantityControl";
 import ProductSort from "@/components/products/ProductSort";
@@ -146,20 +145,8 @@ const AddonPreviewModal = ({
                 key={item.key}
                 className={`relative rounded-md border p-2 transition-all duration-300 ${
                   item.isActive ? "border-accent border-l-4" : "border"
-                } ${item.isOutOfStock ? "opacity-60 grayscale-[0.5]" : ""}`}
+                }`}
               >
-                {/* Out of Stock Badge */}
-                {item.isOutOfStock && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <Badge
-                      variant="destructive"
-                      className="uppercase text-[10px] px-1.5 py-0"
-                    >
-                      Out of Stock
-                    </Badge>
-                  </div>
-                )}
-
                 <div className="flex items-center gap-3">
                   {/* Image */}
                   <CommonImage
@@ -209,8 +196,6 @@ const AddonPreviewModal = ({
                         }
                         min={0}
                         max={item.maxBags}
-                        disabled={item.isOutOfStock}
-                        allowInput={!item.isOutOfStock}
                         size="xs"
                       />
                     </div>

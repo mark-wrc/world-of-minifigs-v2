@@ -163,28 +163,12 @@ export const useDealer = () => {
   }, [bundles, selectedBundleId]);
 
   const addonsWithSelection = useMemo(() => {
-    return addons.map((addon) => {
-      let isOutOfStock = false;
-      if (addon.addonType === "bundle") {
-        const items = addon.bundleItems || [];
-        // An addon bundle is out of stock if it has items and ALL of them have no bags available
-        isOutOfStock =
-          items.length > 0 &&
-          items.every((item) => {
-            const stock = Number(item.inventoryItemId?.stock || 0);
-            const limit = Number(item.quantityPerBag || 0);
-            return limit > 0 && stock < limit;
-          });
-      }
-
-      return {
-        ...addon,
-        isSelected: selectedAddonIds.includes(addon._id),
-        hasItems:
-          addon.addonType === "bundle" && (addon.bundleItems?.length || 0) > 0,
-        isOutOfStock,
-      };
-    });
+    return addons.map((addon) => ({
+      ...addon,
+      isSelected: selectedAddonIds.includes(addon._id),
+      hasItems:
+        addon.addonType === "bundle" && (addon.bundleItems?.length || 0) > 0,
+    }));
   }, [addons, selectedAddonIds]);
 
   const maxExtraBags = selectedBundle
@@ -352,8 +336,6 @@ export const useDealer = () => {
         const usedPercent =
           item.maxBags > 0 ? (selectedBags / item.maxBags) * 100 : 0;
 
-        const isOutOfStock = item.maxBags === 0;
-
         return {
           ...item,
           selectedBags,
@@ -362,7 +344,6 @@ export const useDealer = () => {
           bagPrice,
           isActive,
           usedPercent,
-          isOutOfStock,
         };
       }),
     [modalItems, modalBagQuantities],
