@@ -18,6 +18,7 @@ import MediaUpload from "@/components/shared/MediaUpload";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import BannerPreview from "@/pages/admin/banner/BannerPreview";
 import BannerButtonFields from "@/pages/admin/banner/BannerButtonFields";
+import HighlightText from "@/components/shared/HighlightText";
 import { display } from "@/utils/formatting";
 import useBannerManagement from "@/hooks/admin/useBannerManagement";
 
@@ -91,10 +92,14 @@ const BannerManagement = () => {
         renderRow={(banner) => (
           <>
             {/*  Badge */}
-            <TableCell>{display(banner.badge)}</TableCell>
+            <TableCell>
+              {banner.badge ? <HighlightText text={banner.badge} /> : "-"}
+            </TableCell>
 
             {/*  Label */}
-            <TableCell maxWidth="200px">{display(banner.label)}</TableCell>
+            <TableCell maxWidth="200px">
+              {banner.label ? <HighlightText text={banner.label} /> : "-"}
+            </TableCell>
 
             {/*  Order */}
             <TableCell>{display(banner.order)}</TableCell>
@@ -130,7 +135,7 @@ const BannerManagement = () => {
         entityName="Banner"
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        className="sm:max-w-2xl"
+        className="sm:max-w-4xl"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-5 gap-3">

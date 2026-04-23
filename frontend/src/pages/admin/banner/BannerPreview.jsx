@@ -1,4 +1,5 @@
 import React from "react";
+import HighlightText from "@/components/shared/HighlightText";
 
 const BannerPreview = ({ formData }) => {
   const isDarkTheme = formData.textTheme === "dark";
@@ -48,18 +49,20 @@ const BannerPreview = ({ formData }) => {
         <div className="max-w-3xl space-y-2">
           {formData.badge && (
             <p className="uppercase tracking-widest text-xs">
-              {formData.badge}
+              <HighlightText text={formData.badge} />
             </p>
           )}
 
           {formData.label && (
             <h3 className="text-xl sm:text-2xl font-extrabold uppercase">
-              {formData.label}
+              <HighlightText text={formData.label} />
             </h3>
           )}
 
           {formData.description && (
-            <p className="text-xs line-clamp-2">{formData.description}</p>
+            <p className="text-xs line-clamp-2">
+              <HighlightText text={formData.description} />
+            </p>
           )}
 
           {formData.enableButtons && formData.buttons?.some((b) => b.label) && (

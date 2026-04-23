@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CommonImage from "@/components/shared/CommonImage";
+import HighlightText from "@/components/shared/HighlightText";
 import Auth from "@/pages/Auth";
 import { useBanner } from "@/hooks/useBanner";
 
@@ -139,7 +140,7 @@ const Banner = () => {
                         variants={itemVariants}
                         className="uppercase tracking-widest text-xs sm:text-sm"
                       >
-                        {banner.badge}
+                        <HighlightText text={banner.badge} />
                       </motion.p>
                     )}
 
@@ -148,7 +149,7 @@ const Banner = () => {
                         variants={itemVariants}
                         className="text-4xl sm:text-5xl md:text-6xl font-extrabold uppercase"
                       >
-                        {banner.label}
+                        <HighlightText text={banner.label} />
                       </motion.h1>
                     )}
 
@@ -159,7 +160,7 @@ const Banner = () => {
                           "text-sm sm:text-lg" + banner.descriptionClass
                         }
                       >
-                        {banner.description}
+                        <HighlightText text={banner.description} />
                       </motion.p>
                     )}
 
