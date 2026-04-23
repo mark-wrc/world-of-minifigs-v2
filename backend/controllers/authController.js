@@ -1025,7 +1025,7 @@ export const updateUserRole = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "User is not verified",
-        description: "The user must verify their email before their role can be changed.",
+        description: "The user must verify their account before their role can be changed.",
       });
     }
 
@@ -1136,7 +1136,7 @@ export const updateUserTaxExempt = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "User is not verified",
-        description: "The user must verify their email before tax exempt status can be changed.",
+        description: "The user must verify their account before tax exempt status can be changed.",
       });
     }
 

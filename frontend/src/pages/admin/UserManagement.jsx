@@ -96,7 +96,7 @@ const UserManagement = () => {
                   className="flex justify-center"
                   title={
                     !user.isVerified
-                      ? "User must verify their email before role can be changed"
+                      ? "User must verify their account before role can be changed"
                       : undefined
                   }
                 >
@@ -127,7 +127,7 @@ const UserManagement = () => {
               <div
                 title={
                   !user.isVerified
-                    ? "User must verify their email before tax exempt can be toggled"
+                    ? "User must verify their account before tax exempt can be toggled"
                     : undefined
                 }
               >
