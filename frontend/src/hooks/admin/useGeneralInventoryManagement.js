@@ -18,6 +18,7 @@ export const INVENTORY_TABS = [
   { value: "accessories", label: "Accessories" },
   { value: "animals", label: "Animals" },
   { value: "minifigs", label: "Minifigs" },
+  { value: "printed-tiles", label: "Printed Tiles" },
 ];
 
 const initialFormData = {

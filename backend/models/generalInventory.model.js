@@ -1,6 +1,11 @@
 import mongoose from "mongoose";
 
-const INVENTORY_CATEGORIES = ["accessories", "animals", "minifigs"];
+const INVENTORY_CATEGORIES = [
+  "accessories",
+  "animals",
+  "minifigs",
+  "printed-tiles",
+];
 
 const generalInventorySchema = new mongoose.Schema(
   {

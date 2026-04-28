@@ -76,7 +76,9 @@ export const createGeneralInventoryBulk = async (req, res) => {
       if (!colorId) throw new Error("Color is required");
       if (!image) throw new Error("Image is required");
       if (category && !INVENTORY_CATEGORIES.includes(category))
-        throw new Error("Category must be accessories, animals, or minifigs");
+        throw new Error(
+          `Category must be one of: ${INVENTORY_CATEGORIES.join(", ")}`,
+        );
 
       if (category === "minifigs" && !collectionId)
         throw new Error("Collection is required for minifig items");
@@ -383,7 +385,7 @@ export const updateGeneralInventory = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Invalid category",
-          description: "Category must be accessories, animals, or minifigs.",
+          description: `Category must be one of: ${INVENTORY_CATEGORIES.join(", ")}.`,
         });
       }
       // Enforce collection required for minifigs

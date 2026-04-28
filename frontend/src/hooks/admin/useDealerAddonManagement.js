@@ -12,6 +12,7 @@ export const ADDON_ITEM_CATEGORIES = [
   { value: "accessories", label: "Accessories" },
   { value: "animals", label: "Animals" },
   { value: "minifigs", label: "Minifigs" },
+  { value: "printed-tiles", label: "Printed Tiles" },
 ];
 
 import { extractPaginatedData } from "@/utils/apiHelpers";
