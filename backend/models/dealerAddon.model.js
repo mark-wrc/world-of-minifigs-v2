@@ -37,14 +37,6 @@ const dealerAddonSchema = new mongoose.Schema(
           type: mongoose.Schema.Types.ObjectId,
           ref: "GeneralInventory",
         },
-        quantityPerBag: {
-          type: Number,
-          min: [1, "Quantity must be at least 1"],
-        },
-        pricePerBag: {
-          type: Number,
-          default: 0,
-        },
       },
     ],
     isActive: {

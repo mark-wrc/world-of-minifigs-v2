@@ -276,10 +276,8 @@ export const useDealer = () => {
         const inventory = item.inventoryItemId;
         if (!inventory?._id) return null;
 
-        const perBagLimit = Number(item.quantityPerBag || 0);
-        const stock = Number(inventory.stock || 0);
-        const maxBags =
-          perBagLimit > 0 ? Math.max(0, Math.floor(stock / perBagLimit)) : 0;
+        const perBagLimit = Number(inventory.piecesPerBag || 1);
+        const maxBags = Number(inventory.stock || 0);
 
         return {
           key: `${inventory._id}-${index}`,
@@ -289,8 +287,7 @@ export const useDealer = () => {
           color: inventory.colorId,
           category: inventory.category,
           collectionId: inventory.collectionId,
-          unitPrice: Number(inventory.price || 0),
-          pricePerBag: Number(item.pricePerBag || 0),
+          pricePerBag: Number(inventory.pricePerBag || 0),
           perBagLimit,
           maxBags,
         };

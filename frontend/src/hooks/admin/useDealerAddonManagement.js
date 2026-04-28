@@ -193,8 +193,6 @@ const useDealerAddonManagement = () => {
         return [
           {
             inventoryItemId,
-            quantityPerBag: 1,
-            pricePerBag: Number(inventoryItem.price || 0).toFixed(2),
             _item: inventoryItem,
           },
           ...prev,
@@ -210,31 +208,6 @@ const useDealerAddonManagement = () => {
     );
   }, []);
 
-  const handleBundleItemPricePerBag = useCallback((inventoryItemId, value) => {
-    setBundleItems((prev) =>
-      prev.map((item) =>
-        item.inventoryItemId === inventoryItemId
-          ? { ...item, pricePerBag: value }
-          : item,
-      ),
-    );
-  }, []);
-
-  const handleBundleItemQuantityValue = useCallback(
-    (inventoryItemId, value) => {
-      setBundleItems((prev) =>
-        prev.map((item) => {
-          if (item.inventoryItemId !== inventoryItemId) return item;
-          const newQty = value === "" ? "" : Math.max(1, Number(value) || 1);
-          const suggestedPrice =
-            newQty === "" ? item.pricePerBag : Number((item._item?.price || 0) * newQty).toFixed(2);
-          return { ...item, quantityPerBag: newQty, pricePerBag: suggestedPrice };
-        }),
-      );
-    },
-    [],
-  );
-
   // ------------------------------- Edit Handler ------------------------------------
   const handleEdit = (addon) => {
     const existingItems =
@@ -242,8 +215,6 @@ const useDealerAddonManagement = () => {
         const populated = item.inventoryItemId || {};
         return {
           inventoryItemId: populated._id || item.inventoryItemId || "",
-          quantityPerBag: item.quantityPerBag || 1,
-          pricePerBag: Number(item.pricePerBag ?? (populated.price || 0) * (item.quantityPerBag || 1)).toFixed(2),
           _item: populated._id ? populated : null,
         };
       }) || [];
@@ -285,8 +256,6 @@ const useDealerAddonManagement = () => {
     if (addonType === "bundle") {
       payload.bundleItems = bundleItems.map((item) => ({
         inventoryItemId: item.inventoryItemId,
-        quantityPerBag: Number(item.quantityPerBag),
-        pricePerBag: Number(item.pricePerBag) || 0,
       }));
       payload.price = 0;
     } else {
@@ -346,8 +315,6 @@ const useDealerAddonManagement = () => {
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,
-    handleBundleItemQuantityValue,
-    handleBundleItemPricePerBag,
     handleEdit,
     handleSubmit,
     handleChange,

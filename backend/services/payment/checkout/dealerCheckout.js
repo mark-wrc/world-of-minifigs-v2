@@ -100,7 +100,7 @@ export async function buildLineItemsForDealer(body, userId) {
       })
         .populate({
           path: "bundleItems.inventoryItemId",
-          select: "minifigName price stock",
+          select: "minifigName pricePerBag piecesPerBag stock",
         })
         .lean();
 
@@ -132,20 +132,17 @@ export async function buildLineItemsForDealer(body, userId) {
           const bagsRequested = Math.max(0, Number(selItem.selectedBags) || 0);
           if (bagsRequested === 0) continue;
 
-          const totalNeeded = bundleItem.quantityPerBag * bagsRequested;
-          if (totalNeeded > (inventory.stock || 0)) {
+          if (bagsRequested > (inventory.stock || 0)) {
             return {
               error: {
                 status: 400,
                 message: "Insufficient stock",
-                description: `"${inventory.minifigName}" requires ${totalNeeded} items, but only ${inventory.stock} in stock.`,
+                description: `"${inventory.minifigName}" requires ${bagsRequested} bag${bagsRequested === 1 ? "" : "s"}, but only ${inventory.stock} in stock.`,
               },
             };
           }
 
-          const itemBagPrice =
-            bundleItem.pricePerBag ||
-            (inventory.price || 0) * bundleItem.quantityPerBag;
+          const itemBagPrice = Number(inventory.pricePerBag || 0);
           finalPrice += itemBagPrice * bagsRequested;
           finalItems.push({
             inventoryItemId: selItem.inventoryItemId,
@@ -327,12 +324,7 @@ export async function createDealerOrderFromStripeSession(session) {
             .populate("colorId", "colorName hexCode")
             .lean();
           if (inv) {
-            const bundleItem = addonBase.bundleItems?.find(
-              (bi) =>
-                bi.inventoryItemId?.toString() ===
-                sub.inventoryItemId?.toString(),
-            );
-            const pricePerBag = bundleItem?.pricePerBag || 0;
+            const pricePerBag = Number(inv.pricePerBag || 0);
             addonManifest.subItems.push({
               invId: inv._id,
               name: inv.minifigName,

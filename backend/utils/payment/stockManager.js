@@ -92,15 +92,9 @@ export const decrementDealerAddonStock = async (parsedAddons) => {
       const bags = Number(selItem.selectedBags || 0);
       if (bags === 0) continue;
 
-      // Need the definition to know quantityPerBag
-      const definition = addon.bundleItems.find(
-        (bi) => bi.inventoryItemId?._id?.toString() === invId.toString(),
-      );
-      if (!definition) continue;
-
-      const totalNeeded = definition.quantityPerBag * bags * addonQty;
+      const totalBags = bags * addonQty;
       await GeneralInventory.findByIdAndUpdate(invId, {
-        $inc: { stock: -totalNeeded },
+        $inc: { stock: -totalBags },
       });
     }
   }
@@ -127,14 +121,9 @@ const restockDealerAddonItems = async (dealerItems) => {
       const bags = Number(selItem.qty || 0);
       if (bags === 0) continue;
 
-      const definition = addon.bundleItems.find(
-        (bi) => bi.inventoryItemId?._id?.toString() === invId.toString(),
-      );
-      if (!definition) continue;
-
-      const totalIncrement = definition.quantityPerBag * bags * quantity;
+      const totalBags = bags * quantity;
       await GeneralInventory.findByIdAndUpdate(invId, {
-        $inc: { stock: totalIncrement },
+        $inc: { stock: totalBags },
       });
     }
   }

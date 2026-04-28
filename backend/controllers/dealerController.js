@@ -80,18 +80,6 @@ const validateAddonBundleItems = async (bundleItems) => {
       };
     }
 
-    const qty = Number(item.quantityPerBag);
-    if (!Number.isInteger(qty) || qty < 1) {
-      return {
-        isValid: false,
-        error: {
-          status: 400,
-          message: "Valid quantity is required",
-          description: "Each bundle item must have a quantity of at least 1.",
-        },
-      };
-    }
-
     const inventoryItem = await GeneralInventory.findById(
       item.inventoryItemId,
     ).lean();
@@ -106,26 +94,7 @@ const validateAddonBundleItems = async (bundleItems) => {
       };
     }
 
-    if (qty > Number(inventoryItem.stock || 0)) {
-      return {
-        isValid: false,
-        error: {
-          status: 400,
-          message: "Insufficient stock for bundle item",
-          description: `"${inventoryItem.minifigName}" has only ${inventoryItem.stock} in stock, but ${qty} per bag was provided.`,
-        },
-      };
-    }
-
-    const itemPricePerBag =
-      item.pricePerBag != null
-        ? Number(item.pricePerBag)
-        : Number(inventoryItem.price * qty);
-    validatedItems.push({
-      inventoryItemId: item.inventoryItemId,
-      quantityPerBag: qty,
-      pricePerBag: itemPricePerBag,
-    });
+    validatedItems.push({ inventoryItemId: item.inventoryItemId });
   }
 
   return { isValid: true, validatedItems };
@@ -455,7 +424,8 @@ export const getAllDealerAddons = async (req, res) => {
       populate: [
         {
           path: "bundleItems.inventoryItemId",
-          select: "minifigName price stock image colorId isActive",
+          select:
+            "minifigName pricePerBag piecesPerBag stock image colorId isActive",
           populate: { path: "colorId", select: "colorName hexCode" },
         },
         ...getStandardPopulateOptions(),
@@ -563,7 +533,7 @@ export const updateDealerAddon = async (req, res) => {
     await addon.populate([
       {
         path: "bundleItems.inventoryItemId",
-        select: "minifigName price image colorId",
+        select: "minifigName pricePerBag piecesPerBag stock image colorId",
         populate: { path: "colorId", select: "colorName hexCode" },
       },
     ]);
@@ -1077,7 +1047,8 @@ export const getDealerAddonsForUser = async (req, res) => {
       .populate({
         path: "bundleItems.inventoryItemId",
         match: { isActive: true, stock: { $gt: 0 } },
-        select: "minifigName price stock image colorId category collectionId",
+        select:
+          "minifigName pricePerBag piecesPerBag stock image colorId category collectionId",
         populate: [
           { path: "colorId", select: "colorName hexCode" },
           { path: "collectionId", select: "collectionName" },

@@ -24,12 +24,22 @@ const generalInventorySchema = new mongoose.Schema(
       index: true,
     },
 
-    price: {
+    // Single source of truth: every inventory item is sold as a bag (or one minifig).
+    pricePerBag: {
       type: Number,
       required: true,
-      min: [0.01, "Price must be at least 0.01"],
+      min: [0.01, "Price per bag must be at least 0.01"],
     },
 
+    // Informational only — shown to customers as "X pcs/bag". Defaults to 1 (a single minifig).
+    piecesPerBag: {
+      type: Number,
+      required: true,
+      default: 1,
+      min: [1, "Pieces per bag must be at least 1"],
+    },
+
+    // Stock is counted in BAGS. Decremented directly by selectedBags on checkout.
     stock: {
       type: Number,
       required: true,

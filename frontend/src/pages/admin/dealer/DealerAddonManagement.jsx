@@ -1,6 +1,5 @@
 import React from "react";
 import { Search, X } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +24,6 @@ import {
   AdminFormTextarea,
   AdminFormSelect,
 } from "@/components/shared/AdminFormInput";
-import QuantityControl from "@/components/shared/QuantityControl";
 import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import DeleteDialog from "@/components/table/DeleteDialog";
@@ -113,8 +111,6 @@ const DealerAddonManagement = () => {
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,
-    handleBundleItemQuantityValue,
-    handleBundleItemPricePerBag,
     handleSubmit,
     handleDialogClose,
     handleAdd,
@@ -378,12 +374,13 @@ const DealerAddonManagement = () => {
                 </DropdownMenu>
               </div>
 
-              {/* Adjust Quantities */}
+              {/* Selected items — pricing/stock comes from GeneralInventory */}
               {bundleItems.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Quantity per Bag</Label>
-
                   {bundleDisplayItems.map((item) => {
+                    const pricePerBag = Number(item.inventory.pricePerBag || 0);
+                    const piecesPerBag = item.inventory.piecesPerBag ?? 1;
+                    const stock = Number(item.inventory.stock || 0);
                     return (
                       <div
                         key={item.inventoryItemId}
@@ -396,8 +393,8 @@ const DealerAddonManagement = () => {
                           className="w-20 aspect-4/3"
                         />
 
-                        {/* Name + Color & Price */}
-                        <div className="flex flex-col min-w-0 flex-1 space-y-1">
+                        {/* Name + Color + Inventory metadata (read-only) */}
+                        <div className="flex flex-col min-w-0 flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold line-clamp-1">
                               {item.inventory.minifigName}
@@ -410,9 +407,7 @@ const DealerAddonManagement = () => {
                                 Inactive
                               </Badge>
                             )}
-                            {(Number(item.inventory.stock || 0) <
-                              Number(item.quantityPerBag || 1) ||
-                              !item.inventory.stock) && (
+                            {stock === 0 && (
                               <Badge
                                 variant="destructive"
                                 className="uppercase text-[9px] px-1.5 py-0"
@@ -421,66 +416,19 @@ const DealerAddonManagement = () => {
                               </Badge>
                             )}
                           </div>
+                          <div className="text-xs text-muted-foreground">
+                            {piecesPerBag === 1
+                              ? "1 minifig"
+                              : `${piecesPerBag} pcs/bag`}
+                            {" · "}
+                            <span className="font-semibold text-success dark:text-accent">
+                              ${pricePerBag.toFixed(2)}
+                            </span>
+                          </div>
                           <ColorSwatch
                             color={item.inventory.colorId?.hexCode}
                             label={item.inventory.colorId?.colorName || "—"}
                             className="text-xs text-muted-foreground"
-                          />
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-semibold shrink-0">
-                              Price per Bag:
-                            </span>
-                            <div className="relative flex items-center">
-                              <span className="absolute left-2 text-xs text-muted-foreground">
-                                $
-                              </span>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                className="pl-5 pr-1 text-xs w-20 h-6"
-                                value={item.pricePerBag}
-                                onChange={(e) =>
-                                  handleBundleItemPricePerBag(
-                                    item.inventoryItemId,
-                                    e.target.value,
-                                  )
-                                }
-                                onBlur={(e) => {
-                                  const num = parseFloat(e.target.value);
-                                  handleBundleItemPricePerBag(
-                                    item.inventoryItemId,
-                                    isNaN(num) ? "0.00" : num.toFixed(2),
-                                  );
-                                }}
-                                disabled={isSubmitting}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quantity controls */}
-                        <div
-                          title={
-                            Number(item.inventory.stock || 0) === 0
-                              ? `${item.inventory.minifigName || "This item"} is out of stock`
-                              : undefined
-                          }
-                        >
-                          <QuantityControl
-                            value={item.quantityPerBag}
-                            onChange={(value) =>
-                              handleBundleItemQuantityValue(
-                                item.inventoryItemId,
-                                value,
-                              )
-                            }
-                            min={1}
-                            max={Math.max(1, Number(item.inventory.stock || 0))}
-                            allowInput
-                            disabled={
-                              Number(item.inventory.stock || 0) === 0 ||
-                              isSubmitting
-                            }
                           />
                         </div>
 

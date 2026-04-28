@@ -29,9 +29,16 @@ const BASE_COLUMNS = [
   { key: "color", label: "Color" },
 ];
 const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
+const PRICING_COLUMNS_DEFAULT = [
+  { key: "pricePerBag", label: "Bag Price" },
+  { key: "piecesPerBag", label: "Qty/bag" },
+  { key: "stock", label: "Stocks/bag" },
+];
+const PRICING_COLUMNS_MINIFIGS = [
+  { key: "pricePerBag", label: "Price" },
+  { key: "stock", label: "Stocks" },
+];
 const TAIL_COLUMNS = [
-  { key: "price", label: "Price" },
-  { key: "stock", label: "Stock" },
   { key: "isActive", label: "Status" },
   { key: "createdAt", label: "Created At" },
   { key: "updatedAt", label: "Updated At" },
@@ -42,7 +49,8 @@ const TAIL_COLUMNS = [
 const makeNewPreview = (url, { category = "", collectionId = "" } = {}) => ({
   url,
   minifigName: "",
-  price: "",
+  pricePerBag: "",
+  piecesPerBag: "",
   stock: "",
   color: "",
   category,
@@ -115,8 +123,12 @@ const useGeneralInventoryManagement = () => {
   );
 
   const columns = useMemo(() => {
-    const mid = activeTab === "minifigs" ? [MINIFIG_COLLECTION_COLUMN] : [];
-    return [...BASE_COLUMNS, ...mid, ...TAIL_COLUMNS];
+    const isMinifigs = activeTab === "minifigs";
+    const mid = isMinifigs ? [MINIFIG_COLLECTION_COLUMN] : [];
+    const pricing = isMinifigs
+      ? PRICING_COLUMNS_MINIFIGS
+      : PRICING_COLUMNS_DEFAULT;
+    return [...BASE_COLUMNS, ...mid, ...pricing, ...TAIL_COLUMNS];
   }, [activeTab]);
 
   useEffect(() => {
@@ -222,7 +234,8 @@ const useGeneralInventoryManagement = () => {
       {
         url: item.image?.url,
         minifigName: item.minifigName,
-        price: Number(item.price).toFixed(2),
+        pricePerBag: Number(item.pricePerBag || 0).toFixed(2),
+        piecesPerBag: item.piecesPerBag ?? 1,
         stock: item.stock,
         color: item.colorId?._id || item.colorId,
         category: item.category || activeTab,
@@ -251,7 +264,8 @@ const useGeneralInventoryManagement = () => {
       const payload = {
         items: filePreview.map((item) => ({
           minifigName: sanitizeString(item.minifigName),
-          price: Number(item.price),
+          pricePerBag: Number(item.pricePerBag),
+          piecesPerBag: Number(item.piecesPerBag) || 1,
           stock: Number(item.stock),
           colorId: item.color,
           category: activeTab,
@@ -278,7 +292,8 @@ const useGeneralInventoryManagement = () => {
 
       const payload = {
         minifigName: sanitizeString(item.minifigName),
-        price: Number(item.price),
+        pricePerBag: Number(item.pricePerBag),
+        piecesPerBag: Number(item.piecesPerBag) || 1,
         stock: Number(item.stock),
         colorId: item.color,
         category: activeTab,

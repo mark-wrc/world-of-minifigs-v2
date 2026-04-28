@@ -488,10 +488,6 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
 
       if (stock === 0) {
         outOfStock.push(itemName);
-      } else if (
-        !validatePositiveNumber(item.quantityPerBag, `"${itemName}" Quantity`, { min: 1 })
-      ) {
-        return false;
       }
     }
 
@@ -540,10 +536,25 @@ export const validateGeneralInventory = (items, isAddMode, activeTab) => {
     if (isAddMode && !validateRequired(item.minifigName, `${prefix}Name`))
       return false;
 
-    if (!validatePositiveNumber(item.price, `${prefix}Price`, { min: 0.01 }))
+    if (
+      !validatePositiveNumber(item.pricePerBag, `${prefix}Price per bag`, {
+        min: 0.01,
+      })
+    )
       return false;
 
-    if (!validatePositiveNumber(item.stock, `${prefix}Stock`, { min: 0 }))
+    if (
+      item.piecesPerBag !== undefined &&
+      item.piecesPerBag !== "" &&
+      !validatePositiveNumber(item.piecesPerBag, `${prefix}Pieces per bag`, {
+        min: 1,
+      })
+    )
+      return false;
+
+    if (
+      !validatePositiveNumber(item.stock, `${prefix}Stock (bags)`, { min: 0 })
+    )
       return false;
 
     if (!validateRequired(item.colorId || item.color, `${prefix}Color`))

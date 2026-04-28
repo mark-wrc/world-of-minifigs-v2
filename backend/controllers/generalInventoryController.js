@@ -44,7 +44,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
     try {
       const {
         minifigName,
-        price,
+        pricePerBag,
+        piecesPerBag,
         stock,
         colorId,
         image,
@@ -55,15 +56,22 @@ export const createGeneralInventoryBulk = async (req, res) => {
       // Validate required fields
       if (!minifigName || !String(minifigName).trim())
         throw new Error("Minifig name is required");
-      if (!price || Number(price) <= 0)
-        throw new Error("Price must be greater than zero");
+      if (!pricePerBag || Number(pricePerBag) <= 0)
+        throw new Error("Price per bag must be greater than zero");
+      if (
+        piecesPerBag !== undefined &&
+        piecesPerBag !== null &&
+        (!Number.isInteger(Number(piecesPerBag)) || Number(piecesPerBag) < 1)
+      ) {
+        throw new Error("Pieces per bag must be a positive integer");
+      }
       if (
         stock === undefined ||
         stock === null ||
         !Number.isInteger(Number(stock)) ||
         Number(stock) < 0
       ) {
-        throw new Error("Stock must be a non-negative integer");
+        throw new Error("Stock (bags) must be a non-negative integer");
       }
       if (!colorId) throw new Error("Color is required");
       if (!image) throw new Error("Image is required");
@@ -100,7 +108,11 @@ export const createGeneralInventoryBulk = async (req, res) => {
 
       const newInventory = await GeneralInventory.create({
         minifigName: String(minifigName).trim(),
-        price: Number(price),
+        pricePerBag: Number(pricePerBag),
+        piecesPerBag:
+          piecesPerBag !== undefined && piecesPerBag !== null
+            ? Number(piecesPerBag)
+            : 1,
         stock: Number(stock),
         colorId,
         category,
@@ -239,7 +251,8 @@ export const updateGeneralInventory = async (req, res) => {
     const { id } = req.params;
     const {
       minifigName,
-      price,
+      pricePerBag,
+      piecesPerBag,
       stock,
       colorId,
       image,
@@ -294,15 +307,29 @@ export const updateGeneralInventory = async (req, res) => {
       inventory.minifigName = checkName;
     }
 
-    if (price !== undefined) {
-      if (Number(price) <= 0) {
+    if (pricePerBag !== undefined) {
+      if (Number(pricePerBag) <= 0) {
         return res.status(400).json({
           success: false,
-          message: "Price must be greater than zero",
-          description: "Please provide a valid positive price.",
+          message: "Price per bag must be greater than zero",
+          description: "Please provide a valid positive price per bag.",
         });
       }
-      inventory.price = Number(price);
+      inventory.pricePerBag = Number(pricePerBag);
+    }
+
+    if (piecesPerBag !== undefined) {
+      if (
+        !Number.isInteger(Number(piecesPerBag)) ||
+        Number(piecesPerBag) < 1
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Pieces per bag must be a positive integer",
+          description: "Please provide a valid pieces-per-bag value (≥ 1).",
+        });
+      }
+      inventory.piecesPerBag = Number(piecesPerBag);
     }
 
     if (stock !== undefined) {
@@ -310,7 +337,8 @@ export const updateGeneralInventory = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Stock must be an integer >= 0",
-          description: "Please provide a valid non-negative integer for stock.",
+          description:
+            "Please provide a valid non-negative integer for stock (bags).",
         });
       }
       inventory.stock = Number(stock);
