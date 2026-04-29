@@ -7,7 +7,8 @@ const PageHero = ({
   description,
   badge,
   features,
-  bannerPadding = "py-40",
+  action,
+  bannerPadding = "py-20",
 }) => {
   return (
     <section
@@ -65,6 +66,8 @@ const PageHero = ({
             ))}
           </div>
         )}
+
+        {action && <div className="mt-7">{action}</div>}
       </div>
     </section>
   );

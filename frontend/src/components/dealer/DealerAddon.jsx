@@ -2,36 +2,19 @@ import { formatCurrency } from "@/utils/formatting";
 import { ArrowRight, Sparkles, ShoppingBag, Zap, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const TYPE_CONFIG = {
-  upgrade: {
-    Icon: Zap,
-    headerBg: "bg-primary",
-    headerText: "text-primary-foreground",
-    chip: "bg-white/20 text-white",
-    label: "Upgrade",
-  },
-  bundle: {
-    Icon: Layers,
-    headerBg: "bg-foreground dark:bg-card",
-    headerText: "text-background dark:text-foreground",
-    chip: "bg-white/10 text-white/80 dark:bg-white/10 dark:text-white/70",
-    label: "Bundle",
-  },
-};
+const HEADER_BG = "bg-foreground dark:bg-card";
+const HEADER_TEXT = "text-background dark:text-foreground";
+const CHIP = "bg-accent dark:bg-accent";
 
-const getSavingsPct = (addon) => {
-  const hasDiscount =
-    addon.discountPrice !== null && addon.discountPrice !== undefined;
-  const originalVal = Number(addon.price || 0);
-  if (!hasDiscount || originalVal === 0) return null;
-  const pct = Math.round((1 - Number(addon.discountPrice) / originalVal) * 100);
-  return pct > 0 ? pct : null;
+const TYPE_CONFIG = {
+  upgrade: { Icon: Zap, label: "Upgrade" },
+  bundle: { Icon: Layers, label: "Bundle" },
 };
 
 const DealerAddon = ({ addons, onSelect, onPreview }) => (
   <section id="step2">
-    <div className="text-left mb-6">
-      <div className="flex items-center gap-2 mb-1.5">
+    <div className="text-left mb-5">
+      <div className="flex items-center gap-2 mb-2">
         <h2 className="text-2xl font-bold tracking-tight">
           Step 2 — Select your add-ons
         </h2>
@@ -47,11 +30,12 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
       </p>
     </div>
 
-    <div className="grid gap-x-3 gap-y-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pt-5">
+    <div className="grid gap-x-3 gap-y-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pt-5">
       {addons.map((addon) => {
         const cfg = TYPE_CONFIG[addon.addonType] ?? TYPE_CONFIG.bundle;
-        const { Icon, headerBg, headerText, chip, label } = cfg;
-        const savingsPct = getSavingsPct(addon);
+        const { Icon, label } = cfg;
+        // Read backend-stored values directly — no recomputation here.
+        const savingsPct = addon.discount > 0 ? Math.round(addon.discount) : null;
 
         const hasDiscount =
           addon.discountPrice !== null && addon.discountPrice !== undefined;
@@ -61,45 +45,55 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
 
         const isSelected = addon.isSelected;
 
+        const hasBgImage = !!addon.image?.url;
+
         return (
-          <div key={addon._id} className="relative mt-1">
+          <div key={addon._id} className="relative">
             {/* ── Card ── */}
             <div
               onClick={() => {
                 addon.hasItems ? onPreview(addon) : onSelect(addon._id);
               }}
-              className={`
-                group flex flex-col rounded-xl overflow-hidden
+              className="group flex flex-col rounded-xl overflow-hidden
                 cursor-pointer transition-all duration-300 select-none
-                hover:shadow-2xl hover:-translate-y-2
-                ${
-                  isSelected
-                    ? "ring-2 ring-accent ring-offset-2 dark:ring-offset-background shadow-lg"
-                    : "shadow-sm hover:shadow-xl"
-                }
-              `}
+                hover:shadow-2xl hover:-translate-y-2"
             >
               {/* ── Colored header ── */}
               <div
                 className={`
-                  relative flex flex-col gap-2 px-5 pt-5 pb-4 overflow-hidden
-                  ${headerBg}
+                  relative flex flex-col gap-2 px-5 p-4 overflow-hidden min-h-40
+                  ${HEADER_BG}
                 `}
               >
-                {/* Decorative circle */}
-                <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-white/5 pointer-events-none" />
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/5 pointer-events-none" />
+                {/* Background image + dark overlay for legibility */}
+                {hasBgImage && (
+                  <>
+                    <div
+                      className="absolute inset-0 bg-contain bg-center"
+                      style={{ backgroundImage: `url(${addon.image.url})` }}
+                    />
+                    <div className="absolute inset-0 bg-linear-to-t from-black/50 via-black/20 to-transparent" />
+                  </>
+                )}
+
+                {/* Decorative circles (hidden when image is present so they don't muddy it) */}
+                {!hasBgImage && (
+                  <>
+                    <div className="absolute -bottom-6 -right-6 w-14 h-24 rounded-full bg-white/5 pointer-events-none" />
+                    <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full bg-white/5 pointer-events-none" />
+                  </>
+                )}
 
                 {/* Badge (if set) + savings */}
-                <div className="flex items-center justify-between gap-2 h-5">
+                <div className="relative z-10 flex items-center justify-between gap-2 h-5">
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${chip}`}
+                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${CHIP}`}
                   >
                     {addon.badge || label}
                   </span>
 
                   {savingsPct && (
-                    <span className="inline-flex items-center gap-0.5 bg-success text-white text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-md">
+                    <span className="inline-flex items-center gap-2 bg-success text-white text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-md">
                       <Sparkles className="w-2.5 h-2.5" />
                       {savingsPct}% off!
                     </span>
@@ -107,12 +101,15 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                 </div>
 
                 {/* Icon + Name */}
-                <div className="flex items-center gap-2 mt-5">
+                <div className="relative z-10 flex items-center gap-2 mt-auto">
                   <div className="shrink-0 w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
-                    <Icon className={`w-4 h-4 ${headerText}`} strokeWidth={2} />
+                    <Icon
+                      className={`w-4 h-4 ${HEADER_TEXT}`}
+                      strokeWidth={2}
+                    />
                   </div>
                   <h3
-                    className={`font-extrabold text-lg uppercase ${headerText}`}
+                    className={`font-extrabold text-lg uppercase ${HEADER_TEXT}`}
                   >
                     {addon.addonName}
                   </h3>
@@ -156,7 +153,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
 
                   {/* CTA button */}
                   <button
-                    className={`shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg transition-all duration-200 group-hover:gap-2.5 cursor-pointer ${isSelected ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground group-hover:bg-primary/90"}`}
+                    className={`shrink-0 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg cursor-pointer ${isSelected ? "bg-accent text-accent-foreground" : "bg-primary text-primary-foreground group-hover:bg-primary/90"}`}
                   >
                     {isSelected ? "Added" : "Select"}
                     <ArrowRight className="w-3.5 h-3.5" />

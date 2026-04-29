@@ -4,7 +4,34 @@ import DealerExtraBag from "../models/dealerExtraBag.model.js";
 import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
 import GeneralInventory from "../models/generalInventory.model.js";
 import SubCollection from "../models/subCollection.model.js";
-import { cleanupItemImages } from "../services/imageService.js";
+import {
+  cleanupItemImages,
+  uploadSingleImage,
+  replaceSingleImage,
+  deleteSingleImage,
+} from "../services/imageService.js";
+
+const ADDON_IMAGE_FOLDER = "world-of-minifigs-v2/dealers/add-ons";
+
+// Single source of truth for upgrade pricing.
+// Returns { price, discount, discountPrice } where discountPrice is derived.
+// `discount` is treated as a percentage (0–100); `null` means "no discount".
+const computeUpgradePricing = (rawPrice, rawDiscount) => {
+  const price = Number(rawPrice) || 0;
+
+  const hasDiscount =
+    rawDiscount !== undefined &&
+    rawDiscount !== null &&
+    String(rawDiscount).trim() !== "";
+
+  if (!hasDiscount) {
+    return { price, discount: null, discountPrice: null };
+  }
+
+  const pct = Math.min(100, Math.max(0, Number(rawDiscount)));
+  const discountPrice = Math.max(0, price * (1 - pct / 100));
+  return { price, discount: pct, discountPrice };
+};
 import {
   normalizePagination,
   buildSearchQuery,
@@ -316,9 +343,10 @@ export const createDealerAddon = async (req, res) => {
       addonType,
       description,
       price,
-      discountPrice,
+      discount,
       badge,
       bundleItems,
+      image,
       isActive,
     } = req.body;
 
@@ -357,6 +385,7 @@ export const createDealerAddon = async (req, res) => {
       addonType,
       description: description?.trim() || undefined,
       price: 0,
+      discount: null,
       discountPrice: null,
       badge: badge?.trim() || null,
       bundleItems: [],
@@ -374,10 +403,7 @@ export const createDealerAddon = async (req, res) => {
       addonData.price = 0; // Price set on individual items for bundles
     } else {
       // Upgrade
-      const hasProvidedPrice =
-        price !== undefined && price !== null && String(price).trim() !== "";
-
-      if (hasProvidedPrice && Number(price) < 0) {
+      if (price !== undefined && price !== null && Number(price) < 0) {
         return res.status(400).json({
           success: false,
           message: "Valid price is required",
@@ -385,15 +411,24 @@ export const createDealerAddon = async (req, res) => {
         });
       }
 
-      if (hasProvidedPrice) {
-        addonData.price = Number(price);
-      }
+      const pricing = computeUpgradePricing(price, discount);
+      addonData.price = pricing.price;
+      addonData.discount = pricing.discount;
+      addonData.discountPrice = pricing.discountPrice;
+    }
 
-      const hasDiscountPrice =
-        discountPrice !== undefined &&
-        discountPrice !== null &&
-        String(discountPrice).trim() !== "";
-      addonData.discountPrice = hasDiscountPrice ? Number(discountPrice) : null;
+    // Optional image upload
+    if (image) {
+      try {
+        addonData.image = await uploadSingleImage(image, ADDON_IMAGE_FOLDER);
+      } catch (error) {
+        console.error("Addon image upload error:", error);
+        return res.status(400).json({
+          success: false,
+          message: "Failed to upload image",
+          description: error.message,
+        });
+      }
     }
 
     const addon = await DealerAddon.create(addonData);
@@ -447,9 +482,10 @@ export const updateDealerAddon = async (req, res) => {
       addonName,
       description,
       price,
-      discountPrice,
+      discount,
       badge,
       bundleItems,
+      image,
       isActive,
     } = req.body;
 
@@ -508,23 +544,46 @@ export const updateDealerAddon = async (req, res) => {
         addon.price = 0; // Price set on individual items for bundles
       }
     } else {
-      // Upgrade — manual price
-      if (price !== undefined) {
-        if (Number(price) < 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid price",
-            description: "Price cannot be negative.",
-          });
-        }
-        addon.price = Number(price);
+      // Upgrade — recompute discountPrice whenever price or discount changes
+      if (price !== undefined && price !== null && Number(price) < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid price",
+          description: "Price cannot be negative.",
+        });
       }
 
-      if (discountPrice !== undefined) {
-        const hasDiscountPrice =
-          discountPrice !== null && String(discountPrice).trim() !== "";
-        addon.discountPrice = hasDiscountPrice ? Number(discountPrice) : null;
+      if (price !== undefined || discount !== undefined) {
+        const nextPrice = price !== undefined ? price : addon.price;
+        const nextDiscount = discount !== undefined ? discount : addon.discount;
+        const pricing = computeUpgradePricing(nextPrice, nextDiscount);
+        addon.price = pricing.price;
+        addon.discount = pricing.discount;
+        addon.discountPrice = pricing.discountPrice;
       }
+    }
+
+    // Replace image if provided
+    if (image) {
+      try {
+        const uploaded = await replaceSingleImage(
+          image,
+          addon.image,
+          ADDON_IMAGE_FOLDER,
+        );
+        if (uploaded) addon.image = uploaded;
+      } catch (error) {
+        console.error("Addon image update error:", error);
+        return res.status(400).json({
+          success: false,
+          message: "Failed to update image",
+          description: error.message,
+        });
+      }
+    } else if (image === null) {
+      // Explicit removal
+      if (addon.image?.publicId) deleteSingleImage(addon.image.publicId);
+      addon.image = undefined;
     }
 
     addon.updatedBy = req.user._id;
@@ -563,6 +622,9 @@ export const deleteDealerAddon = async (req, res) => {
         description: "The requested add-on does not exist.",
       });
     }
+
+    // Clean up Cloudinary image (fire-and-forget)
+    if (addon.image?.publicId) deleteSingleImage(addon.image.publicId);
 
     return res.status(200).json({
       success: true,

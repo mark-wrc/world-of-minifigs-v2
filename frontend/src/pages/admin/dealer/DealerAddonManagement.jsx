@@ -29,6 +29,7 @@ import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import { formatCurrency, display } from "@/utils/formatting";
 import CommonImage from "@/components/shared/CommonImage";
+import MediaUpload from "@/components/shared/MediaUpload";
 import useDealerAddonManagement, {
   ADDON_ITEM_CATEGORIES,
 } from "@/hooks/admin/useDealerAddonManagement";
@@ -121,6 +122,9 @@ const DealerAddonManagement = () => {
     handleLimitChange,
     handleSearchChange,
     setDeleteDialogOpen,
+    filePreview,
+    handleAddonFileChange,
+    handleAddonFileRemove,
   } = useDealerAddonManagement();
 
   return (
@@ -502,6 +506,17 @@ const DealerAddonManagement = () => {
             placeholder="e.g. Spring Exclusive"
             value={formData.badge}
             onChange={handleChange}
+            disabled={isSubmitting}
+          />
+
+          {/* Background Image (optional) */}
+          <MediaUpload
+            label="Background Image (optional)"
+            preview={filePreview}
+            onChange={handleAddonFileChange}
+            onRemove={handleAddonFileRemove}
+            accept="image/*"
+            description="PNG, JPG, WEBP"
             disabled={isSubmitting}
           />
 

@@ -20,6 +20,12 @@ const dealerAddonSchema = new mongoose.Schema(
       type: Number,
       min: [0, "Price cannot be negative"],
     },
+    discount: {
+      type: Number,
+      min: [0, "Discount cannot be negative"],
+      max: [100, "Discount cannot exceed 100"],
+      default: null,
+    },
     discountPrice: {
       type: Number,
       min: [0, "Discount price cannot be negative"],
@@ -39,6 +45,10 @@ const dealerAddonSchema = new mongoose.Schema(
         },
       },
     ],
+    image: {
+      publicId: { type: String },
+      url: { type: String },
+    },
     isActive: {
       type: Boolean,
       default: true,

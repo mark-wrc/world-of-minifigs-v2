@@ -1,3 +1,4 @@
+import { ArrowDown } from "lucide-react";
 import {
   dealerHero,
   dealerFeatures,
@@ -9,6 +10,7 @@ import PageHero from "@/components/shared/PageHero";
 import SectionWithCards from "@/components/shared/SectionWithCards";
 import ErrorState from "@/components/shared/ErrorState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { Button } from "@/components/ui/button";
 import DealerBundle from "@/components/dealer/DealerBundle";
 import DealerAddon from "@/components/dealer/DealerAddon";
 import DealerExtraBag from "@/components/dealer/DealerExtraBag";
@@ -104,12 +106,27 @@ const Dealer = () => {
   return (
     <>
       <PageHero
-        bannerPadding="py-20"
+        bannerPadding="py-10"
         title={dealerHero.title}
         highlight={dealerHero.highlight}
         description={dealerHero.description}
         badge={dealerHero.badge}
         features={dealerFeatures}
+        action={
+          <Button
+            variant="accent"
+            size="lg"
+            onClick={() =>
+              document
+                .getElementById("dealer-bundles")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="group relative overflow-hidden h-12 px-7 uppercase font-semibold tracking-wide before:content-[''] before:absolute before:top-0 before:left-0 before:h-full before:w-1/2 before:-translate-x-full before:bg-linear-to-r before:from-transparent before:via-white/50 before:to-transparent before:skew-x-12 before:transition-transform before:duration-700 hover:before:translate-x-[300%]"
+          >
+            Skip to bundles
+            <ArrowDown className="transition-transform duration-300 group-hover:translate-y-1 motion-safe:animate-bounce" />
+          </Button>
+        }
       />
 
       {/* How it works */}
@@ -138,7 +155,9 @@ const Dealer = () => {
         items={dealerBenefits.features}
       />
 
-      <DealerBundle bundles={bundles} onSelect={setSelectedBundleId} />
+      <div id="dealer-bundles" className="scroll-mt-20">
+        <DealerBundle bundles={bundles} onSelect={setSelectedBundleId} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 p-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
         <div className="space-y-10 overflow-visible">

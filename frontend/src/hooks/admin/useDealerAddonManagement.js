@@ -19,6 +19,7 @@ import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateDealerAddon } from "@/utils/validation";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
+import useMediaPreview from "@/hooks/admin/useMediaPreview";
 
 const initialFormData = {
   addonName: "",
@@ -27,6 +28,7 @@ const initialFormData = {
   discount: "",
   badge: "",
   description: "",
+  image: null,
   isActive: true,
 };
 
@@ -47,6 +49,15 @@ const DEBOUNCE_MS = 300;
 const useDealerAddonManagement = () => {
   // ------------------------------- Bundle Items State ------------------------------------
   const [bundleItems, setBundleItems] = useState([]);
+
+  // ------------------------------- Media ------------------------------------
+  const {
+    filePreview,
+    setFilePreview,
+    resetFile,
+    handleFileChange,
+    handleRemoveFile,
+  } = useMediaPreview();
 
   // ------------------------------- Item Category Filter ------------------------------------
   const [itemCategory, setItemCategory] = useState("accessories");
@@ -77,7 +88,10 @@ const useDealerAddonManagement = () => {
     useDeleteDealerAddonMutation();
 
   // ------------------------------- Core CRUD ------------------------------------
-  const resetBundleItems = useCallback(() => setBundleItems([]), []);
+  const resetExtras = useCallback(() => {
+    setBundleItems([]);
+    resetFile();
+  }, [resetFile]);
 
   const crud = useAdminCrud({
     initialFormData,
@@ -85,7 +99,7 @@ const useDealerAddonManagement = () => {
     updateFn: updateAddon,
     deleteFn: deleteAddon,
     entityName: "add-on",
-    onReset: resetBundleItems,
+    onReset: resetExtras,
   });
 
   // ------------------------------- Fetch ------------------------------------
@@ -183,6 +197,23 @@ const useDealerAddonManagement = () => {
       inventory: item._item,
     }));
 
+  // ------------------------------- Image Handlers ------------------------------------
+  const handleAddonFileChange = useCallback(
+    async (e) => {
+      const dataUrl = await handleFileChange(e);
+      if (dataUrl) {
+        crud.setFormData((prev) => ({ ...prev, image: dataUrl }));
+      }
+    },
+    [handleFileChange, crud],
+  );
+
+  const handleAddonFileRemove = useCallback(() => {
+    handleRemoveFile();
+    // null = explicit removal (controller deletes existing image)
+    crud.setFormData((prev) => ({ ...prev, image: null }));
+  }, [handleRemoveFile, crud]);
+
   // ------------------------------- Bundle Item Handlers ------------------------------------
   const handleToggleBundleItem = useCallback(
     (inventoryItemId, inventoryItem) => {
@@ -223,21 +254,35 @@ const useDealerAddonManagement = () => {
     setBundleItems(existingItems);
 
     const originalPrice = addon.addonType === "upgrade" ? (addon.price ?? "") : "";
-    const discountPrice = addon.addonType === "upgrade" ? (addon.discountPrice ?? "") : "";
-    const computedDiscount =
-      originalPrice !== "" && discountPrice !== "" && Number(originalPrice) > 0
-        ? Math.round((1 - Number(discountPrice) / Number(originalPrice)) * 100)
-        : "";
+    // Prefer the stored discount %; fall back to deriving it for legacy records
+    // that were saved before `discount` existed.
+    let discountField = "";
+    if (addon.addonType === "upgrade") {
+      if (addon.discount !== null && addon.discount !== undefined) {
+        discountField = addon.discount;
+      } else if (
+        addon.discountPrice !== null &&
+        addon.discountPrice !== undefined &&
+        Number(addon.price) > 0
+      ) {
+        discountField = Math.round(
+          (1 - Number(addon.discountPrice) / Number(addon.price)) * 100,
+        );
+      }
+    }
 
     crud.openEdit(addon, {
       addonName: addon.addonName || "",
       addonType: addon.addonType || "bundle",
       price: originalPrice,
-      discount: computedDiscount,
+      discount: discountField,
       badge: addon.badge || "",
       description: addon.description || "",
+      image: undefined, // undefined = no change to existing image
       isActive: addon.isActive !== false,
     });
+
+    setFilePreview(addon.image?.url || null);
   };
 
   // ------------------------------- Submit Handler ------------------------------------
@@ -254,21 +299,25 @@ const useDealerAddonManagement = () => {
       isActive: crud.formData.isActive,
     };
 
+    // Image: data-URL = upload new, null = explicit remove, undefined = leave alone
+    if (crud.formData.image !== undefined) {
+      payload.image = crud.formData.image;
+    }
+
     if (addonType === "bundle") {
       payload.bundleItems = bundleItems.map((item) => ({
         inventoryItemId: item.inventoryItemId,
       }));
       payload.price = 0;
     } else {
-      const originalPrice = Number(crud.formData.price || 0);
-      payload.price = originalPrice;
+      // Send the user-entered values; backend derives discountPrice as the
+      // single source of truth so price + discount + discountPrice never drift.
+      payload.price = Number(crud.formData.price || 0);
       const discount = crud.formData.discount;
-      if (discount !== "" && discount !== null && discount !== undefined) {
-        const pct = Math.min(100, Math.max(0, Number(discount)));
-        payload.discountPrice = Math.max(0, originalPrice * (1 - pct / 100));
-      } else {
-        payload.discountPrice = null;
-      }
+      payload.discount =
+        discount === "" || discount === null || discount === undefined
+          ? null
+          : Number(discount);
     }
 
     await crud.submitForm(payload);
@@ -320,6 +369,9 @@ const useDealerAddonManagement = () => {
     handleSubmit,
     handleChange,
     handleValueChange,
+    filePreview,
+    handleAddonFileChange,
+    handleAddonFileRemove,
   };
 };
 
