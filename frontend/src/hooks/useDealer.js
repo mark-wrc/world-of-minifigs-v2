@@ -67,7 +67,8 @@ export const useDealer = () => {
   // Auto-select 500-minifig bundle as default, fall back to first
   useEffect(() => {
     if (bundles.length > 0 && !selectedBundleId) {
-      const preferred = bundles.find((b) => b.minifigQuantity === 500) ?? bundles[0];
+      const preferred =
+        bundles.find((b) => b.minifigQuantity === 500) ?? bundles[0];
       setSelectedBundleId(preferred._id);
     }
   }, [bundles, selectedBundleId]);
@@ -105,7 +106,12 @@ export const useDealer = () => {
   // Helper to determine if a bag size fits this bundle perfectly or via multiplier
   const getBagMultiplier = useCallback(
     (bagSize) => {
-      if (!selectedBundle || isCustomBundle) return 1;
+      if (!selectedBundle) return 1;
+
+      if (isCustomBundle) {
+        return Math.max(1, Math.floor(selectedBundle.minifigQuantity / 100));
+      }
+
       if (!bagSize || bagSize <= 0) return 1;
 
       const bundleQty = selectedBundle.minifigQuantity;
@@ -121,9 +127,10 @@ export const useDealer = () => {
   const torsoBags = useMemo(() => {
     if (!selectedBundle) return [];
     if (isCustomBundle) {
-      return rawTorsoBags.filter(
-        (b) => b.targetBundleSize === selectedBundle.minifigQuantity,
-      );
+      const mult = getBagMultiplier();
+      return rawTorsoBags
+        .filter((b) => b.targetBundleSize === selectedBundle.minifigQuantity)
+        .map((bag) => ({ ...bag, multiplier: mult }));
     }
 
     return rawTorsoBags
@@ -135,7 +142,7 @@ export const useDealer = () => {
   }, [rawTorsoBags, selectedBundle, isCustomBundle, getBagMultiplier]);
 
   // Total number of bag slots for this bundle (e.g. 3 for 300-bundle with 100-size bags)
-  const bagMultiplier = isCustomBundle ? 1 : (torsoBags[0]?.multiplier ?? 1);
+  const bagMultiplier = torsoBags[0]?.multiplier ?? 1;
 
   // Derived selection state from split quantities
   const selectedTorsoBagIds = useMemo(
@@ -147,7 +154,8 @@ export const useDealer = () => {
   );
 
   const totalAssignedBags = useMemo(
-    () => Object.values(torsoBagSplitQuantities).reduce((sum, qty) => sum + qty, 0),
+    () =>
+      Object.values(torsoBagSplitQuantities).reduce((sum, qty) => sum + qty, 0),
     [torsoBagSplitQuantities],
   );
 
@@ -224,7 +232,9 @@ export const useDealer = () => {
 
   // Auto-select first (oldest) bag when bags load — always assign all slots to it
   useEffect(() => {
-    const hasSelection = Object.values(torsoBagSplitQuantities).some((q) => q > 0);
+    const hasSelection = Object.values(torsoBagSplitQuantities).some(
+      (q) => q > 0,
+    );
     if (torsoBags.length > 0 && !hasSelection && bagMultiplier > 0) {
       setTorsoBagSplitQuantities({ [torsoBags[0]._id]: bagMultiplier });
       setLastClickedBagId(torsoBags[0]._id);
@@ -420,7 +430,10 @@ export const useDealer = () => {
         (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
         0,
       );
-      const clampedQty = Math.max(0, Math.min(newQty, bagMultiplier - usedByOthers));
+      const clampedQty = Math.max(
+        0,
+        Math.min(newQty, bagMultiplier - usedByOthers),
+      );
       if (clampedQty === 0) {
         const { [bagId]: _, ...rest } = prev;
         return rest;
@@ -434,13 +447,20 @@ export const useDealer = () => {
       lastClickedBagId && (torsoBagSplitQuantities[lastClickedBagId] || 0) > 0
         ? lastClickedBagId
         : selectedTorsoBagIds[0] || null;
-    return preferredId ? torsoBags.find((b) => b._id === preferredId) || null : null;
-  }, [lastClickedBagId, torsoBagSplitQuantities, selectedTorsoBagIds, torsoBags]);
+    return preferredId
+      ? torsoBags.find((b) => b._id === preferredId) || null
+      : null;
+  }, [
+    lastClickedBagId,
+    torsoBagSplitQuantities,
+    selectedTorsoBagIds,
+    torsoBags,
+  ]);
 
   const currentMultiplier = useMemo(() => {
     if (isCustomBundle || !lastSelectedBag) return 1;
     const assignedQty = torsoBagSplitQuantities[lastSelectedBag._id] || 0;
-    return assignedQty > 0 ? assignedQty : (lastSelectedBag.multiplier || 1);
+    return assignedQty > 0 ? assignedQty : lastSelectedBag.multiplier || 1;
   }, [isCustomBundle, lastSelectedBag, torsoBagSplitQuantities]);
 
   // Build display items (apply multiplier for regular bundles)
@@ -530,7 +550,9 @@ export const useDealer = () => {
             base.addonType === "upgrade" &&
             base.discountPrice !== null &&
             base.discountPrice !== undefined;
-          const effectivePrice = hasDiscount ? base.discountPrice : (base.price ?? 0);
+          const effectivePrice = hasDiscount
+            ? base.discountPrice
+            : (base.price ?? 0);
           const price = config?.price ?? effectivePrice;
 
           const items = (config?.selectedItems || [])
@@ -579,7 +601,9 @@ export const useDealer = () => {
     .map((id) => {
       const bag = torsoBags.find((b) => b._id === id);
       const qty = torsoBagSplitQuantities[id] || 0;
-      return bag && qty > 0 ? { _id: bag._id, bagName: bag.bagName, quantity: qty } : null;
+      return bag && qty > 0
+        ? { _id: bag._id, bagName: bag.bagName, quantity: qty }
+        : null;
     })
     .filter(Boolean);
 
