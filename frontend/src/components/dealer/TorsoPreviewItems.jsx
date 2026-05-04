@@ -26,7 +26,7 @@ const PreviewCard = ({
 
       <Badge
         variant="accent"
-        title={`Approximately ${displayQuantity} — may vary slightly from what's shown`}
+        title={`Approximately ${displayQuantity} - may vary slightly from what's shown`}
         className="absolute top-1 right-1 px-2 py-0.5 text-sm backdrop-blur-sm bg-accent/90 shadow-sm gap-0.5"
       >
         <span className="font-normal text-xs">+/-</span>

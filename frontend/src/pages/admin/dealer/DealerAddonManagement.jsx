@@ -298,7 +298,7 @@ const DealerAddonManagement = () => {
 
                   <DropdownMenuContent>
                     {/* Category tabs */}
-                    <div className="flex border-b px-1 pt-1">
+                    <div className="flex border-b px-1 pt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
                       {ADDON_ITEM_CATEGORIES.map((cat) => (
                         <button
                           key={cat.value}
@@ -308,7 +308,7 @@ const DealerAddonManagement = () => {
                             setItemCategory(cat.value);
                           }}
                           className={[
-                            "flex-1 py-2 text-sm font-medium transition-colors cursor-pointer",
+                            "shrink-0 px-4 py-2 text-sm font-medium transition-colors cursor-pointer whitespace-nowrap",
                             itemCategory === cat.value
                               ? "border-b-2 border-primary text-primary"
                               : "text-muted-foreground hover:text-foreground",

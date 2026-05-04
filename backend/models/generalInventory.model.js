@@ -5,6 +5,8 @@ const INVENTORY_CATEGORIES = [
   "animals",
   "minifigs",
   "printed-tiles",
+  "specialty-bricks",
+  "botanicals",
 ];
 
 const generalInventorySchema = new mongoose.Schema(
