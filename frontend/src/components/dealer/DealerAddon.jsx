@@ -15,9 +15,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
   <section id="step2">
     <div className="text-left mb-5">
       <div className="flex items-center gap-2 mb-2">
-        <h2 className="text-2xl font-bold tracking-tight">
-          Step 2 — Select your add-ons
-        </h2>
+        <h2 className="text-2xl font-bold tracking-tight">Select your add-ons</h2>
         <Badge
           variant="outline"
           className="text-[10px] uppercase tracking-wide shrink-0"

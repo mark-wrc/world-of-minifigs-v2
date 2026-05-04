@@ -15,7 +15,7 @@ const DealerExtraBag = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-1.5">
         <div className="flex items-center gap-2">
           <h2 className="text-2xl font-bold tracking-tight">
-            Step 3 — Extra Part Bag Options
+            Select your Extra Part Bag
           </h2>
           <Badge
             variant="outline"
