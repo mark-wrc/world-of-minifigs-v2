@@ -35,7 +35,8 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
         const cfg = TYPE_CONFIG[addon.addonType] ?? TYPE_CONFIG.bundle;
         const { Icon, label } = cfg;
         // Read backend-stored values directly — no recomputation here.
-        const savingsPct = addon.discount > 0 ? Math.round(addon.discount) : null;
+        const savingsPct =
+          addon.discount > 0 ? Math.round(addon.discount) : null;
 
         const hasDiscount =
           addon.discountPrice !== null && addon.discountPrice !== undefined;
@@ -109,7 +110,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                     />
                   </div>
                   <h3
-                    className={`font-extrabold text-lg uppercase ${HEADER_TEXT}`}
+                    className={`font-extrabold text-lg md:text-xl uppercase tracking-widest ${HEADER_TEXT}`}
                   >
                     {addon.addonName}
                   </h3>

@@ -106,54 +106,54 @@ const Dealer = () => {
   return (
     <>
       <PageHero
-        bannerPadding="py-10"
+        bannerPadding="py-20"
         title={dealerHero.title}
         highlight={dealerHero.highlight}
         description={dealerHero.description}
         badge={dealerHero.badge}
         features={dealerFeatures}
-        action={
-          <Button
-            variant="accent"
-            size="lg"
-            onClick={() =>
-              document
-                .getElementById("dealer-bundles")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            className="group relative overflow-hidden h-12 px-7 uppercase font-semibold tracking-wide before:content-[''] before:absolute before:top-0 before:left-0 before:h-full before:w-1/2 before:-translate-x-full before:bg-linear-to-r before:from-transparent before:via-white/50 before:to-transparent before:skew-x-12 before:transition-transform before:duration-700 hover:before:translate-x-[300%]"
-          >
-            Skip to bundles
-            <ArrowDown className="transition-transform duration-300 group-hover:translate-y-1 motion-safe:animate-bounce" />
-          </Button>
-        }
+        // action={
+        //   <Button
+        //     variant="accent"
+        //     size="lg"
+        //     onClick={() =>
+        //       document
+        //         .getElementById("dealer-bundles")
+        //         ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        //     }
+        //     className="group relative overflow-hidden h-12 px-7 uppercase font-semibold tracking-wide before:content-[''] before:absolute before:top-0 before:left-0 before:h-full before:w-1/2 before:-translate-x-full before:bg-linear-to-r before:from-transparent before:via-white/50 before:to-transparent before:skew-x-12 before:transition-transform before:duration-700 hover:before:translate-x-[300%]"
+        //   >
+        //     Skip to bundles
+        //     <ArrowDown className="transition-transform duration-300 group-hover:translate-y-1 motion-safe:animate-bounce" />
+        //   </Button>
+        // }
       />
 
       {/* How it works */}
-      <SectionWithCards
+      {/* <SectionWithCards
         badge={dealerProcess.badge}
         title={dealerProcess.title}
         items={dealerProcess.steps}
         gridCols="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-      />
+      /> */}
 
       {/* Parts Breakdown */}
-      <SectionWithCards
+      {/* <SectionWithCards
         badge={dealerIncluded.badge}
         title={dealerIncluded.title}
         description={dealerIncluded.description}
         items={dealerIncluded.items}
         gridCols="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
         background={true}
-      />
+      /> */}
 
       {/* Why Partner with Us */}
-      <SectionWithCards
+      {/* <SectionWithCards
         badge={dealerBenefits.badge}
         title={dealerBenefits.title}
         description={dealerBenefits.description}
         items={dealerBenefits.features}
-      />
+      /> */}
 
       <div id="dealer-bundles" className="scroll-mt-20">
         <DealerBundle bundles={bundles} onSelect={setSelectedBundleId} />
