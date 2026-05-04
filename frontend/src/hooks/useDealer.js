@@ -103,13 +103,14 @@ export const useDealer = () => {
     ? torsoBagData.torsoBags
     : [];
 
-  // Helper to determine if a bag size fits this bundle perfectly or via multiplier
+  // Helper to determine if a bag size fits this bundle perfectly or via multiplier.
+  // Custom bundles always select one full bag at a time — no quantity split.
   const getBagMultiplier = useCallback(
     (bagSize) => {
       if (!selectedBundle) return 1;
 
       if (isCustomBundle) {
-        return Math.max(1, Math.floor(selectedBundle.minifigQuantity / 100));
+        return 1;
       }
 
       if (!bagSize || bagSize <= 0) return 1;
