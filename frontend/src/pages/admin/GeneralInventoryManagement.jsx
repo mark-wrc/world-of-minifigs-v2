@@ -316,7 +316,7 @@ const GeneralInventoryManagement = () => {
             checked={formData.isActive}
             onChange={handleValueChange("isActive")}
             disabled={isSubmitting}
-            description="When disabled, this item will be hidden from dealer add-ons."
+            description="When disabled, this item will be hidden from the admin add-ons page."
           />
         </div>
       </AddUpdateItemDialog>

@@ -7,8 +7,8 @@ const HEADER_TEXT = "text-background dark:text-foreground";
 const CHIP = "bg-accent dark:bg-accent";
 
 const TYPE_CONFIG = {
-  upgrade: { Icon: Zap, label: "Upgrade" },
-  bundle: { Icon: Layers, label: "Bundle" },
+  upgrade: { Icon: Zap },
+  bundle: { Icon: Layers },
 };
 
 const DealerAddon = ({ addons, onSelect, onPreview }) => (
@@ -31,7 +31,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
     <div className="grid gap-x-3 gap-y-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pt-5">
       {addons.map((addon) => {
         const cfg = TYPE_CONFIG[addon.addonType] ?? TYPE_CONFIG.bundle;
-        const { Icon, label } = cfg;
+        const { Icon } = cfg;
         // Read backend-stored values directly — no recomputation here.
         const savingsPct =
           addon.discount > 0 ? Math.round(addon.discount) : null;
@@ -84,12 +84,14 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                 )}
 
                 {/* Badge (if set) + savings */}
-                <div className="relative z-10 flex items-center justify-between gap-2 h-5">
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${CHIP}`}
-                  >
-                    {addon.badge || label}
-                  </span>
+                <div className="relative z-10 flex items-center justify-end gap-2 h-5">
+                  {addon.badge && (
+                    <span
+                      className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md mr-auto ${CHIP}`}
+                    >
+                      {addon.badge}
+                    </span>
+                  )}
 
                   {savingsPct && (
                     <span className="inline-flex items-center gap-2 bg-success text-white text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-md">
