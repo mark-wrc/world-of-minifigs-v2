@@ -473,37 +473,11 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
       return false;
     }
 
-    const outOfStock = [];
-
     for (let i = 0; i < bundleItems.length; i++) {
-      const item = bundleItems[i];
-      if (!item.inventoryItemId) {
+      if (!bundleItems[i].inventoryItemId) {
         toast.error(`Item ${i + 1}: Inventory item is required`);
         return false;
       }
-
-      const inv = item.inventory || item._item;
-      const itemName = inv?.minifigName || `Item ${i + 1}`;
-      const stock = Number(inv?.stock || 0);
-
-      if (stock === 0) {
-        outOfStock.push(itemName);
-      }
-    }
-
-    if (outOfStock.length > 0) {
-      toast.error(
-        outOfStock.length === 1
-          ? `"${outOfStock[0]}" is out of stock`
-          : `${outOfStock.length} items are out of stock`,
-        {
-          description:
-            outOfStock.length === 1
-              ? "Remove this item or update its stock before saving."
-              : `${outOfStock.map((n) => `"${n}"`).join(", ")} — remove them or update their stock before saving.`,
-        },
-      );
-      return false;
     }
   }
 
