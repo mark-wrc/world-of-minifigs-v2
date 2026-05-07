@@ -157,12 +157,27 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
-    const { category } = req.query;
+    const { category, stock, status } = req.query;
 
     const baseFilter = {};
 
     if (category && INVENTORY_CATEGORIES.includes(category)) {
       baseFilter.category = category;
+    }
+
+    // Stock tier filter — matches the StockCell color tiers used in the UI.
+    if (stock === "out") {
+      baseFilter.stock = { $lte: 0 };
+    } else if (stock === "low") {
+      baseFilter.stock = { $gt: 0, $lt: 50 };
+    } else if (stock === "in") {
+      baseFilter.stock = { $gte: 50 };
+    }
+
+    if (status === "active") {
+      baseFilter.isActive = true;
+    } else if (status === "inactive") {
+      baseFilter.isActive = false;
     }
 
     let searchQuery = { ...baseFilter };

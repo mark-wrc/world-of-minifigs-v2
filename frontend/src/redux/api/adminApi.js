@@ -27,6 +27,7 @@ const buildPaginationParams = ({
   search,
   category,
   status,
+  stock,
 } = {}) => {
   return {
     ...(page && { page }),
@@ -36,6 +37,7 @@ const buildPaginationParams = ({
       search.trim() && { search: search.trim() }),
     ...(category && { category }),
     ...(status && { status }),
+    ...(stock && { stock }),
   };
 };
 

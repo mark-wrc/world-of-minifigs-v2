@@ -69,6 +69,24 @@ export const PriceCell = ({ amount }) => {
   );
 };
 
+export const StockCell = ({ stock, healthyAt = 50, suffix }) => {
+  const value = Number(stock) || 0;
+
+  let className;
+  let label = `${value}${suffix ? ` ${suffix}` : ""}`;
+
+  if (value <= 0) {
+    className = "text-destructive font-semibold";
+    label = "Out of stock";
+  } else if (value >= healthyAt) {
+    className = "text-success font-semibold";
+  } else {
+    className = "text-amber-500 dark:text-amber-500 font-semibold";
+  }
+
+  return <TableCell className={className}>{label}</TableCell>;
+};
+
 // Actions for view, edit, delete, and export functions
 export const ActionsColumn = ({
   onView,

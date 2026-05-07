@@ -1,4 +1,11 @@
 import React from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import ColorSwatch from "@/components/shared/ColorSwatch";
 import {
   AdminFormInput,
@@ -11,6 +18,7 @@ import {
   TableCell,
   StatusCell,
   PriceCell,
+  StockCell,
   TimestampCells,
 } from "@/components/table/BaseColumn";
 import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
@@ -136,6 +144,10 @@ const GeneralInventoryManagement = () => {
   const {
     activeTab,
     setActiveTab,
+    stockFilter,
+    statusFilter,
+    handleStockFilterChange,
+    handleStatusFilterChange,
     inventory,
     colors,
     collections,
@@ -223,6 +235,38 @@ const GeneralInventoryManagement = () => {
         columns={columns}
         data={inventory}
         isLoading={isLoadingInventory}
+        searchExtra={
+          <>
+            <Select
+              value={stockFilter || "all"}
+              onValueChange={handleStockFilterChange}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All Stock" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stock</SelectItem>
+                <SelectItem value="in">In Stock</SelectItem>
+                <SelectItem value="low">Low Stock</SelectItem>
+                <SelectItem value="out">Out of Stock</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={statusFilter || "all"}
+              onValueChange={handleStatusFilterChange}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
         renderRow={(item) => (
           <>
             {/* Name */}
@@ -253,7 +297,10 @@ const GeneralInventoryManagement = () => {
             )}
 
             {/* Stock (bags) */}
-            <TableCell>{item.stock}</TableCell>
+            <StockCell
+              stock={item.stock}
+              suffix={activeTab === "minifigs" ? "" : "bags"}
+            />
 
             {/* Status */}
             <StatusCell isActive={item.isActive} />

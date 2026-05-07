@@ -65,6 +65,18 @@ const useGeneralInventoryManagement = () => {
   // ------------------------------- Tab State ------------------------------------
   const [activeTab, setActiveTab] = useState("accessories");
 
+  // ------------------------------- Filter State ----------------------------------
+  const [stockFilter, setStockFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const handleStockFilterChange = useCallback((value) => {
+    setStockFilter(value === "all" ? "" : value);
+  }, []);
+
+  const handleStatusFilterChange = useCallback((value) => {
+    setStatusFilter(value === "all" ? "" : value);
+  }, []);
+
   // ------------------------------- Media ------------------------------------
   const {
     filePreview,
@@ -100,6 +112,8 @@ const useGeneralInventoryManagement = () => {
       limit: crud.limit,
       search: crud.search || undefined,
       category: activeTab,
+      stock: stockFilter || undefined,
+      status: statusFilter || undefined,
     });
 
   const isLoadingInventory = isLoading || isFetchingInventory;
@@ -138,10 +152,10 @@ const useGeneralInventoryManagement = () => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
 
-  // Reset to page 1 when the active tab changes
+  // Reset to page 1 when the active tab or any filter changes
   useEffect(() => {
     crud.handlePageChange(1);
-  }, [activeTab]);
+  }, [activeTab, stockFilter, statusFilter]);
 
   const isSubmitting = crud.dialogMode === "edit" ? isUpdating : isCreating;
 
@@ -335,6 +349,10 @@ const useGeneralInventoryManagement = () => {
     ...crud,
     activeTab,
     setActiveTab,
+    stockFilter,
+    statusFilter,
+    handleStockFilterChange,
+    handleStatusFilterChange,
     filePreview,
     fileInputRef,
     inventory,
