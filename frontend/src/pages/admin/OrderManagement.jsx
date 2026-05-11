@@ -747,6 +747,28 @@ const OrderManagement = () => {
                 {formatCurrency(viewOrder?.payment?.taxAmount ?? 0)}
               </span>
             </div>
+            {viewOrder?.payment?.discount?.amount > 0 && (
+              <div className="flex justify-between items-start p-3 gap-3">
+                <div className="flex flex-col space-y-1">
+                  <span className="font-semibold text-xs">
+                    {viewOrder.payment.discount.couponName || "Discount"}
+                    {viewOrder.payment.discount.percentOff
+                      ? ` (${viewOrder.payment.discount.percentOff}% off)`
+                      : viewOrder.payment.discount.amountOff
+                        ? ` (${formatCurrency(viewOrder.payment.discount.amountOff)} off)`
+                        : ""}
+                  </span>
+                  {viewOrder.payment.discount.promotionCode && (
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      Code: {viewOrder.payment.discount.promotionCode}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs">
+                  -{formatCurrency(viewOrder.payment.discount.amount)}
+                </span>
+              </div>
+            )}
             <div
               className={`flex justify-between items-center p-3 font-bold ${viewOrder?.status === "cancelled" ? "text-destructive" : "text-success"}`}
             >

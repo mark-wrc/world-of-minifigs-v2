@@ -5,6 +5,7 @@ import {
   extractShippingAddress,
   extractBillingDetails,
   extractSessionTotals,
+  extractDiscountInfo,
 } from "../../utils/payment/index.js";
 import { ORDER_STATUSES, ORDER_TYPES } from "../../constants/orderConstants.js";
 import sendEmail from "../../utils/sendEmail.js";
@@ -50,6 +51,7 @@ export async function createOrderRecord(
   const shippingAddress = extractShippingAddress(session);
   const billingDetails = extractBillingDetails(session, shippingAddress);
   const totals = extractSessionTotals(session, items);
+  const discount = await extractDiscountInfo(session);
 
   // 3. Construct Order Data
   const orderData = {
@@ -68,6 +70,7 @@ export async function createOrderRecord(
         session.payment_intent?.id || session.payment_intent,
       stripeInvoiceNumber: session.invoice?.number,
       invoiceUrl: session.invoice?.hosted_invoice_url || undefined,
+      ...(discount && { discount }),
     },
     status: ORDER_STATUSES.PAID,
     ...(shippingAddress && { shipping: { address: shippingAddress } }),

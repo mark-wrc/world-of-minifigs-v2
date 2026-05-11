@@ -520,11 +520,33 @@ const CheckoutSuccess = () => {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm">Sales Tax (Included)</span>
+                  <span className="text-sm">Sales Tax</span>
                   <span className="font-bold">
                     {formatCurrency(order?.payment?.taxAmount)}
                   </span>
                 </div>
+                {order?.payment?.discount?.amount > 0 && (
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-sm">
+                        {order.payment.discount.couponName || "Discount"}
+                        {order.payment.discount.percentOff
+                          ? ` (${order.payment.discount.percentOff}% off)`
+                          : order.payment.discount.amountOff
+                            ? ` (${formatCurrency(order.payment.discount.amountOff)} off)`
+                            : ""}
+                      </span>
+                      {order.payment.discount.promotionCode && (
+                        <span className="text-xs text-muted-foreground">
+                          Code: {order.payment.discount.promotionCode}
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-bold text-success dark:text-accent">
+                      -{formatCurrency(order.payment.discount.amount)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {status === "cancelled" && (

@@ -262,6 +262,17 @@ const buildPaymentSummaryHtml = (order, { totalColor = "#0f172a" } = {}) => {
     rows += kv("Sales Tax", p.taxAmount != null ? fmt(p.taxAmount) : "—");
   }
 
+  if (p.discount?.amount > 0) {
+    const d = p.discount;
+    let topLine = d.couponName || "Discount";
+    if (d.percentOff) topLine += ` (${d.percentOff}% off)`;
+    else if (d.amountOff) topLine += ` (${fmt(d.amountOff)} off)`;
+    const codeLine = d.promotionCode
+      ? `<br/><span style="font-size:11px;color:#94a3b8;font-weight:400;">Code: ${d.promotionCode}</span>`
+      : "";
+    rows += kv(`${topLine}${codeLine}`, `-${fmt(d.amount)}`);
+  }
+
   const label = isCancelled ? "Refund Amount" : "Total";
   const color = isCancelled ? "#dc2626" : totalColor;
 

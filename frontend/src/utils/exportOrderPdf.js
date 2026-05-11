@@ -664,11 +664,22 @@ export const exportOrderToPdf = async (order) => {
     ["Subtotal", formatCurrency(order.payment?.subtotal)],
     ["Shipping Fee", formatCurrency(order.payment?.shippingFee)],
     ["Sales Tax", formatCurrency(order.payment?.taxAmount)],
-    [
-      totalLabel,
-      formatCurrency(order.refund?.amount || order.payment?.totalAmount),
-    ],
   ];
+  let discountRowIndex = -1;
+  let discountCodeText = "";
+  if (order.payment?.discount?.amount > 0) {
+    const d = order.payment.discount;
+    let label = d.couponName || "Discount";
+    if (d.percentOff) label += ` (${d.percentOff}% off)`;
+    else if (d.amountOff) label += ` (${formatCurrency(d.amountOff)} off)`;
+    if (d.promotionCode) discountCodeText = `Code: ${d.promotionCode}`;
+    discountRowIndex = summaryRows.length;
+    summaryRows.push([label, `-${formatCurrency(d.amount)}`]);
+  }
+  summaryRows.push([
+    totalLabel,
+    formatCurrency(order.refund?.amount || order.payment?.totalAmount),
+  ]);
 
   const totalRowIndex = summaryRows.length - 1;
 
@@ -699,6 +710,12 @@ export const exportOrderToPdf = async (order) => {
     didParseCell: (data) => {
       if (data.section !== "body") return;
 
+      // Discount row: reserve extra height and top-align so the code line fits below
+      if (data.row.index === discountRowIndex && discountCodeText) {
+        data.cell.styles.minCellHeight = 14;
+        data.cell.styles.valign = "top";
+      }
+
       // Style Total at the bottom
       if (data.row.index === totalRowIndex) {
         data.cell.styles.fontStyle = "bold";
@@ -710,6 +727,20 @@ export const exportOrderToPdf = async (order) => {
           data.cell.styles.textColor = C.gray900;
         }
       }
+    },
+    didDrawCell: (data) => {
+      if (
+        data.section !== "body" ||
+        data.row.index !== discountRowIndex ||
+        data.column.index !== 0 ||
+        !discountCodeText
+      )
+        return;
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "normal");
+      rgb(doc, C.gray600);
+      doc.text(discountCodeText, data.cell.x + 5, data.cell.y + data.cell.height - 3);
+      resetText(doc);
     },
   });
   y = doc.lastAutoTable.finalY + 6;

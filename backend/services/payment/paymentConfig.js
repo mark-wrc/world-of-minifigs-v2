@@ -9,6 +9,7 @@ export const STRIPE_SESSION_CONFIG = {
   automatic_tax: { enabled: true },
   invoice_creation: { enabled: true },
   phone_number_collection: { enabled: true },
+  allow_promotion_codes: true,
   customer_update: {
     shipping: "auto",
   },

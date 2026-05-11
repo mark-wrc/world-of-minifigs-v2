@@ -18,7 +18,13 @@ const patchInvoiceFields = async (order, sessionId) => {
   if (order.payment.stripeInvoiceNumber || order.payment.invoiceUrl) return order;
   const stripe = getStripe();
   const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: ["invoice"],
+    expand: [
+        "invoice",
+        "total_details.breakdown.discounts",
+        "discounts.coupon",
+        "discounts.promotion_code",
+        "discounts.promotion_code.promotion.coupon",
+      ],
   });
   const invoiceNumber = session.invoice?.number;
   const invoiceUrl = session.invoice?.hosted_invoice_url;
@@ -183,7 +189,13 @@ export const confirmOrder = async (req, res) => {
     // 2. Verify payment status with Stripe
     const stripe = getStripe();
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["invoice"],
+      expand: [
+        "invoice",
+        "total_details.breakdown.discounts",
+        "discounts.coupon",
+        "discounts.promotion_code",
+        "discounts.promotion_code.promotion.coupon",
+      ],
     });
 
     if (session.payment_status !== "paid") {
@@ -243,7 +255,13 @@ export const stripeWebhook = async (req, res) => {
       case "checkout.session.completed": {
         const rawSession = event.data.object;
         const session = await stripe.checkout.sessions.retrieve(rawSession.id, {
-          expand: ["invoice"],
+          expand: [
+        "invoice",
+        "total_details.breakdown.discounts",
+        "discounts.coupon",
+        "discounts.promotion_code",
+        "discounts.promotion_code.promotion.coupon",
+      ],
         });
 
         try {

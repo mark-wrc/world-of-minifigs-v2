@@ -30,7 +30,7 @@ const UserDropdown = ({
           <AvatarFallback>{userInitials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-full" align="end" forceMount>
         <DropdownMenuLabel>
           <div className="flex flex-col">
             <p className="font-semibold">

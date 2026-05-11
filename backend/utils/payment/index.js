@@ -2,6 +2,7 @@ export {
   extractShippingAddress,
   extractBillingDetails,
   extractSessionTotals,
+  extractDiscountInfo,
   getFullSessionIfNeeded,
 } from "./extractors.js";
 
