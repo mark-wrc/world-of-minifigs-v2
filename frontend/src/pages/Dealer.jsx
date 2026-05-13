@@ -167,33 +167,37 @@ const Dealer = () => {
             onPreview={addonPreview.onOpen}
           />
 
-          <DealerExtraBag
-            extraBags={extraBags}
-            totalExtraBags={totalExtraBags}
-            maxExtraBags={maxExtraBags}
-            selectedBundle={selectedBundle}
-            onQtyChange={handleExtraBagQtyChange}
-          />
+          {selectedBundle && (
+            <DealerExtraBag
+              extraBags={extraBags}
+              totalExtraBags={totalExtraBags}
+              maxExtraBags={maxExtraBags}
+              selectedBundle={selectedBundle}
+              onQtyChange={handleExtraBagQtyChange}
+            />
+          )}
 
-          <DealerTorsoBag
-            torsoBags={torsoBags}
-            lastSelectedBag={lastSelectedBag}
-            onSelect={handleSelectTorsoBag}
-            isAdmin={isAdmin}
-            isCustomBundle={isCustomBundle}
-            multiplier={multiplier}
-            bagMultiplier={bagMultiplier}
-            miscQuantity={miscQuantity}
-            displayItems={displayItems}
-            localItems={localItems}
-            hasReorderChanges={hasReorderChanges}
-            isSavingOrder={isSavingOrder}
-            reorderSensors={reorderSensors}
-            reorderItemIds={reorderItemIds}
-            onDragEnd={handleReorderDragEnd}
-            onSave={handleSaveReorder}
-            onReset={handleResetReorder}
-          />
+          {selectedBundle && (
+            <DealerTorsoBag
+              torsoBags={torsoBags}
+              lastSelectedBag={lastSelectedBag}
+              onSelect={handleSelectTorsoBag}
+              isAdmin={isAdmin}
+              isCustomBundle={isCustomBundle}
+              multiplier={multiplier}
+              bagMultiplier={bagMultiplier}
+              miscQuantity={miscQuantity}
+              displayItems={displayItems}
+              localItems={localItems}
+              hasReorderChanges={hasReorderChanges}
+              isSavingOrder={isSavingOrder}
+              reorderSensors={reorderSensors}
+              reorderItemIds={reorderItemIds}
+              onDragEnd={handleReorderDragEnd}
+              onSave={handleSaveReorder}
+              onReset={handleResetReorder}
+            />
+          )}
         </div>
 
         <DealerOrderSummary

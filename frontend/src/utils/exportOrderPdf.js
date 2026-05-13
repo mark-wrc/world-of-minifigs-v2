@@ -486,7 +486,7 @@ export const exportOrderToPdf = async (order) => {
     const di = order.dealerItems;
 
     // Bundle + torso bags combined into one table
-    if (di.bundle) {
+    if (di.bundle?.name) {
       const torsoBags = di.torsoBags ?? [];
 
       // Row 0 = bundle, rows 1+ = torso bag entries

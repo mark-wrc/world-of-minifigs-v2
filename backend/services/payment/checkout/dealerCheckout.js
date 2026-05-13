@@ -21,31 +21,24 @@ import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 export async function buildLineItemsForDealer(body, userId) {
   const { bundleId, torsoBags: torsoBagsPayload, addons, extraBags } = body;
 
-  // 1. Validate & fetch bundle
-  if (!bundleId) {
-    return {
-      error: {
-        status: 400,
-        message: "Bundle is required",
-        description: "Please select a minifig bundle.",
-      },
-    };
-  }
+  // 1. Bundle is optional — dealers can order add-ons / extra bags alone.
+  let bundle = null;
+  if (bundleId) {
+    bundle = await Bundle.findOne({
+      _id: bundleId,
+      bundleType: "dealer",
+      isActive: true,
+    }).lean();
 
-  const bundle = await Bundle.findOne({
-    _id: bundleId,
-    bundleType: "dealer",
-    isActive: true,
-  }).lean();
-
-  if (!bundle) {
-    return {
-      error: {
-        status: 404,
-        message: "Bundle not found",
-        description: "The selected bundle does not exist or is unavailable.",
-      },
-    };
+    if (!bundle) {
+      return {
+        error: {
+          status: 404,
+          message: "Bundle not found",
+          description: "The selected bundle does not exist or is unavailable.",
+        },
+      };
+    }
   }
 
   // 2. Validate & fetch torso bags
@@ -162,24 +155,26 @@ export async function buildLineItemsForDealer(body, userId) {
     }
   }
 
-  // 4. Validate & fetch extra bags
+  // 4. Validate & fetch extra bags. Extra-bag cap only applies when a bundle is selected.
   const validatedExtraBags = [];
   let extraBagsTotal = 0;
   if (extraBags && Array.isArray(extraBags) && extraBags.length > 0) {
-    const maxBags = Math.floor(bundle.minifigQuantity / EXTRA_BAG_RATIO);
-    const totalSelected = extraBags.reduce(
-      (sum, eb) => sum + Math.max(1, Math.floor(Number(eb.quantity) || 1)),
-      0,
-    );
+    if (bundle) {
+      const maxBags = Math.floor(bundle.minifigQuantity / EXTRA_BAG_RATIO);
+      const totalSelected = extraBags.reduce(
+        (sum, eb) => sum + Math.max(1, Math.floor(Number(eb.quantity) || 1)),
+        0,
+      );
 
-    if (totalSelected > maxBags) {
-      return {
-        error: {
-          status: 400,
-          message: "Too many extra bags",
-          description: `Allowed up to ${maxBags} extra bags. You selected ${totalSelected}.`,
-        },
-      };
+      if (totalSelected > maxBags) {
+        return {
+          error: {
+            status: 400,
+            message: "Too many extra bags",
+            description: `Allowed up to ${maxBags} extra bags. You selected ${totalSelected}.`,
+          },
+        };
+      }
     }
 
     for (const bagEntry of extraBags) {
@@ -206,17 +201,36 @@ export async function buildLineItemsForDealer(body, userId) {
     }
   }
 
-  // 5. Build Stripe line items
-  const bagSummary = validatedTorsoBags
-    .map((tb) =>
-      tb.quantity > 1 ? `${tb.bagName}×${tb.quantity}` : tb.bagName,
-    )
-    .join(", ");
-  const bundleName = `${bundle.minifigQuantity} Minifigs${bagSummary ? ` [${bagSummary}]` : ""}`;
+  // 5. Require at least one purchasable item.
+  if (
+    !bundle &&
+    validatedAddons.length === 0 &&
+    validatedExtraBags.length === 0
+  ) {
+    return {
+      error: {
+        status: 400,
+        message: "Empty order",
+        description:
+          "Please select a bundle, add-on, or extra part bag before checking out.",
+      },
+    };
+  }
 
-  const lineItems = [
-    buildStripeLineItem(bundleName, Math.round(bundle.totalPrice * 100), 1),
-  ];
+  // 6. Build Stripe line items
+  const lineItems = [];
+
+  if (bundle) {
+    const bagSummary = validatedTorsoBags
+      .map((tb) =>
+        tb.quantity > 1 ? `${tb.bagName}×${tb.quantity}` : tb.bagName,
+      )
+      .join(", ");
+    const bundleName = `${bundle.minifigQuantity} Minifigs${bagSummary ? ` [${bagSummary}]` : ""}`;
+    lineItems.push(
+      buildStripeLineItem(bundleName, Math.round(bundle.totalPrice * 100), 1),
+    );
+  }
 
   // Individual Add-ons
   if (validatedAddons.length > 0) {
@@ -249,9 +263,9 @@ export async function buildLineItemsForDealer(body, userId) {
     });
   }
 
-  // 6. Save Draft Snapshot (Scalability & Character Limit Solution)
+  // 7. Save Draft Snapshot (Scalability & Character Limit Solution)
   const draftId = await saveOrderDraft(userId, ORDER_TYPES.DEALER, {
-    bundleId: bundle._id,
+    bundleId: bundle?._id,
     torsoBags: validatedTorsoBags.length > 0 ? validatedTorsoBags : undefined,
     addons: validatedAddons,
     extraBags: validatedExtraBags,
@@ -279,17 +293,19 @@ export async function createDealerOrderFromStripeSession(session) {
 
   const { bundleId, torsoBags, addons, extraBags } = draft.payload;
 
-  const bundle = await Bundle.findById(bundleId).lean();
-  if (!bundle) return null;
+  // Bundle is optional — dealers can order addons / extra bags alone.
+  const bundle = bundleId ? await Bundle.findById(bundleId).lean() : null;
+  if (bundleId && !bundle) return null;
 
   // Build the hierarchical manifest for database persistence
-  const manifest = {
-    bundle: {
+  const manifest = {};
+  if (bundle) {
+    manifest.bundle = {
       id: bundle._id,
       name: `${bundle.minifigQuantity} Minifigs`,
       price: bundle.totalPrice,
-    },
-  };
+    };
+  }
 
   if (torsoBags?.length > 0) {
     const resolvedBags = [];

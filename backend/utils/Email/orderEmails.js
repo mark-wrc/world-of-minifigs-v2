@@ -118,10 +118,10 @@ const buildItemsHtml = (order) => {
     const di = order.dealerItems;
     const allRows = [];
 
-    if (di.bundle) {
+    if (di.bundle?.name) {
       allRows.push({
         type: "main",
-        name: di.bundle.name || "Bundle",
+        name: di.bundle.name,
         value: fmt(di.bundle.price),
       });
 

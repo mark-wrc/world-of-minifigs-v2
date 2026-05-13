@@ -22,6 +22,7 @@ export const useDealer = () => {
   const isAdmin = user?.role === "admin";
 
   const [selectedBundleId, setSelectedBundleId] = useState(null);
+  const [bundleAutoSelected, setBundleAutoSelected] = useState(false);
   const [selectedAddonIds, setSelectedAddonIds] = useState([]);
   const [selectedAddonConfigs, setSelectedAddonConfigs] = useState({});
   const [selectedAddon, setSelectedAddon] = useState(null);
@@ -64,14 +65,22 @@ export const useDealer = () => {
 
   // ==================== Bundle Selection ====================
 
-  // Auto-select 500-minifig bundle as default, fall back to first
+  // Auto-select 500-minifig bundle as default on first load, fall back to first.
+  // Runs only once so the user can deselect afterwards without re-selection.
   useEffect(() => {
-    if (bundles.length > 0 && !selectedBundleId) {
+    if (bundleAutoSelected) return;
+    if (bundles.length > 0) {
       const preferred =
         bundles.find((b) => b.minifigQuantity === 500) ?? bundles[0];
       setSelectedBundleId(preferred._id);
+      setBundleAutoSelected(true);
     }
-  }, [bundles, selectedBundleId]);
+  }, [bundles, bundleAutoSelected]);
+
+  const handleSelectBundle = useCallback((bundleId) => {
+    setBundleAutoSelected(true);
+    setSelectedBundleId((prev) => (prev === bundleId ? null : bundleId));
+  }, []);
 
   const selectedBundle = useMemo(
     () => bundles.find((b) => b._id === selectedBundleId),
@@ -104,13 +113,12 @@ export const useDealer = () => {
     : [];
 
   // Helper to determine if a bag size fits this bundle perfectly or via multiplier.
-  // Custom bundles always select one full bag at a time — no quantity split.
   const getBagMultiplier = useCallback(
     (bagSize) => {
       if (!selectedBundle) return 1;
 
       if (isCustomBundle) {
-        return 1;
+        return Math.max(1, Math.floor(selectedBundle.minifigQuantity / 100));
       }
 
       if (!bagSize || bagSize <= 0) return 1;
@@ -180,9 +188,10 @@ export const useDealer = () => {
     }));
   }, [addons, selectedAddonIds]);
 
+  // When no bundle is selected, extra bags are unconstrained.
   const maxExtraBags = selectedBundle
     ? Math.floor(selectedBundle.minifigQuantity / 100)
-    : 0;
+    : Infinity;
 
   const totalExtraBags = Object.values(extraBagQuantities).reduce(
     (acc, qty) => acc + qty,
@@ -608,8 +617,9 @@ export const useDealer = () => {
     })
     .filter(Boolean);
 
-  const canCheckout =
-    !!selectedBundle && totalAssignedBags > 0 && remainingBagSlots === 0;
+  const canCheckout = selectedBundle
+    ? totalAssignedBags > 0 && remainingBagSlots === 0
+    : selectedAddonIds.length > 0 || totalExtraBags > 0;
 
   // ==================== Status ====================
 
@@ -653,7 +663,7 @@ export const useDealer = () => {
 
     checkout({
       orderType: "dealer",
-      bundleId: selectedBundleId,
+      bundleId: selectedBundleId || undefined,
       torsoBags: torsoBagsPayload.length > 0 ? torsoBagsPayload : undefined,
       addons: addonPayload.length > 0 ? addonPayload : undefined,
       extraBags: extraBagPayload.length > 0 ? extraBagPayload : undefined,
@@ -671,7 +681,7 @@ export const useDealer = () => {
 
   return {
     // States & Setters
-    setSelectedBundleId,
+    setSelectedBundleId: handleSelectBundle,
 
     // Data
     bundles: bundlesWithSelection,

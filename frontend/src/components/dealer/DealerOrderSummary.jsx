@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import { formatCurrency } from "@/utils/formatting";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QuantityControl from "@/components/shared/QuantityControl";
 
@@ -31,6 +31,8 @@ const DealerOrderSummary = ({
     }));
   };
 
+  const hasItems = !!selectedBundle || addons.length > 0 || totalExtraBags > 0;
+
   return (
     <aside className="lg:sticky lg:top-24 space-y-5">
       <Card className="border-2 border-accent overflow-hidden p-0">
@@ -41,6 +43,16 @@ const DealerOrderSummary = ({
         </div>
 
         <div className="px-4 py-2 space-y-5">
+          {/* Empty state */}
+          {!hasItems && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <ShoppingCart className="w-8 h-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-semibold text-muted-foreground">
+                No items yet
+              </p>
+            </div>
+          )}
+
           {/* Main Bundle Section */}
           {selectedBundle && (
             <div className="space-y-3 pb-3">
@@ -66,7 +78,9 @@ const DealerOrderSummary = ({
                           </span>
                           <QuantityControl
                             value={bag.quantity}
-                            onChange={(val) => onSetTorsoBagQuantity?.(bag._id, val)}
+                            onChange={(val) =>
+                              onSetTorsoBagQuantity?.(bag._id, val)
+                            }
                             min={0}
                             max={bag.quantity + remainingBagSlots}
                             size="xs"
@@ -78,7 +92,9 @@ const DealerOrderSummary = ({
 
                   {remainingBagSlots > 0 && torsoBags.length > 0 && (
                     <p className="text-[10px] text-amber-500 dark:text-amber-400 font-medium">
-                      {remainingBagSlots} slot{remainingBagSlots !== 1 ? "s" : ""} remaining — fill all slots to checkout
+                      {remainingBagSlots} slot
+                      {remainingBagSlots !== 1 ? "s" : ""} remaining — fill all
+                      slots to checkout
                     </p>
                   )}
                 </div>
@@ -102,10 +118,7 @@ const DealerOrderSummary = ({
                 const isExpanded = expandedAddons[addon._id];
 
                 return (
-                  <div
-                    key={addon._id}
-                    className="space-y-2 pb-2"
-                  >
+                  <div key={addon._id} className="space-y-2 pb-2">
                     <div className="flex justify-between items-start gap-2">
                       <div className="space-y-3">
                         <p className="text-sm font-bold">{addon.addonName}</p>

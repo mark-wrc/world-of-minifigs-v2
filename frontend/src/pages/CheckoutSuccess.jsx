@@ -127,7 +127,7 @@ const CheckoutSuccess = () => {
             {isDealer && di && (
               <>
                 {/* Selected Bundle Card */}
-                {di.bundle && (
+                {di.bundle?.name && (
                   <Card>
                     <CardContent className="space-y-3">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">

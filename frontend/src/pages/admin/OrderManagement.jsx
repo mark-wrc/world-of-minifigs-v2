@@ -528,36 +528,38 @@ const OrderManagement = () => {
           {viewOrder?.orderType === "dealer" && viewOrder.dealerItems && (
             <div className="space-y-4">
               {/* Bundle + Torso Bags */}
-              <div className="rounded-lg border">
-                <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
-                  Selected Bundle
-                </div>
-                <div className="p-3 flex justify-between items-center">
-                  <span className="text-xs font-medium">
-                    {viewOrder.dealerItems.bundle?.name}
-                  </span>
-                  <span className="text-xs font-bold text-success dark:text-accent">
-                    {formatCurrency(viewOrder.dealerItems.bundle?.price)}
-                  </span>
-                </div>
-
-                {/* Torso bags */}
-                {viewOrder.dealerItems.torsoBags?.length > 0 && (
-                  <div className="border-t px-3 py-2 space-y-3">
-                    {viewOrder.dealerItems.torsoBags.map((tb, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between items-center"
-                      >
-                        <span className="text-xs">{tb.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          ×{tb.quantity}
-                        </span>
-                      </div>
-                    ))}
+              {viewOrder.dealerItems.bundle?.name && (
+                <div className="rounded-lg border">
+                  <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
+                    Selected Bundle
                   </div>
-                )}
-              </div>
+                  <div className="p-3 flex justify-between items-center">
+                    <span className="text-xs font-medium">
+                      {viewOrder.dealerItems.bundle?.name}
+                    </span>
+                    <span className="text-xs font-bold text-success dark:text-accent">
+                      {formatCurrency(viewOrder.dealerItems.bundle?.price)}
+                    </span>
+                  </div>
+
+                  {/* Torso bags */}
+                  {viewOrder.dealerItems.torsoBags?.length > 0 && (
+                    <div className="border-t px-3 py-2 space-y-3">
+                      {viewOrder.dealerItems.torsoBags.map((tb, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center"
+                        >
+                          <span className="text-xs">{tb.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            ×{tb.quantity}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Addons */}
               {viewOrder.dealerItems.addons?.length > 0 && (

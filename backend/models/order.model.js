@@ -29,9 +29,15 @@ const productItemSchema = new mongoose.Schema(
 const dealerItemSchema = new mongoose.Schema(
   {
     bundle: {
-      id: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
-      name: { type: String },
-      price: { type: Number },
+      type: new mongoose.Schema(
+        {
+          id: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
+          name: { type: String },
+          price: { type: Number },
+        },
+        { _id: false },
+      ),
+      default: undefined,
     },
     torsoBags: [
       {
