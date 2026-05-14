@@ -1,4 +1,3 @@
-import Bundle from "../models/bundle.model.js";
 import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
 import {
   processItemsForCreate,
@@ -10,29 +9,28 @@ import {
 const TORSO_FOLDER = "world-of-minifigs-v2/dealers/torsos";
 const ADDON_FOLDER = "world-of-minifigs-v2/dealers/addons";
 
+// Miscellaneous ("mystery") torsos per single base bag.
+// 10 misc per 100-bag, 40 misc per 500-bag. Multiplied for multi-bag bundles.
+export const MISC_PER_BAG = { 100: 10, 500: 40 };
+
 // ------------------------ Quantity Helpers ------------------------------------
 
-export const getMiscQuantity = (bundleSize) => {
-  if (bundleSize === 1000) return 80;
-  if (bundleSize === 500) return 40;
-  return 10;
+export const getMiscPerBag = (baseSize) => MISC_PER_BAG[baseSize] ?? 0;
+
+// Total misc for a bundle = misc-per-bag × (multiplier).
+export const getBundleMiscQuantity = (bundle) => {
+  if (!bundle?.baseSize) return 0;
+  const multiplier = bundle.minifigQuantity / bundle.baseSize;
+  return getMiscPerBag(bundle.baseSize) * multiplier;
 };
 
-export const getAdminTarget = (targetBundleSize) =>
-  targetBundleSize - getMiscQuantity(targetBundleSize);
-
-export const getBaseBundleSize = async (bundleType = "dealer") => {
-  const lowestBundle = await Bundle.findOne({
-    bundleType,
-    isActive: true,
-  }).sort({ minifigQuantity: 1 });
-  return lowestBundle ? lowestBundle.minifigQuantity : 100;
-};
+// Admin-configurable designs per base bag (e.g. 90 for size-100, 460 for size-500).
+export const getAdminTarget = (baseSize) => baseSize - getMiscPerBag(baseSize);
 
 // ------------------------ Torso Item Validation ------------------------------------
 
-export const validateTorsoItems = async (items, targetBundleSize) => {
-  const adminTarget = getAdminTarget(targetBundleSize);
+export const validateTorsoItems = async (items, baseSize) => {
+  const adminTarget = getAdminTarget(baseSize);
   const totalQty = items.reduce(
     (sum, item) => sum + (Number(item.quantity) || 0),
     0,
@@ -42,7 +40,7 @@ export const validateTorsoItems = async (items, targetBundleSize) => {
     return {
       isValid: false,
       message: "Invalid total quantity",
-      description: `Total designs quantity must equal ${adminTarget} (${targetBundleSize} minus ${getMiscQuantity(targetBundleSize)} miscellaneous). Current total: ${totalQty}.`,
+      description: `Total designs quantity must equal ${adminTarget} (${baseSize} minus ${getMiscPerBag(baseSize)} miscellaneous). Current total: ${totalQty}.`,
     };
   }
 

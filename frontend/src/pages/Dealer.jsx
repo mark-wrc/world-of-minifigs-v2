@@ -32,7 +32,6 @@ const Dealer = () => {
     torsoBags,
 
     // Bundle Type Info
-    isCustomBundle,
     multiplier,
     miscQuantity,
     displayItems,
@@ -183,7 +182,6 @@ const Dealer = () => {
               lastSelectedBag={lastSelectedBag}
               onSelect={handleSelectTorsoBag}
               isAdmin={isAdmin}
-              isCustomBundle={isCustomBundle}
               multiplier={multiplier}
               bagMultiplier={bagMultiplier}
               miscQuantity={miscQuantity}

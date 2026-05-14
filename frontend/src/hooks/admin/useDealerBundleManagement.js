@@ -7,6 +7,7 @@ import {
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { cleanFeatures, sanitizeString } from "@/utils/formatting";
+import { toast } from "sonner";
 import { validateDealerBundle } from "@/utils/validation";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
@@ -14,14 +15,14 @@ const initialFormData = {
   bundleName: "",
   minifigQuantity: "",
   unitPrice: "",
-  torsoBagType: "regular",
+  baseSize: 100,
   isActive: true,
   features: [""],
 };
 
 const columns = [
   { key: "bundleName", label: "Bundle" },
-  { key: "torsoBagType", label: "Torso Type" },
+  { key: "baseSize", label: "Base Size" },
   { key: "minifigQuantity", label: "Quantity" },
   { key: "unitPrice", label: "Unit Price" },
   { key: "totalPrice", label: "Total Price" },
@@ -79,7 +80,7 @@ const useDealerBundleManagement = () => {
       bundleName: bundle.bundleName || "",
       minifigQuantity: bundle.minifigQuantity || "",
       unitPrice: bundle.unitPrice || "",
-      torsoBagType: bundle.torsoBagType || "regular",
+      baseSize: bundle.baseSize || 100,
       isActive: bundle.isActive !== false,
       features:
         bundle.features && bundle.features.length > 0 ? bundle.features : [""],
@@ -90,12 +91,21 @@ const useDealerBundleManagement = () => {
   const handleSubmit = async () => {
     if (!validateDealerBundle(crud.formData)) return;
 
+    const qty = Number(crud.formData.minifigQuantity);
+    const base = Number(crud.formData.baseSize);
+    if (qty % base !== 0) {
+      toast.error("Invalid bundle size", {
+        description: `Quantity (${qty}) must be a multiple of the base bag size (${base}).`,
+      });
+      return;
+    }
+
     const payload = {
       bundleName: sanitizeString(crud.formData.bundleName),
-      minifigQuantity: Number(crud.formData.minifigQuantity),
+      minifigQuantity: qty,
       unitPrice: Number(crud.formData.unitPrice),
       totalPrice: calculatedTotal,
-      torsoBagType: crud.formData.torsoBagType || "regular",
+      baseSize: base,
       isActive: crud.formData.isActive,
       features: cleanFeatures(crud.formData.features),
     };

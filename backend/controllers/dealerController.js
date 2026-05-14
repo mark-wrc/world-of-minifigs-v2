@@ -46,13 +46,40 @@ import {
   findBundleByIdAndType,
 } from "../utils/bundleUtils.js";
 import {
-  getMiscQuantity,
-  getBaseBundleSize,
+  getBundleMiscQuantity,
   validateTorsoItems,
   checkTorsoBagNameConflict,
   processTorsoBagItems,
   processTorsoBagItemsForUpdate,
 } from "../services/bundleService.js";
+
+// Dealer bundles must use one of these two base torso-bag sizes.
+const VALID_BASE_SIZES = [100, 500];
+
+const validateBaseSize = (baseSize, minifigQuantity) => {
+  const base = Number(baseSize);
+  if (!VALID_BASE_SIZES.includes(base)) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Invalid base size",
+        description: "Base size must be either 100 or 500.",
+      },
+    };
+  }
+  if (Number(minifigQuantity) % base !== 0) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Invalid bundle size",
+        description: `Bundle quantity (${minifigQuantity}) must be a multiple of the base size (${base}).`,
+      },
+    };
+  }
+  return { isValid: true, baseSize: base };
+};
 
 // -------------------------------- Helper Functions ----------------------------------
 
@@ -135,7 +162,7 @@ export const createDealerBundle = async (req, res) => {
       bundleName,
       minifigQuantity,
       totalPrice,
-      torsoBagType,
+      baseSize,
       features,
       isActive,
     } = req.body;
@@ -165,6 +192,13 @@ export const createDealerBundle = async (req, res) => {
       });
     }
 
+    const baseSizeValidation = validateBaseSize(baseSize, minifigQuantity);
+    if (!baseSizeValidation.isValid) {
+      return res
+        .status(baseSizeValidation.error.status)
+        .json(baseSizeValidation.error);
+    }
+
     // Check for existing bundle with same quantity
     const existingBundle = await checkBundleConflict(minifigQuantity);
     if (existingBundle) {
@@ -183,7 +217,7 @@ export const createDealerBundle = async (req, res) => {
       minifigQuantity,
       unitPrice,
       totalPrice,
-      torsoBagType: torsoBagType || "regular",
+      baseSize: baseSizeValidation.baseSize,
       isActive: isActive !== undefined ? isActive : true,
       createdBy: req.user._id,
     };
@@ -239,7 +273,7 @@ export const updateDealerBundle = async (req, res) => {
       bundleName,
       minifigQuantity,
       totalPrice,
-      torsoBagType,
+      baseSize,
       features,
       isActive,
     } = req.body;
@@ -280,7 +314,19 @@ export const updateDealerBundle = async (req, res) => {
     }
 
     if (totalPrice !== undefined) bundle.totalPrice = totalPrice;
-    if (torsoBagType) bundle.torsoBagType = torsoBagType;
+
+    if (baseSize !== undefined) {
+      const baseSizeValidation = validateBaseSize(
+        baseSize,
+        bundle.minifigQuantity,
+      );
+      if (!baseSizeValidation.isValid) {
+        return res
+          .status(baseSizeValidation.error.status)
+          .json(baseSizeValidation.error);
+      }
+      bundle.baseSize = baseSizeValidation.baseSize;
+    }
 
     if (features !== undefined) {
       const processedFeatures = processFeatures(features);
@@ -811,7 +857,7 @@ export const deleteDealerExtraBag = async (req, res) => {
 
 export const createDealerTorsoBag = async (req, res) => {
   try {
-    const { bagName, items, targetBundleSize, isActive, stock } = req.body;
+    const { bagName, items, baseSize, isActive, stock } = req.body;
 
     // Validate required fields
     if (!bagName) {
@@ -830,9 +876,16 @@ export const createDealerTorsoBag = async (req, res) => {
       });
     }
 
-    // Determine target: use provided value or fall back to base bundle size
-    const resolvedTarget = targetBundleSize || (await getBaseBundleSize());
-    const validation = await validateTorsoItems(items, resolvedTarget);
+    const base = Number(baseSize);
+    if (![100, 500].includes(base)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid base size",
+        description: "Torso bag base size must be either 100 or 500.",
+      });
+    }
+
+    const validation = await validateTorsoItems(items, base);
 
     if (!validation.isValid) {
       return res.status(400).json({
@@ -858,7 +911,7 @@ export const createDealerTorsoBag = async (req, res) => {
     const torsoBag = await DealerTorsoBag.create({
       bagName: bagName.trim(),
       items: uploadedItems,
-      targetBundleSize: resolvedTarget,
+      baseSize: base,
       stock: stock !== undefined ? Math.max(0, Number(stock) || 0) : 0,
       isActive: isActive !== undefined ? isActive : true,
       createdBy: req.user._id,
@@ -910,7 +963,7 @@ export const getAllDealerTorsoBags = async (req, res) => {
 export const updateDealerTorsoBag = async (req, res) => {
   try {
     const { id } = req.params;
-    const { bagName, items, targetBundleSize, isActive, stock } = req.body;
+    const { bagName, items, baseSize, isActive, stock } = req.body;
 
     const torsoBag = await DealerTorsoBag.findById(id);
 
@@ -940,13 +993,23 @@ export const updateDealerTorsoBag = async (req, res) => {
 
     if (isActive !== undefined) torsoBag.isActive = isActive;
     if (stock !== undefined) torsoBag.stock = Math.max(0, Number(stock) || 0);
-    if (targetBundleSize) torsoBag.targetBundleSize = targetBundleSize;
+
+    if (baseSize !== undefined) {
+      const base = Number(baseSize);
+      if (![100, 500].includes(base)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid base size",
+          description: "Torso bag base size must be either 100 or 500.",
+        });
+      }
+      torsoBag.baseSize = base;
+    }
 
     // Process items if provided
     if (items && Array.isArray(items)) {
-      const resolvedTarget =
-        targetBundleSize || torsoBag.targetBundleSize || 100;
-      const validation = await validateTorsoItems(items, resolvedTarget);
+      const resolvedBase = torsoBag.baseSize;
+      const validation = await validateTorsoItems(items, resolvedBase);
 
       if (!validation.isValid) {
         return res.status(400).json({
@@ -962,7 +1025,6 @@ export const updateDealerTorsoBag = async (req, res) => {
       );
 
       torsoBag.items = processedItems;
-      torsoBag.targetBundleSize = resolvedTarget;
     }
 
     torsoBag.updatedBy = req.user._id;
@@ -1090,7 +1152,7 @@ export const getDealerBundlesForUser = async (req, res) => {
 
     const bundles = rawBundles.map((b) => ({
       ...b,
-      miscQuantity: getMiscQuantity(b.minifigQuantity),
+      miscQuantity: getBundleMiscQuantity(b),
     }));
 
     return res.status(200).json({
@@ -1167,9 +1229,9 @@ export const getDealerTorsoBagsForUser = async (req, res) => {
   try {
     const query = { isActive: true, stock: { $gt: 0 } };
 
-    // Filter by target bundle size when provided
-    if (req.query.targetBundleSize) {
-      query.targetBundleSize = Number(req.query.targetBundleSize);
+    // Filter by base size when provided
+    if (req.query.baseSize) {
+      query.baseSize = Number(req.query.baseSize);
     }
 
     const torsoBags = await DealerTorsoBag.find(query)

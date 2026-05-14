@@ -11,7 +11,8 @@
       "Bash(grep -E \"\\\\.\\(jsx|js\\)$\")",
       "Bash(grep -E \"frontend.*\\\\.\\(jsx|js\\)$\")",
       "Bash(grep -E \"\\\\.jsx$\")",
-      "Bash(grep -E \"\\\\.js$\")"
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(dir *)"
     ]
   }
 }

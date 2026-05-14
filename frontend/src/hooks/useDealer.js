@@ -89,69 +89,32 @@ export const useDealer = () => {
 
   // ==================== Bundle Type & Multiplier ====================
 
-  // Find the smallest "regular" bundle = the base
-
-  const isCustomBundle = selectedBundle?.torsoBagType === "custom";
-
-  // Misc quantity from API (backend computes using MISC_RATIO)
+  // miscQuantity comes from the API (already scaled by the bundle's multiplier).
   const miscQuantity = selectedBundle?.miscQuantity ?? 0;
+
+  // Slot count for this bundle (e.g. 3 for 300-minifig bundle on 100-bag base).
+  const bagMultiplier = selectedBundle
+    ? selectedBundle.minifigQuantity / selectedBundle.baseSize
+    : 1;
 
   // ==================== Torso Bag Fetching ====================
 
-  // Fetch all active bags to allow intelligent filtering in frontend
   const {
     data: torsoBagData,
     isLoading: isLoadingTorsoBags,
     isError: isErrorTorsoBags,
   } = useGetDealerTorsoBagsQuery(
-    {}, // Fetch all active
+    selectedBundle ? { baseSize: selectedBundle.baseSize } : {},
     { skip: !selectedBundle },
   );
 
-  const rawTorsoBags = Array.isArray(torsoBagData?.torsoBags)
-    ? torsoBagData.torsoBags
-    : [];
-
-  // Helper to determine if a bag size fits this bundle perfectly or via multiplier.
-  const getBagMultiplier = useCallback(
-    (bagSize) => {
-      if (!selectedBundle) return 1;
-
-      if (isCustomBundle) {
-        return 1;
-      }
-
-      if (!bagSize || bagSize <= 0) return 1;
-
-      const bundleQty = selectedBundle.minifigQuantity;
-
-      // 1. Must be a divisor
-      if (bundleQty % bagSize !== 0) return null;
-
-      return bundleQty / bagSize;
-    },
-    [selectedBundle, isCustomBundle],
-  );
-
   const torsoBags = useMemo(() => {
+    const raw = Array.isArray(torsoBagData?.torsoBags)
+      ? torsoBagData.torsoBags
+      : [];
     if (!selectedBundle) return [];
-    if (isCustomBundle) {
-      const mult = getBagMultiplier();
-      return rawTorsoBags
-        .filter((b) => b.targetBundleSize === selectedBundle.minifigQuantity)
-        .map((bag) => ({ ...bag, multiplier: mult }));
-    }
-
-    return rawTorsoBags
-      .map((bag) => {
-        const mult = getBagMultiplier(bag.targetBundleSize);
-        return mult ? { ...bag, multiplier: mult } : null;
-      })
-      .filter(Boolean);
-  }, [rawTorsoBags, selectedBundle, isCustomBundle, getBagMultiplier]);
-
-  // Total number of bag slots for this bundle (e.g. 3 for 300-bundle with 100-size bags)
-  const bagMultiplier = torsoBags[0]?.multiplier ?? 1;
+    return raw.filter((b) => b.baseSize === selectedBundle.baseSize);
+  }, [torsoBagData, selectedBundle]);
 
   // Derived selection state from split quantities
   const selectedTorsoBagIds = useMemo(
@@ -467,22 +430,21 @@ export const useDealer = () => {
     torsoBags,
   ]);
 
+  // Multiplier for the currently-previewed bag = how many slots the user assigned to it
+  // (or the full bagMultiplier if no allocation yet).
   const currentMultiplier = useMemo(() => {
-    if (isCustomBundle || !lastSelectedBag) return 1;
+    if (!lastSelectedBag) return 1;
     const assignedQty = torsoBagSplitQuantities[lastSelectedBag._id] || 0;
-    return assignedQty > 0 ? assignedQty : lastSelectedBag.multiplier || 1;
-  }, [isCustomBundle, lastSelectedBag, torsoBagSplitQuantities]);
+    return assignedQty > 0 ? assignedQty : bagMultiplier;
+  }, [lastSelectedBag, torsoBagSplitQuantities, bagMultiplier]);
 
-  // Build display items (apply multiplier for regular bundles)
   const displayItems = useMemo(() => {
     if (!lastSelectedBag?.items) return [];
     return lastSelectedBag.items.map((item) => ({
       ...item,
-      displayQuantity: isCustomBundle
-        ? item.quantity
-        : item.quantity * currentMultiplier,
+      displayQuantity: item.quantity * currentMultiplier,
     }));
-  }, [lastSelectedBag, isCustomBundle, currentMultiplier]);
+  }, [lastSelectedBag, currentMultiplier]);
 
   // ==================== Reorder Logic ====================
 
@@ -690,9 +652,8 @@ export const useDealer = () => {
     torsoBags: torsoBagsWithSelection,
 
     // Bundle Type Info
-    isCustomBundle,
     multiplier: currentMultiplier,
-    miscQuantity: miscQuantity * currentMultiplier,
+    miscQuantity: miscQuantity * (currentMultiplier / (bagMultiplier || 1)),
     displayItems,
 
     // Memos

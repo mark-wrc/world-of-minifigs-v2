@@ -94,9 +94,9 @@ const DealerBundleManagement = () => {
             {/* Bundle Name */}
             <TableCell maxWidth="200px">{display(bundle.bundleName)}</TableCell>
 
-            {/* Torso Type */}
-            <TableCell className="capitalize">
-              {display(bundle.torsoBagType)}
+            {/* Base Bag Size */}
+            <TableCell>
+              {bundle.baseSize ? `${bundle.baseSize}` : "—"}
             </TableCell>
 
             {/* Quantity */}
@@ -185,15 +185,15 @@ const DealerBundleManagement = () => {
             />
 
             <AdminFormSelect
-              label="Torso Bag Type"
-              name="torsoBagType"
-              value={formData.torsoBagType}
-              onValueChange={handleValueChange("torsoBagType")}
+              label="Base Size"
+              name="baseSize"
+              value={formData.baseSize.toString()}
+              onValueChange={(v) => handleValueChange("baseSize")(Number(v))}
               options={[
-                { value: "regular", label: "Regular" },
-                { value: "custom", label: "Custom Bundle" },
+                { value: "100", label: "100" },
+                { value: "500", label: "500" },
               ]}
-              placeholder="Select type"
+              placeholder="Select base"
               disabled={isSubmitting}
             />
           </div>

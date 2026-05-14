@@ -7,9 +7,10 @@ const dealerTorsoBagSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    targetBundleSize: {
+    baseSize: {
       type: Number,
       required: true,
+      enum: [100, 500],
       default: 100,
     },
     items: [
@@ -57,8 +58,8 @@ const dealerTorsoBagSchema = new mongoose.Schema(
 
 // Indexes
 
-// Fast lookup for active bags filtered by target bundle size
-dealerTorsoBagSchema.index({ isActive: 1, targetBundleSize: 1 });
+// Fast lookup for active bags filtered by base size
+dealerTorsoBagSchema.index({ isActive: 1, baseSize: 1 });
 
 // Case-insensitive name lookup
 dealerTorsoBagSchema.index(

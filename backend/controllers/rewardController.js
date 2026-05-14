@@ -142,18 +142,11 @@ export const createRewardBundle = async (req, res) => {
 
     const bundle = await Bundle.create(bundleData);
 
-    // torsoBagType is dealer-only; remove from reward bundles
-    await Bundle.updateOne(
-      { _id: bundle._id },
-      { $unset: { torsoBagType: "" } },
-    );
-    const cleanedBundle = await Bundle.findById(bundle._id);
-
     return res.status(201).json({
       success: true,
       message: "Reward bundle created successfully",
       description: `The "${bundle.bundleName}" reward bundle has been added.`,
-      bundle: cleanedBundle,
+      bundle,
     });
   } catch (error) {
     handleError(res, error, "Create reward bundle", "Failed to create bundle");
@@ -234,18 +227,11 @@ export const updateRewardBundle = async (req, res) => {
     bundle.updatedBy = req.user._id;
     await bundle.save();
 
-    // torsoBagType is dealer-only; remove from reward bundles
-    await Bundle.updateOne(
-      { _id: bundle._id },
-      { $unset: { torsoBagType: "" } },
-    );
-    const cleanedBundle = await Bundle.findById(id);
-
     return res.status(200).json({
       success: true,
       message: "Reward bundle updated successfully",
       description: `The "${bundle.bundleName}" bundle has been successfully updated.`,
-      bundle: cleanedBundle,
+      bundle,
     });
   } catch (error) {
     handleError(res, error, "Update reward bundle", "Failed to update bundle");

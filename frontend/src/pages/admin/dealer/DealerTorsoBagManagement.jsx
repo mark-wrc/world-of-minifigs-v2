@@ -38,12 +38,11 @@ const DealerTorsoBagManagement = () => {
     startItem,
     endItem,
     columns,
-    targetBundleSizeOptions,
+    baseSizeOptions,
     adminTarget,
     miscQuantity,
     currentTotal,
     isLoadingBags,
-    isLoadingBundles,
     isSubmitting,
     isDeleting,
     handleChange,
@@ -100,8 +99,8 @@ const DealerTorsoBagManagement = () => {
               {display(bag.bagName)}
             </TableCell>
 
-            {/* Target Size */}
-            <TableCell>{bag.targetBundleSize} Minifigs</TableCell>
+            {/* Base Size */}
+            <TableCell>{bag.baseSize ? `${bag.baseSize}` : "—"}</TableCell>
 
             {/* Designs Count */}
             <TableCell>{bag.items?.length} Designs</TableCell>
@@ -169,17 +168,16 @@ const DealerTorsoBagManagement = () => {
               onChange={handleChange}
               disabled={isSubmitting}
             />
-            {/* Target Size */}
+            {/* Base Bag Size */}
             <AdminFormSelect
-              label="Target Size"
-              name="targetBundleSize"
-              value={formData.targetBundleSize.toString()}
-              onValueChange={handleValueChange("targetBundleSize")}
-              options={targetBundleSizeOptions}
+              label="Base Size"
+              name="baseSize"
+              value={formData.baseSize.toString()}
+              onValueChange={(v) => handleValueChange("baseSize")(Number(v))}
+              options={baseSizeOptions}
               getValue={(item) => item.value.toString()}
               getLabel={(item) => item.label}
-              placeholder="Size"
-              isLoading={isLoadingBundles}
+              placeholder="Base"
               disabled={isSubmitting}
             />
           </div>
@@ -237,8 +235,8 @@ const DealerTorsoBagManagement = () => {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                * Admin designs must total {adminTarget} + {miscQuantity}{" "}
-                miscellaneous = {adminTarget + miscQuantity} minifigs.
+                * Designs must total {adminTarget} + {miscQuantity} mystery ={" "}
+                {adminTarget + miscQuantity} per base bag.
               </p>
             </div>
           </div>

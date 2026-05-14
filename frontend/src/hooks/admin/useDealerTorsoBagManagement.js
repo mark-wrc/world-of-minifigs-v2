@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import {
   useGetDealerTorsoBagsQuery,
   useCreateDealerTorsoBagMutation,
   useUpdateDealerTorsoBagMutation,
   useDeleteDealerTorsoBagMutation,
-  useGetDealerBundlesQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
-import { sanitizeString, sortByName } from "@/utils/formatting";
+import { sanitizeString } from "@/utils/formatting";
 import {
   validateDealerTorsoBag,
   validateTorsoAllocation,
@@ -16,17 +15,18 @@ import {
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
-const getMiscQuantity = (bundleSize) => {
-  if (bundleSize === 1000) return 80;
-  if (bundleSize === 500) return 40;
-  return 10;
-};
+// Misc-per-bag for each base size. Same constants as backend/services/bundleService.js.
+const MISC_PER_BAG = { 100: 10, 500: 40 };
+const getAdminTarget = (base) => base - (MISC_PER_BAG[base] ?? 0);
 
-const getAdminTarget = (target) => target - getMiscQuantity(target);
+const BASE_SIZE_OPTIONS = [
+  { value: 100, label: "100" },
+  { value: 500, label: "500" },
+];
 
 const initialFormData = {
   bagName: "",
-  targetBundleSize: 100,
+  baseSize: 100,
   stock: 0,
   isActive: true,
   items: [],
@@ -34,7 +34,7 @@ const initialFormData = {
 
 const columns = [
   { key: "bagName", label: "Bag Name" },
-  { key: "targetBundleSize", label: "Target" },
+  { key: "baseSize", label: "Base Size" },
   { key: "itemCount", label: "Total Designs" },
   { key: "stock", label: "Stock" },
   { key: "isActive", label: "Status" },
@@ -80,19 +80,11 @@ const useDealerTorsoBagManagement = () => {
       search: crud.search || undefined,
     });
 
-  const { data: bundlesData, isLoading: isLoadingBundles } =
-    useGetDealerBundlesQuery({ limit: 100 });
-
   const {
     items: bags,
     totalItems,
     totalPages,
   } = extractPaginatedData(torsoBagData, "bags");
-
-  const bundles = useMemo(
-    () => sortByName(bundlesData?.bundles, "bundleName"),
-    [bundlesData],
-  );
 
   useEffect(() => {
     crud.setTotalItems(totalItems);
@@ -100,53 +92,14 @@ const useDealerTorsoBagManagement = () => {
 
   const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
 
-  const targetBundleSizeOptions = useMemo(() => {
-    if (!bundles.length) return [{ value: 100, label: "100 Minifigs (Base)" }];
+  const baseSize = Number(crud.formData.baseSize) || 100;
+  const miscQuantity = MISC_PER_BAG[baseSize] ?? 0;
+  const adminTarget = getAdminTarget(baseSize);
 
-    const activeBundles = bundles.filter((b) => b.isActive);
-    const sizes = new Set();
-
-    const regularBundles = activeBundles.filter(
-      (b) => (b.torsoBagType || "regular") === "regular",
-    );
-
-    if (regularBundles.length > 0) {
-      const base = Math.min(...regularBundles.map((b) => b.minifigQuantity));
-      sizes.add(base);
-    }
-
-    activeBundles
-      .filter((b) => b.torsoBagType === "custom")
-      .forEach((b) => sizes.add(b.minifigQuantity));
-
-    if (sizes.size === 0) sizes.add(100);
-
-    return [...sizes]
-      .sort((a, b) => a - b)
-      .map((size) => ({
-        value: size,
-        label: `${size} Minifigs`,
-      }));
-  }, [bundles]);
-
-  const baseBundleSize = useMemo(() => {
-    const regularBundles = bundles.filter(
-      (b) => b.isActive && (b.torsoBagType || "regular") === "regular",
-    );
-    if (regularBundles.length === 0) return 100;
-    return Math.min(...regularBundles.map((b) => b.minifigQuantity));
-  }, [bundles]);
-
-  const targetSize = Number(crud.formData.targetBundleSize) || 100;
-  const miscQuantity = getMiscQuantity(targetSize);
-  const adminTarget = getAdminTarget(targetSize);
-
-  const currentTotal = useMemo(() => {
-    return crud.formData.items.reduce(
-      (acc, item) => acc + (Number(item.quantity) || 1),
-      0,
-    );
-  }, [crud.formData.items]);
+  const currentTotal = crud.formData.items.reduce(
+    (acc, item) => acc + (Number(item.quantity) || 1),
+    0,
+  );
 
   // ------------------------------- Edit Handler ------------------------------------
   const handleEdit = (bag) => {
@@ -161,7 +114,7 @@ const useDealerTorsoBagManagement = () => {
 
     crud.openEdit(bag, {
       bagName: bag.bagName || "",
-      targetBundleSize: bag.targetBundleSize || 100,
+      baseSize: bag.baseSize || 100,
       stock: bag.stock ?? 0,
       isActive: bag.isActive !== false,
       items: existingItems,
@@ -193,7 +146,7 @@ const useDealerTorsoBagManagement = () => {
         showTorsoAllocationWarning(
           skippedCount,
           adminTarget,
-          targetSize,
+          baseSize,
           miscQuantity,
         );
       }
@@ -205,7 +158,7 @@ const useDealerTorsoBagManagement = () => {
         }));
       }
     },
-    [onFileChange, currentTotal, adminTarget, targetSize, miscQuantity],
+    [onFileChange, currentTotal, adminTarget, baseSize, miscQuantity],
   );
 
   const handleDealerTorsoBagFileRemove = useCallback(
@@ -225,7 +178,7 @@ const useDealerTorsoBagManagement = () => {
       !validateDealerTorsoBag(
         crud.formData,
         adminTarget,
-        targetSize,
+        baseSize,
         miscQuantity,
       )
     )
@@ -244,7 +197,7 @@ const useDealerTorsoBagManagement = () => {
 
     const payload = {
       bagName: sanitizeString(crud.formData.bagName),
-      targetBundleSize: targetSize,
+      baseSize,
       stock: Math.max(0, Number(crud.formData.stock) || 0),
       isActive: crud.formData.isActive,
       items,
@@ -310,13 +263,11 @@ const useDealerTorsoBagManagement = () => {
     totalItems,
     totalPages,
     columns,
-    bundles,
-    targetBundleSizeOptions,
+    baseSizeOptions: BASE_SIZE_OPTIONS,
     adminTarget,
     miscQuantity,
     currentTotal,
     isLoadingBags,
-    isLoadingBundles,
     isSubmitting,
     isDeleting,
     handleEdit,

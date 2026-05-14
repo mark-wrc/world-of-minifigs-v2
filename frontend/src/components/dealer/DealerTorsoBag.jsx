@@ -15,7 +15,6 @@ const PreviewGrid = ({
   items,
   miscQuantity,
   isAdmin,
-  isCustomBundle,
   multiplier,
   reorderItemIds,
   reorderSensors,
@@ -28,9 +27,7 @@ const PreviewGrid = ({
           id={idx.toString()}
           item={item}
           idx={idx}
-          displayQuantity={
-            isCustomBundle ? item.quantity : item.quantity * multiplier
-          }
+          displayQuantity={item.quantity * multiplier}
         />
       ))
     : items.map((item, idx) => (
@@ -70,7 +67,6 @@ const DealerTorsoBag = ({
   lastSelectedBag,
   onSelect,
   isAdmin,
-  isCustomBundle,
   multiplier,
   bagMultiplier,
   miscQuantity,
@@ -216,9 +212,9 @@ const DealerTorsoBag = ({
             <div className="space-y-2">
               <h3 className="text-2xl font-bold tracking-tight flex items-center gap-3">
                 {lastSelectedBag.bagName} Preview
-                {!isCustomBundle && multiplier > 1 && (
+                {multiplier > 1 && (
                   <Badge variant="accent" className="text-xs">
-                    {multiplier}× Bundle
+                    {multiplier}× Bag
                   </Badge>
                 )}
               </h3>
@@ -261,7 +257,6 @@ const DealerTorsoBag = ({
             items={isAdmin ? localItems : displayItems}
             miscQuantity={miscQuantity}
             isAdmin={isAdmin}
-            isCustomBundle={isCustomBundle}
             multiplier={multiplier}
             reorderItemIds={reorderItemIds}
             reorderSensors={reorderSensors}

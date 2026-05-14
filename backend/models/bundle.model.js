@@ -27,10 +27,11 @@ const bundleSchema = new mongoose.Schema(
       required: true,
       min: [0, "Total price cannot be negative"],
     },
-    torsoBagType: {
-      type: String,
-      enum: ["regular", "custom"],
-      default: "regular",
+    // Dealer-only: the torso-bag size this bundle uses (100 or 500).
+    // Multiplier = minifigQuantity / baseSize. Optional for reward bundles.
+    baseSize: {
+      type: Number,
+      enum: [100, 500],
     },
     features: {
       type: [String],
