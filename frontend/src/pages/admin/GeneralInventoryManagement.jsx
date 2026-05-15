@@ -29,6 +29,12 @@ import { display } from "@/utils/formatting";
 import useGeneralInventoryManagement, {
   INVENTORY_TABS,
 } from "@/hooks/admin/useGeneralInventoryManagement";
+import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
+
+const PART_TYPE_OPTIONS = BULK_MINIFIG_PART_TYPES.map((name) => ({
+  value: name,
+  label: name,
+}));
 
 const InventoryItemInputs = React.memo(
   ({
@@ -39,6 +45,7 @@ const InventoryItemInputs = React.memo(
     collections,
     isLoadingCollections,
     isMinifigsTab,
+    isBulkPartsTab,
     isSubmitting,
     onChange,
     getValueChangeHandler,
@@ -132,6 +139,19 @@ const InventoryItemInputs = React.memo(
           getLabel={(c) => c.collectionName}
           placeholder="Select Collection"
           isLoading={isLoadingCollections}
+          disabled={isSubmitting}
+          required
+        />
+      )}
+
+      {isBulkPartsTab && (
+        <AdminFormSelect
+          name="partType"
+          value={item.partType}
+          onValueChange={getValueChangeHandler("partType", index)}
+          triggerClassName="text-[11px]"
+          options={PART_TYPE_OPTIONS}
+          placeholder="Select Part Type"
           disabled={isSubmitting}
           required
         />
@@ -288,6 +308,11 @@ const GeneralInventoryManagement = () => {
               </TableCell>
             )}
 
+            {/* Part Type — bulk-minifig-parts tab only */}
+            {activeTab === "bulk-minifig-parts" && (
+              <TableCell>{display(item.partType)}</TableCell>
+            )}
+
             {/* Price per Bag */}
             <PriceCell amount={item.pricePerBag} />
 
@@ -351,6 +376,7 @@ const GeneralInventoryManagement = () => {
                 collections={collections}
                 isLoadingCollections={isLoadingCollections}
                 isMinifigsTab={activeTab === "minifigs"}
+                isBulkPartsTab={activeTab === "bulk-minifig-parts"}
                 isSubmitting={isSubmitting}
                 onChange={getItemChangeHandler(index)}
                 getValueChangeHandler={handleValueChange}

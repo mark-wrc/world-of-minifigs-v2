@@ -94,6 +94,7 @@ const DealerAddonManagement = () => {
     columns,
     sortedInventoryItems,
     groupedMinifigItems,
+    groupedBulkPartItems,
     itemCategory,
     setItemCategory,
     bundleItems,
@@ -345,6 +346,25 @@ const DealerAddonManagement = () => {
                         </div>
                       ) : itemCategory === "minifigs" && groupedMinifigItems ? (
                         groupedMinifigItems.map((group) => (
+                          <div key={group.collectionName}>
+                            <div className="p-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              {group.collectionName}
+                            </div>
+                            {group.items.map((inv) => (
+                              <InventoryDropdownItem
+                                key={inv._id}
+                                inv={inv}
+                                checked={selectedBundleItemIds.has(inv._id)}
+                                onCheckedChange={() =>
+                                  handleToggleBundleItem(inv._id, inv)
+                                }
+                              />
+                            ))}
+                          </div>
+                        ))
+                      ) : itemCategory === "bulk-minifig-parts" &&
+                        groupedBulkPartItems ? (
+                        groupedBulkPartItems.map((group) => (
                           <div key={group.collectionName}>
                             <div className="p-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                               {group.collectionName}

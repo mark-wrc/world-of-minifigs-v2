@@ -1,5 +1,6 @@
 import GeneralInventory, {
   INVENTORY_CATEGORIES,
+  BULK_MINIFIG_PART_TYPES,
 } from "../models/generalInventory.model.js";
 import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
@@ -51,6 +52,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
         image,
         category,
         collectionId,
+        partType,
       } = item;
 
       // Validate required fields
@@ -82,6 +84,15 @@ export const createGeneralInventoryBulk = async (req, res) => {
 
       if (category === "minifigs" && !collectionId)
         throw new Error("Collection is required for minifig items");
+
+      if (category === "bulk-minifig-parts") {
+        if (!partType)
+          throw new Error("Part type is required for bulk minifig parts");
+        if (!BULK_MINIFIG_PART_TYPES.includes(partType))
+          throw new Error(
+            `Part type must be one of: ${BULK_MINIFIG_PART_TYPES.join(", ")}`,
+          );
+      }
 
       // Verify color exists
       const color = await Color.findById(colorId);
@@ -120,6 +131,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
         category,
         collectionId:
           category === "minifigs" && collectionId ? collectionId : null,
+        partType: category === "bulk-minifig-parts" ? partType : null,
         image: uploadedImage,
         createdBy: req.user._id,
       });
@@ -157,12 +169,16 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
-    const { category, stock, status } = req.query;
+    const { category, stock, status, partType } = req.query;
 
     const baseFilter = {};
 
     if (category && INVENTORY_CATEGORIES.includes(category)) {
       baseFilter.category = category;
+    }
+
+    if (partType && BULK_MINIFIG_PART_TYPES.includes(partType)) {
+      baseFilter.partType = partType;
     }
 
     // Stock tier filter — matches the StockCell color tiers used in the UI.
@@ -276,6 +292,7 @@ export const updateGeneralInventory = async (req, res) => {
       isActive,
       category,
       collectionId,
+      partType,
     } = req.body;
 
     const inventory = await GeneralInventory.findById(id);
@@ -336,10 +353,7 @@ export const updateGeneralInventory = async (req, res) => {
     }
 
     if (piecesPerBag !== undefined) {
-      if (
-        !Number.isInteger(Number(piecesPerBag)) ||
-        Number(piecesPerBag) < 1
-      ) {
+      if (!Number.isInteger(Number(piecesPerBag)) || Number(piecesPerBag) < 1) {
         return res.status(400).json({
           success: false,
           message: "Pieces per bag must be a positive integer",
@@ -413,6 +427,26 @@ export const updateGeneralInventory = async (req, res) => {
           description: "A collection must be assigned to minifig items.",
         });
       }
+
+      // Enforce part type required for bulk-minifig-parts
+      const effectivePartType =
+        partType !== undefined ? partType : inventory.partType;
+      if (category === "bulk-minifig-parts") {
+        if (!effectivePartType) {
+          return res.status(400).json({
+            success: false,
+            message: "Part type is required",
+            description: "A part type must be assigned to bulk minifig parts.",
+          });
+        }
+        if (!BULK_MINIFIG_PART_TYPES.includes(effectivePartType)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid part type",
+            description: `Part type must be one of: ${BULK_MINIFIG_PART_TYPES.join(", ")}.`,
+          });
+        }
+      }
       inventory.category = category;
     }
 
@@ -429,6 +463,21 @@ export const updateGeneralInventory = async (req, res) => {
           });
         }
         inventory.collectionId = collectionId;
+      }
+    }
+
+    if (partType !== undefined) {
+      if (partType === null || partType === "") {
+        inventory.partType = null;
+      } else {
+        if (!BULK_MINIFIG_PART_TYPES.includes(partType)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid part type",
+            description: `Part type must be one of: ${BULK_MINIFIG_PART_TYPES.join(", ")}.`,
+          });
+        }
+        inventory.partType = partType;
       }
     }
 

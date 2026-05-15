@@ -15,6 +15,7 @@ export const ADDON_ITEM_CATEGORIES = [
   { value: "printed-tiles", label: "Printed Tiles" },
   { value: "specialty-bricks", label: "Specialty Bricks" },
   { value: "botanicals", label: "Botanicals" },
+  { value: "bulk-minifig-parts", label: "Bulk Minifig Parts" },
 ];
 
 import { extractPaginatedData } from "@/utils/apiHelpers";
@@ -22,6 +23,7 @@ import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateDealerAddon } from "@/utils/validation";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
+import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
 
 const initialFormData = {
   addonName: "",
@@ -166,6 +168,29 @@ const useDealerAddonManagement = () => {
         return a.collectionName.localeCompare(b.collectionName);
       })
       .map(([, group]) => group);
+  }, [itemCategory, sortedInventoryItems]);
+
+  // For bulk-minifig-parts: group items by partType, returns [{collectionName, items:[]}]
+  const groupedBulkPartItems = useMemo(() => {
+    if (itemCategory !== "bulk-minifig-parts") return null;
+    const partMap = new Map();
+    for (const item of sortedInventoryItems) {
+      const key = item.partType || "__none__";
+      if (!partMap.has(key)) {
+        partMap.set(key, {
+          collectionName: item.partType || "Uncategorized",
+          items: [],
+        });
+      }
+      partMap.get(key).items.push(item);
+    }
+    // Sort by the fixed enum order, with Uncategorized last
+    return [
+      ...BULK_MINIFIG_PART_TYPES.filter((name) => partMap.has(name)).map(
+        (name) => partMap.get(name),
+      ),
+      ...(partMap.has("__none__") ? [partMap.get("__none__")] : []),
+    ];
   }, [itemCategory, sortedInventoryItems]);
 
   const isBundleType = crud.formData.addonType === "bundle";
@@ -351,6 +376,7 @@ const useDealerAddonManagement = () => {
     inventoryItems,
     sortedInventoryItems,
     groupedMinifigItems,
+    groupedBulkPartItems,
     bundleItems,
     bundleDisplayItems,
     selectedBundleItemIds,

@@ -219,6 +219,7 @@ const Dealer = () => {
           totalPrice={addonPreview.totalPrice}
           canSubmit={addonPreview.canSubmit}
           isUpdate={addonPreview.isUpdate}
+          minBags={addonPreview.minBags}
           onClose={addonPreview.onClose}
           onConfirm={addonPreview.onConfirm}
           onValueChange={addonPreview.onValueChange}

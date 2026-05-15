@@ -93,7 +93,7 @@ export async function buildLineItemsForDealer(body, userId) {
       })
         .populate({
           path: "bundleItems.inventoryItemId",
-          select: "minifigName pricePerBag piecesPerBag stock",
+          select: "minifigName pricePerBag piecesPerBag stock category",
         })
         .lean();
 
@@ -112,6 +112,13 @@ export async function buildLineItemsForDealer(body, userId) {
 
       if (addon.addonType === "bundle" && selectedItems) {
         finalPrice = 0;
+        let bulkPartsTotalBags = 0;
+        let isBulkPartsAddon =
+          addon.bundleItems.length > 0 &&
+          addon.bundleItems.every(
+            (bi) => bi.inventoryItemId?.category === "bulk-minifig-parts",
+          );
+
         for (const selItem of selectedItems) {
           const bundleItem = addon.bundleItems.find(
             (bi) =>
@@ -135,12 +142,27 @@ export async function buildLineItemsForDealer(body, userId) {
             };
           }
 
+          if (inventory.category === "bulk-minifig-parts") {
+            bulkPartsTotalBags += bagsRequested;
+          }
+
           const itemBagPrice = Number(inventory.pricePerBag || 0);
           finalPrice += itemBagPrice * bagsRequested;
           finalItems.push({
             inventoryItemId: selItem.inventoryItemId,
             selectedBags: bagsRequested,
           });
+        }
+
+        // Bulk-minifig-parts addons require a minimum of 10 total bags.
+        if (isBulkPartsAddon && finalItems.length > 0 && bulkPartsTotalBags < 10) {
+          return {
+            error: {
+              status: 400,
+              message: "Minimum order not met",
+              description: `"${addon.addonName}" requires at least 10 total bags across all items. You selected ${bulkPartsTotalBags}.`,
+            },
+          };
         }
       }
 

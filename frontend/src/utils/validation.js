@@ -540,6 +540,12 @@ export const validateGeneralInventory = (items, isAddMode, activeTab) => {
     )
       return false;
 
+    if (
+      activeTab === "bulk-minifig-parts" &&
+      !validateRequired(item.partType, `${prefix}Part Type`)
+    )
+      return false;
+
     if (isAddMode && !item.image && !item.url) {
       toast.error(`${prefix}Image is required`);
       return false;

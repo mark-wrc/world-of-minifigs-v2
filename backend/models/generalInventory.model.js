@@ -1,13 +1,8 @@
 import mongoose from "mongoose";
-
-const INVENTORY_CATEGORIES = [
-  "accessories",
-  "animals",
-  "minifigs",
-  "printed-tiles",
-  "specialty-bricks",
-  "botanicals",
-];
+import {
+  INVENTORY_CATEGORIES,
+  BULK_MINIFIG_PART_TYPES,
+} from "../../shared/inventoryData.js";
 
 const generalInventorySchema = new mongoose.Schema(
   {
@@ -27,6 +22,14 @@ const generalInventorySchema = new mongoose.Schema(
     collectionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Collection",
+      default: null,
+      index: true,
+    },
+
+    // Used only for "bulk-minifig-parts" category — see BULK_MINIFIG_PART_TYPES.
+    partType: {
+      type: String,
+      enum: [...BULK_MINIFIG_PART_TYPES, null],
       default: null,
       index: true,
     },
@@ -113,5 +116,5 @@ const GeneralInventory = mongoose.model(
   generalInventorySchema,
 );
 
-export { INVENTORY_CATEGORIES };
+export { INVENTORY_CATEGORIES, BULK_MINIFIG_PART_TYPES };
 export default GeneralInventory;

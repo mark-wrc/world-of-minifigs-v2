@@ -25,6 +25,7 @@ import CommonImage from "@/components/shared/CommonImage";
 import QuantityControl from "@/components/shared/QuantityControl";
 import ProductSort from "@/components/products/ProductSort";
 import { SORT_OPTIONS } from "@/constant/productFilters";
+import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
 import { formatCurrency } from "@/utils/formatting";
 
 const ADDON_SORT_OPTIONS = SORT_OPTIONS.filter(
@@ -34,9 +35,11 @@ const ADDON_SORT_OPTIONS = SORT_OPTIONS.filter(
 const AddonPreviewModal = ({
   addon,
   items,
+  totalBags,
   totalPrice,
   canSubmit,
   isUpdate,
+  minBags = 0,
   onClose,
   onConfirm,
   onValueChange,
@@ -46,6 +49,10 @@ const AddonPreviewModal = ({
 
   const isMinifigs =
     items.length > 0 && items.every((i) => i.category === "minifigs");
+
+  const isBulkParts =
+    items.length > 0 &&
+    items.every((i) => i.category === "bulk-minifig-parts");
 
   const collections = useMemo(() => {
     if (!isMinifigs) return [];
@@ -63,9 +70,36 @@ const AddonPreviewModal = ({
     });
   }, [isMinifigs, items]);
 
+  // For bulk-minifig-parts the "collection" is a fixed part-type string.
+  // Show every fixed type, sorted in the original enum order, but only enable
+  // the ones present in this addon.
+  const partTypes = useMemo(() => {
+    if (!isBulkParts) return [];
+    const counts = new Map();
+    for (const item of items) {
+      const t = item.partType || "__none__";
+      counts.set(t, (counts.get(t) || 0) + 1);
+    }
+    const ordered = BULK_MINIFIG_PART_TYPES.filter((name) =>
+      counts.has(name),
+    ).map((name) => ({ id: name, name, count: counts.get(name) }));
+    if (counts.has("__none__")) {
+      ordered.push({
+        id: "__none__",
+        name: "Uncategorized",
+        count: counts.get("__none__"),
+      });
+    }
+    return ordered;
+  }, [isBulkParts, items]);
+
   const sortedItems = useMemo(() => {
     const filtered = selectedCollection
       ? items.filter((i) => {
+          if (isBulkParts) {
+            const t = i.partType || "__none__";
+            return t === selectedCollection;
+          }
           const id = i.collectionId?._id || i.collectionId || "__none__";
           return id === selectedCollection;
         })
@@ -85,7 +119,7 @@ const AddonPreviewModal = ({
           return 0;
       }
     });
-  }, [items, sortBy, selectedCollection]);
+  }, [items, sortBy, selectedCollection, isBulkParts]);
 
   return (
     <Dialog open onOpenChange={onClose}>
@@ -127,6 +161,35 @@ const AddonPreviewModal = ({
                 </Select>
               </div>
             )}
+
+            {isBulkParts && partTypes.length > 1 && (
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="addon-parttype-select"
+                  className="hidden sm:block whitespace-nowrap text-sm"
+                >
+                  Filter by:
+                </Label>
+                <Select
+                  value={selectedCollection ?? "all"}
+                  onValueChange={(v) =>
+                    setSelectedCollection(v === "all" ? null : v)
+                  }
+                >
+                  <SelectTrigger id="addon-parttype-select">
+                    <SelectValue placeholder="All Part Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Part Types</SelectItem>
+                    {partTypes.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <ProductSort
               sortBy={sortBy}
               onSortChange={setSortBy}
@@ -142,6 +205,12 @@ const AddonPreviewModal = ({
             </span>
           </div>
         </div>
+
+        {minBags > 0 && totalBags < minBags && (
+          <div className="mx-1 mb-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            {`Minimum order is ${minBags} bags total across all items. You have ${totalBags} — add ${minBags - totalBags} more to continue.`}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1">

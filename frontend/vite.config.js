@@ -9,10 +9,14 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@shared": path.resolve(__dirname, "../shared"),
     },
     extensions: [".js", ".jsx", ".json", ".ts", ".tsx"],
   },
   server: {
+    fs: {
+      allow: [path.resolve(__dirname, ".."), path.resolve(__dirname, ".")],
+    },
     proxy: {
       "/api/v1": {
         target: "http://localhost:4000",

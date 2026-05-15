@@ -21,6 +21,7 @@ export const INVENTORY_TABS = [
   { value: "printed-tiles", label: "Printed Tiles" },
   { value: "specialty-bricks", label: "Specialty Bricks" },
   { value: "botanicals", label: "Botanicals" },
+  { value: "bulk-minifig-parts", label: "Bulk Minifig Parts" },
 ];
 
 const initialFormData = {
@@ -32,6 +33,7 @@ const BASE_COLUMNS = [
   { key: "color", label: "Color" },
 ];
 const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
+const PART_TYPE_COLUMN = { key: "partType", label: "Part Type" };
 const PRICING_COLUMNS_DEFAULT = [
   { key: "pricePerBag", label: "Bag Price" },
   { key: "piecesPerBag", label: "Qty/bag" },
@@ -49,7 +51,10 @@ const TAIL_COLUMNS = [
 ];
 
 // Factory for preview item
-const makeNewPreview = (url, { category = "", collectionId = "" } = {}) => ({
+const makeNewPreview = (
+  url,
+  { category = "", collectionId = "", partType = "" } = {},
+) => ({
   url,
   minifigName: "",
   pricePerBag: "",
@@ -58,6 +63,7 @@ const makeNewPreview = (url, { category = "", collectionId = "" } = {}) => ({
   color: "",
   category,
   collectionId,
+  partType,
   image: { url },
 });
 
@@ -141,7 +147,12 @@ const useGeneralInventoryManagement = () => {
 
   const columns = useMemo(() => {
     const isMinifigs = activeTab === "minifigs";
-    const mid = isMinifigs ? [MINIFIG_COLLECTION_COLUMN] : [];
+    const isBulkParts = activeTab === "bulk-minifig-parts";
+    const mid = isMinifigs
+      ? [MINIFIG_COLLECTION_COLUMN]
+      : isBulkParts
+        ? [PART_TYPE_COLUMN]
+        : [];
     const pricing = isMinifigs
       ? PRICING_COLUMNS_MINIFIGS
       : PRICING_COLUMNS_DEFAULT;
@@ -257,6 +268,7 @@ const useGeneralInventoryManagement = () => {
         color: item.colorId?._id || item.colorId,
         category: item.category || activeTab,
         collectionId: item.collectionId?._id || item.collectionId || "",
+        partType: item.partType || "",
         image: item.image,
       },
     ]);
@@ -287,6 +299,8 @@ const useGeneralInventoryManagement = () => {
           colorId: item.color,
           category: activeTab,
           collectionId: activeTab === "minifigs" ? item.collectionId : null,
+          partType:
+            activeTab === "bulk-minifig-parts" ? item.partType : null,
           image:
             typeof item.url === "string" && item.url.startsWith("data:")
               ? item.url
@@ -315,6 +329,8 @@ const useGeneralInventoryManagement = () => {
         colorId: item.color,
         category: activeTab,
         collectionId: activeTab === "minifigs" ? item.collectionId : null,
+        partType:
+          activeTab === "bulk-minifig-parts" ? item.partType : null,
         isActive: crud.formData.isActive,
         ...(typeof item.url === "string" &&
           item.url.startsWith("data:") && { image: item.url }),
