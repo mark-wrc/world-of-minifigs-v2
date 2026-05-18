@@ -1,39 +1,38 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
 import {
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import {
   useGetDealerBundlesQuery,
   useGetDealerAddonsQuery,
   useGetDealerExtraBagsQuery,
   useGetDealerTorsoBagsQuery,
 } from "@/redux/api/authApi";
 import { sortByName } from "@/utils/formatting";
-import { useReorderTorsoBagItemsMutation } from "@/redux/api/adminApi";
 import { useCheckout } from "@/hooks/useCheckout";
+
+// Dealers may order several distinct bundles in one order (e.g. 1000 + 200),
+// each independently quantity-adjustable. Each bundle copy is capped — to go
+// higher the dealer picks a bigger bundle.
+const MAX_BUNDLE_QUANTITY = 4;
+
+const clampBundleQuantity = (value) =>
+  Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
 export const useDealer = () => {
   const { user } = useSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
 
-  const [selectedBundleId, setSelectedBundleId] = useState(null);
+  // Multi-bundle selection state — all keyed by bundle id.
+  const [selectedBundleIds, setSelectedBundleIds] = useState([]);
   const [bundleAutoSelected, setBundleAutoSelected] = useState(false);
+  const [activeBundleId, setActiveBundleId] = useState(null); // bundle whose torso picker is shown
+  const [bundleQuantities, setBundleQuantities] = useState({}); // { [bundleId]: 1-4 }
+  const [torsoSplits, setTorsoSplits] = useState({}); // { [bundleId]: { [bagId]: qty } }
+  const [lastClickedBag, setLastClickedBag] = useState({}); // { [bundleId]: bagId }
+
   const [selectedAddonIds, setSelectedAddonIds] = useState([]);
   const [selectedAddonConfigs, setSelectedAddonConfigs] = useState({});
   const [selectedAddon, setSelectedAddon] = useState(null);
   const [extraBagQuantities, setExtraBagQuantities] = useState({});
-  const [torsoBagSplitQuantities, setTorsoBagSplitQuantities] = useState({});
-  const [lastClickedBagId, setLastClickedBagId] = useState(null);
-
-  // Torso reorder state
-  const [localItems, setLocalItems] = useState([]);
-  const [hasReorderChanges, setHasReorderChanges] = useState(false);
-  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   // ==================== Data Fetching ====================
 
@@ -55,92 +54,368 @@ export const useDealer = () => {
     isError: isErrorExtraBags,
   } = useGetDealerExtraBagsQuery();
 
-  const [reorderTorsoBagItems] = useReorderTorsoBagItemsMutation();
+  // Fetch every torso bag once; each bundle filters by its own base size.
+  const {
+    data: torsoBagData,
+    isLoading: isLoadingTorsoBags,
+    isError: isErrorTorsoBags,
+  } = useGetDealerTorsoBagsQuery();
 
-  const bundles = Array.isArray(bundleData?.bundles) ? bundleData.bundles : [];
-  const addons = Array.isArray(addonData?.addons) ? addonData.addons : [];
-  const extraBags = Array.isArray(extraBagData?.extraBags)
-    ? extraBagData.extraBags
-    : [];
+  const bundles = useMemo(
+    () => (Array.isArray(bundleData?.bundles) ? bundleData.bundles : []),
+    [bundleData],
+  );
+  const addons = useMemo(
+    () => (Array.isArray(addonData?.addons) ? addonData.addons : []),
+    [addonData],
+  );
+  const extraBags = useMemo(
+    () =>
+      Array.isArray(extraBagData?.extraBags) ? extraBagData.extraBags : [],
+    [extraBagData],
+  );
+
+  const allTorsoBags = useMemo(
+    () =>
+      Array.isArray(torsoBagData?.torsoBags) ? torsoBagData.torsoBags : [],
+    [torsoBagData],
+  );
+
+  // Total torso-bag slots for a bundle = per-copy bags × copy quantity.
+  // (e.g. a 200 bundle = 2 bags; ordered ×3 → 6 customizable slots.)
+  const slotsFor = useCallback(
+    (bundle, quantity) =>
+      (bundle.minifigQuantity / bundle.baseSize) * (quantity || 1),
+    [],
+  );
 
   // ==================== Bundle Selection ====================
 
-  // Auto-select 500-minifig bundle as default on first load, fall back to first.
-  // Runs only once so the user can deselect afterwards without re-selection.
+  // Auto-select the 500-minifig bundle as a default on first load, falling
+  // back to the first bundle. Runs once so the user stays in control after.
   useEffect(() => {
     if (bundleAutoSelected) return;
     if (bundles.length > 0) {
       const preferred =
         bundles.find((b) => b.minifigQuantity === 500) ?? bundles[0];
-      setSelectedBundleId(preferred._id);
+      setSelectedBundleIds([preferred._id]);
+      setBundleQuantities({ [preferred._id]: 1 });
+      setActiveBundleId(preferred._id);
       setBundleAutoSelected(true);
     }
   }, [bundles, bundleAutoSelected]);
 
-  const handleSelectBundle = useCallback((bundleId) => {
-    setBundleAutoSelected(true);
-    setSelectedBundleId((prev) => (prev === bundleId ? null : bundleId));
+  // Clicking a bundle card toggles its selection. Selecting a bundle also
+  // focuses it so its torso picker shows immediately.
+  const handleToggleBundle = useCallback(
+    (bundleId) => {
+      setBundleAutoSelected(true);
+
+      if (selectedBundleIds.includes(bundleId)) {
+        // Deselect — drop all of this bundle's state.
+        const next = selectedBundleIds.filter((id) => id !== bundleId);
+        setSelectedBundleIds(next);
+        setBundleQuantities((prev) => {
+          const { [bundleId]: _removed, ...rest } = prev;
+          return rest;
+        });
+        setTorsoSplits((prev) => {
+          const { [bundleId]: _removed, ...rest } = prev;
+          return rest;
+        });
+        setLastClickedBag((prev) => {
+          const { [bundleId]: _removed, ...rest } = prev;
+          return rest;
+        });
+        // If the focused bundle was removed, focus another selected one.
+        if (activeBundleId === bundleId) {
+          setActiveBundleId(next[next.length - 1] || null);
+        }
+        return;
+      }
+
+      // Select a new bundle and focus it.
+      setSelectedBundleIds([...selectedBundleIds, bundleId]);
+      setBundleQuantities((prev) => ({ ...prev, [bundleId]: 1 }));
+      setActiveBundleId(bundleId);
+    },
+    [selectedBundleIds, activeBundleId],
+  );
+
+  // Switch which selected bundle's torso picker is shown (tab strip).
+  const handleSetActiveBundle = useCallback((bundleId) => {
+    setActiveBundleId(bundleId);
   }, []);
 
-  const selectedBundle = useMemo(
-    () => bundles.find((b) => b._id === selectedBundleId),
-    [bundles, selectedBundleId],
+  // Changing how many copies of a bundle are ordered re-sizes its torso-bag
+  // split: extra slots top up the first assigned bag, removed slots are
+  // trimmed from the largest bags.
+  const handleBundleQtyChange = useCallback(
+    (bundleId, newQty) => {
+      const quantity = clampBundleQuantity(newQty);
+      setBundleQuantities((prev) => ({ ...prev, [bundleId]: quantity }));
+
+      const bundle = bundles.find((b) => b._id === bundleId);
+      if (!bundle) return;
+      const slots = slotsFor(bundle, quantity);
+
+      setTorsoSplits((prev) => {
+        const cur = prev[bundleId] || {};
+        const total = Object.values(cur).reduce((sum, q) => sum + q, 0);
+        if (total === slots) return prev;
+
+        let nextSplit;
+        if (total === 0) {
+          const matching = allTorsoBags.filter(
+            (b) => b.baseSize === bundle.baseSize,
+          );
+          if (matching.length === 0 || slots <= 0) return prev;
+          nextSplit = { [matching[0]._id]: slots };
+        } else if (total < slots) {
+          // More copies — add the new slots to the first assigned bag.
+          const firstId = Object.keys(cur).find((id) => cur[id] > 0);
+          nextSplit = { ...cur, [firstId]: cur[firstId] + (slots - total) };
+        } else {
+          // Fewer copies — trim the excess, biggest bags first.
+          let excess = total - slots;
+          nextSplit = { ...cur };
+          const entries = Object.entries(nextSplit).sort(
+            ([, a], [, b]) => b - a,
+          );
+          for (const [id] of entries) {
+            if (excess <= 0) break;
+            const take = Math.min(nextSplit[id], excess);
+            nextSplit[id] -= take;
+            excess -= take;
+            if (nextSplit[id] <= 0) delete nextSplit[id];
+          }
+        }
+        return { ...prev, [bundleId]: nextSplit };
+      });
+    },
+    [bundles, allTorsoBags, slotsFor],
   );
 
-  // ==================== Bundle Type & Multiplier ====================
+  // ==================== Torso Bag Auto-Assignment ====================
 
-  // miscQuantity comes from the API (already scaled by the bundle's multiplier).
-  const miscQuantity = selectedBundle?.miscQuantity ?? 0;
+  // When a bundle has no torso split yet, assign every slot to its oldest
+  // matching torso bag. The dealer can re-split afterwards.
+  useEffect(() => {
+    if (allTorsoBags.length === 0) return;
+    setTorsoSplits((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const bundleId of selectedBundleIds) {
+        const bundle = bundles.find((b) => b._id === bundleId);
+        if (!bundle) continue;
+        const existing = next[bundleId] || {};
+        if (Object.values(existing).some((q) => q > 0)) continue;
+        const slots = slotsFor(bundle, bundleQuantities[bundleId]);
+        const matching = allTorsoBags.filter(
+          (b) => b.baseSize === bundle.baseSize,
+        );
+        if (matching.length > 0 && slots > 0) {
+          next[bundleId] = { [matching[0]._id]: slots };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [selectedBundleIds, bundles, bundleQuantities, allTorsoBags, slotsFor]);
 
-  // Slot count for this bundle (e.g. 3 for 300-minifig bundle on 100-bag base).
-  const bagMultiplier = selectedBundle
-    ? selectedBundle.minifigQuantity / selectedBundle.baseSize
-    : 1;
+  // ==================== Torso Bag Handlers ====================
 
-  // ==================== Torso Bag Fetching ====================
+  const handleSelectTorsoBag = useCallback(
+    (bundleId, bagId) => {
+      // Always switch the preview to the clicked bag (for comparison browsing).
+      setLastClickedBag((prev) => ({ ...prev, [bundleId]: bagId }));
 
-  const {
-    data: torsoBagData,
-    isLoading: isLoadingTorsoBags,
-    isError: isErrorTorsoBags,
-  } = useGetDealerTorsoBagsQuery(
-    selectedBundle ? { baseSize: selectedBundle.baseSize } : {},
-    { skip: !selectedBundle },
+      const bundle = bundles.find((b) => b._id === bundleId);
+      if (!bundle) return;
+      const bagMultiplier = slotsFor(bundle, bundleQuantities[bundleId]);
+
+      setTorsoSplits((prev) => {
+        const cur = prev[bundleId] || {};
+        if ((cur[bagId] || 0) > 0) return prev; // already in order — just preview
+
+        const usedByOthers = Object.entries(cur).reduce(
+          (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
+          0,
+        );
+
+        let nextSplit;
+        if (usedByOthers < bagMultiplier) {
+          // Free slot available — just add.
+          nextSplit = { ...cur, [bagId]: 1 };
+        } else {
+          // All slots taken — steal one from the bag with the highest qty.
+          const donor = Object.entries(cur)
+            .filter(([id]) => id !== bagId)
+            .sort(([, a], [, b]) => b - a)[0];
+          if (!donor) return prev;
+          const [donorId, donorQty] = donor;
+          nextSplit = { ...cur, [bagId]: 1 };
+          if (donorQty - 1 > 0) {
+            nextSplit[donorId] = donorQty - 1;
+          } else {
+            delete nextSplit[donorId];
+          }
+        }
+        return { ...prev, [bundleId]: nextSplit };
+      });
+    },
+    [bundles, bundleQuantities, slotsFor],
   );
 
-  const torsoBags = useMemo(() => {
-    const raw = Array.isArray(torsoBagData?.torsoBags)
-      ? torsoBagData.torsoBags
-      : [];
-    if (!selectedBundle) return [];
-    return raw.filter((b) => b.baseSize === selectedBundle.baseSize);
-  }, [torsoBagData, selectedBundle]);
+  // Fine-grained quantity adjustment used by the order summary controls.
+  const handleTorsoBagQtyChange = useCallback(
+    (bundleId, bagId, newQty) => {
+      const bundle = bundles.find((b) => b._id === bundleId);
+      if (!bundle) return;
+      const bagMultiplier = slotsFor(bundle, bundleQuantities[bundleId]);
 
-  // Derived selection state from split quantities
-  const selectedTorsoBagIds = useMemo(
+      setTorsoSplits((prev) => {
+        const cur = prev[bundleId] || {};
+        const usedByOthers = Object.entries(cur).reduce(
+          (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
+          0,
+        );
+        const clamped = Math.max(
+          0,
+          Math.min(newQty, bagMultiplier - usedByOthers),
+        );
+        let nextSplit;
+        if (clamped === 0) {
+          const { [bagId]: _removed, ...rest } = cur;
+          nextSplit = rest;
+        } else {
+          nextSplit = { ...cur, [bagId]: clamped };
+        }
+        return { ...prev, [bundleId]: nextSplit };
+      });
+    },
+    [bundles, bundleQuantities, slotsFor],
+  );
+
+  // ==================== Per-Bundle Sections ====================
+
+  // One fully-derived section per selected bundle — drives the torso pickers
+  // and the order summary.
+  const bundleSections = useMemo(() => {
+    return selectedBundleIds
+      .map((bundleId) => {
+        const bundle = bundles.find((b) => b._id === bundleId);
+        if (!bundle) return null;
+
+        const quantity = bundleQuantities[bundleId] || 1;
+        // Total torso slots span every ordered copy of the bundle.
+        const bagMultiplier = slotsFor(bundle, quantity);
+        const split = torsoSplits[bundleId] || {};
+
+        const sectionBags = allTorsoBags.filter(
+          (b) => b.baseSize === bundle.baseSize,
+        );
+        const torsoBags = sectionBags.map((bag) => ({
+          ...bag,
+          isSelected: (split[bag._id] || 0) > 0,
+          assignedQty: split[bag._id] || 0,
+          firstImage: bag.items?.[0]?.image?.url,
+        }));
+
+        const totalAssignedBags = Object.values(split).reduce(
+          (sum, qty) => sum + qty,
+          0,
+        );
+        const remainingBagSlots = bagMultiplier - totalAssignedBags;
+
+        // Pick the previewed bag — last clicked if still in the order,
+        // otherwise the first assigned bag.
+        const clickedId = lastClickedBag[bundleId];
+        const assignedIds = Object.entries(split)
+          .filter(([, qty]) => qty > 0)
+          .map(([id]) => id);
+        const previewId =
+          clickedId && (split[clickedId] || 0) > 0
+            ? clickedId
+            : assignedIds[0] || null;
+        const lastSelectedBag = previewId
+          ? sectionBags.find((b) => b._id === previewId) || null
+          : null;
+
+        // Multiplier for the previewed bag = slots assigned to it.
+        const previewQty = lastSelectedBag
+          ? split[lastSelectedBag._id] || 0
+          : 0;
+        const multiplier = previewQty > 0 ? previewQty : bagMultiplier;
+
+        const displayItems = lastSelectedBag?.items
+          ? lastSelectedBag.items.map((item) => ({
+              ...item,
+              displayQuantity: item.quantity * multiplier,
+            }))
+          : [];
+
+        // miscQuantity from the API is per single bundle copy. Scale it up by
+        // copy quantity, then take the previewed bag's share of the slots.
+        const miscQuantity =
+          (bundle.miscQuantity ?? 0) *
+          quantity *
+          (multiplier / (bagMultiplier || 1));
+
+        return {
+          bundleId,
+          bundle,
+          quantity,
+          bagMultiplier,
+          torsoBags,
+          totalAssignedBags,
+          remainingBagSlots,
+          lastSelectedBag,
+          multiplier,
+          displayItems,
+          miscQuantity,
+        };
+      })
+      .filter(Boolean);
+  }, [
+    selectedBundleIds,
+    bundles,
+    bundleQuantities,
+    torsoSplits,
+    lastClickedBag,
+    allTorsoBags,
+    slotsFor,
+  ]);
+
+  const hasSelectedBundles = bundleSections.length > 0;
+
+  // The section whose torso picker is currently shown. Falls back to the
+  // first selected bundle if the focused one is stale.
+  const activeSection =
+    bundleSections.find((s) => s.bundleId === activeBundleId) ||
+    bundleSections[0] ||
+    null;
+
+  // Tab strip metadata — one entry per selected bundle.
+  const bundleTabs = useMemo(
     () =>
-      Object.entries(torsoBagSplitQuantities)
-        .filter(([, qty]) => qty > 0)
-        .map(([id]) => id),
-    [torsoBagSplitQuantities],
+      bundleSections.map((s) => ({
+        bundleId: s.bundleId,
+        bundleName: s.bundle.bundleName,
+        isActive: s.bundleId === (activeSection?.bundleId ?? null),
+        needsTorso: s.remainingBagSlots > 0,
+      })),
+    [bundleSections, activeSection],
   );
-
-  const totalAssignedBags = useMemo(
-    () =>
-      Object.values(torsoBagSplitQuantities).reduce((sum, qty) => sum + qty, 0),
-    [torsoBagSplitQuantities],
-  );
-
-  const remainingBagSlots = bagMultiplier - totalAssignedBags;
 
   // ==================== Computed Selections ====================
 
   const bundlesWithSelection = useMemo(() => {
     return bundles.map((bundle) => ({
       ...bundle,
-      isSelected: selectedBundleId === bundle._id,
+      isSelected: selectedBundleIds.includes(bundle._id),
     }));
-  }, [bundles, selectedBundleId]);
+  }, [bundles, selectedBundleIds]);
 
   const addonsWithSelection = useMemo(() => {
     return addons.map((addon) => ({
@@ -151,9 +426,14 @@ export const useDealer = () => {
     }));
   }, [addons, selectedAddonIds]);
 
-  // When no bundle is selected, extra bags are unconstrained.
-  const maxExtraBags = selectedBundle
-    ? Math.floor(selectedBundle.minifigQuantity / 100)
+  // Extra bags are capped by the single largest bundle — not the sum of
+  // bundles, and not affected by copy quantity. e.g. a 1000 bundle caps at 10
+  // whether or not 200 bundles or extra copies are also ordered.
+  const maxExtraBags = hasSelectedBundles
+    ? bundleSections.reduce(
+        (max, s) => Math.max(max, Math.floor(s.bundle.minifigQuantity / 100)),
+        0,
+      )
     : Infinity;
 
   const totalExtraBags = Object.values(extraBagQuantities).reduce(
@@ -178,54 +458,16 @@ export const useDealer = () => {
     [extraBags, extraBagQuantities, totalExtraBags, maxExtraBags],
   );
 
-  // Add isSelected + assignedQty + firstImage for display
-  const torsoBagsWithSelection = useMemo(() => {
-    return torsoBags.map((bag) => ({
-      ...bag,
-      isSelected: (torsoBagSplitQuantities[bag._id] || 0) > 0,
-      assignedQty: torsoBagSplitQuantities[bag._id] || 0,
-      firstImage: bag.items?.[0]?.image?.url,
-    }));
-  }, [torsoBags, torsoBagSplitQuantities]);
-
   // ==================== Effects ====================
 
-  // Reset selections when bundle changes
+  // Reset extra bags if the cap shrinks below the current selection.
   useEffect(() => {
     if (totalExtraBags > maxExtraBags) {
       setExtraBagQuantities({});
     }
   }, [maxExtraBags, totalExtraBags]);
 
-  // Clear torso bag selection when bundle changes (bags might differ)
-  useEffect(() => {
-    setTorsoBagSplitQuantities({});
-    setLastClickedBagId(null);
-  }, [selectedBundleId]);
-
-  // Auto-select first (oldest) bag when bags load — always assign all slots to it
-  useEffect(() => {
-    const hasSelection = Object.values(torsoBagSplitQuantities).some(
-      (q) => q > 0,
-    );
-    if (torsoBags.length > 0 && !hasSelection && bagMultiplier > 0) {
-      setTorsoBagSplitQuantities({ [torsoBags[0]._id]: bagMultiplier });
-      setLastClickedBagId(torsoBags[0]._id);
-    }
-  }, [torsoBags, torsoBagSplitQuantities, bagMultiplier]);
-
-  // ==================== Handlers ====================
-
-  const handleExtraBagQtyChange = (bagId, newQty) => {
-    setExtraBagQuantities((prev) => {
-      const otherBagsQty = Object.entries(prev).reduce(
-        (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
-        0,
-      );
-      if (otherBagsQty + newQty > maxExtraBags) return prev;
-      return { ...prev, [bagId]: newQty };
-    });
-  };
+  // ==================== Addon Handlers ====================
 
   const handleToggleAddon = (addonId) => {
     setSelectedAddonIds((prev) => {
@@ -248,6 +490,17 @@ export const useDealer = () => {
       ...prev,
       [addonId]: { addonId, price, selectedItems },
     }));
+  };
+
+  const handleExtraBagQtyChange = (bagId, newQty) => {
+    setExtraBagQuantities((prev) => {
+      const otherBagsQty = Object.entries(prev).reduce(
+        (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
+        0,
+      );
+      if (otherBagsQty + newQty > maxExtraBags) return prev;
+      return { ...prev, [bagId]: newQty };
+    });
   };
 
   // ==================== Addon Preview Modal ====================
@@ -330,16 +583,12 @@ export const useDealer = () => {
     [modalItems, modalBagQuantities],
   );
 
-  const modalTotalBags = modalSelectedItems.reduce(
-    (sum, item) => sum + item.selectedBags,
-    0,
-  );
-
   const modalTotalPrice = modalSelectedItems.reduce(
     (sum, item) => sum + item.selectedTotal,
     0,
   );
 
+  // Any add-on can be added once at least one item has bags selected.
   const modalCanSubmit = modalSelectedItems.some(
     (item) => item.selectedBags > 0,
   );
@@ -357,156 +606,6 @@ export const useDealer = () => {
   };
 
   const handleModalClose = () => setSelectedAddon(null);
-
-  const handleSelectTorsoBag = (bagId) => {
-    // Always switch the preview to the clicked bag (for comparison browsing)
-    setLastClickedBagId(bagId);
-
-    const currentQty = torsoBagSplitQuantities[bagId] || 0;
-    if (currentQty > 0) {
-      // Already in order — just preview it, don't deselect
-      return;
-    }
-
-    // Not yet in order — add with qty 1, stealing a slot from the bag with the most qty
-    setTorsoBagSplitQuantities((prev) => {
-      const usedByOthers = Object.entries(prev).reduce(
-        (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
-        0,
-      );
-
-      if (usedByOthers < bagMultiplier) {
-        // Free slot available — just add
-        return { ...prev, [bagId]: 1 };
-      }
-
-      // All slots taken — steal one from the bag with the highest qty
-      const donorEntry = Object.entries(prev)
-        .filter(([id]) => id !== bagId)
-        .sort(([, a], [, b]) => b - a)[0];
-
-      if (!donorEntry) return prev;
-      const [donorId, donorQty] = donorEntry;
-      const next = { ...prev, [bagId]: 1 };
-      if (donorQty - 1 > 0) {
-        next[donorId] = donorQty - 1;
-      } else {
-        delete next[donorId];
-      }
-      return next;
-    });
-  };
-
-  // Fine-grained quantity adjustment used by the order summary controls
-  const handleTorsoBagQtyChange = (bagId, newQty) => {
-    setTorsoBagSplitQuantities((prev) => {
-      const usedByOthers = Object.entries(prev).reduce(
-        (acc, [id, qty]) => (id === bagId ? acc : acc + qty),
-        0,
-      );
-      const clampedQty = Math.max(
-        0,
-        Math.min(newQty, bagMultiplier - usedByOthers),
-      );
-      if (clampedQty === 0) {
-        const { [bagId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [bagId]: clampedQty };
-    });
-  };
-
-  const lastSelectedBag = useMemo(() => {
-    const preferredId =
-      lastClickedBagId && (torsoBagSplitQuantities[lastClickedBagId] || 0) > 0
-        ? lastClickedBagId
-        : selectedTorsoBagIds[0] || null;
-    return preferredId
-      ? torsoBags.find((b) => b._id === preferredId) || null
-      : null;
-  }, [
-    lastClickedBagId,
-    torsoBagSplitQuantities,
-    selectedTorsoBagIds,
-    torsoBags,
-  ]);
-
-  // Multiplier for the currently-previewed bag = how many slots the user assigned to it
-  // (or the full bagMultiplier if no allocation yet).
-  const currentMultiplier = useMemo(() => {
-    if (!lastSelectedBag) return 1;
-    const assignedQty = torsoBagSplitQuantities[lastSelectedBag._id] || 0;
-    return assignedQty > 0 ? assignedQty : bagMultiplier;
-  }, [lastSelectedBag, torsoBagSplitQuantities, bagMultiplier]);
-
-  const displayItems = useMemo(() => {
-    if (!lastSelectedBag?.items) return [];
-    return lastSelectedBag.items.map((item) => ({
-      ...item,
-      displayQuantity: item.quantity * currentMultiplier,
-    }));
-  }, [lastSelectedBag, currentMultiplier]);
-
-  // ==================== Reorder Logic ====================
-
-  useEffect(() => {
-    if (lastSelectedBag?.items) {
-      setLocalItems(lastSelectedBag.items);
-      setHasReorderChanges(false);
-    }
-  }, [lastSelectedBag]);
-
-  const reorderSensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  const handleReorderDragEnd = (event) => {
-    const { active, over } = event;
-    if (active.id !== over?.id && lastSelectedBag) {
-      const oldIndex = parseInt(active.id);
-      const newIndex = parseInt(over.id);
-      setLocalItems((prev) => arrayMove(prev, oldIndex, newIndex));
-      setHasReorderChanges(true);
-    }
-  };
-
-  const handleSaveReorder = async () => {
-    if (!lastSelectedBag || !hasReorderChanges) return;
-    setIsSavingOrder(true);
-    try {
-      const reorderIndices = localItems.map((newItem) =>
-        lastSelectedBag.items.findIndex(
-          (origItem) => origItem.image?.url === newItem.image?.url,
-        ),
-      );
-      await reorderTorsoBagItems({
-        id: lastSelectedBag._id,
-        itemOrder: reorderIndices,
-      }).unwrap();
-      setHasReorderChanges(false);
-    } catch (error) {
-      console.error("Failed to save order:", error);
-    } finally {
-      setIsSavingOrder(false);
-    }
-  };
-
-  const handleResetReorder = () => {
-    if (lastSelectedBag?.items) {
-      setLocalItems(lastSelectedBag.items);
-      setHasReorderChanges(false);
-    }
-  };
-
-  const reorderItemIds = useMemo(
-    () => localItems.map((_, idx) => idx.toString()),
-    [localItems],
-  );
 
   // ==================== Order Summary ====================
 
@@ -565,23 +664,43 @@ export const useDealer = () => {
     0,
   );
 
-  const totalOrderPrice =
-    (selectedBundle?.totalPrice || 0) + addonsTotalPrice + extraBagsCost;
+  const bundlesTotalPrice = bundleSections.reduce(
+    (sum, s) => sum + (s.bundle.totalPrice || 0) * s.quantity,
+    0,
+  );
+
+  const totalOrderPrice = bundlesTotalPrice + addonsTotalPrice + extraBagsCost;
 
   const summaryExtraBags = extraBagsWithComputed.filter((bag) => bag.qty > 0);
 
-  const summaryTorsoBags = selectedTorsoBagIds
-    .map((id) => {
-      const bag = torsoBags.find((b) => b._id === id);
-      const qty = torsoBagSplitQuantities[id] || 0;
-      return bag && qty > 0
-        ? { _id: bag._id, bagName: bag.bagName, quantity: qty }
-        : null;
-    })
-    .filter(Boolean);
+  // Per-bundle summary rows for the order summary panel.
+  const summaryBundles = useMemo(
+    () =>
+      bundleSections.map((s) => ({
+        _id: s.bundleId,
+        bundleName: s.bundle.bundleName,
+        minifigQuantity: s.bundle.minifigQuantity,
+        unitPrice: s.bundle.totalPrice || 0,
+        totalPrice: (s.bundle.totalPrice || 0) * s.quantity,
+        quantity: s.quantity,
+        bagMultiplier: s.bagMultiplier,
+        remainingBagSlots: s.remainingBagSlots,
+        torsoBags: s.torsoBags
+          .filter((b) => b.assignedQty > 0)
+          .map((b) => ({
+            _id: b._id,
+            bagName: b.bagName,
+            quantity: b.assignedQty,
+          })),
+      })),
+    [bundleSections],
+  );
 
-  const canCheckout = selectedBundle
-    ? totalAssignedBags > 0 && remainingBagSlots === 0
+  // Every selected bundle must have all its torso slots filled.
+  const canCheckout = hasSelectedBundles
+    ? bundleSections.every(
+        (s) => s.totalAssignedBags > 0 && s.remainingBagSlots === 0,
+      )
     : selectedAddonIds.length > 0 || totalExtraBags > 0;
 
   // ==================== Status ====================
@@ -602,6 +721,19 @@ export const useDealer = () => {
   const handleDealerCheckout = useCallback(() => {
     if (!canCheckout) return;
 
+    const bundlesPayload = selectedBundleIds
+      .map((bundleId) => {
+        const split = torsoSplits[bundleId] || {};
+        return {
+          bundleId,
+          quantity: bundleQuantities[bundleId] || 1,
+          torsoBags: Object.entries(split)
+            .filter(([, qty]) => qty > 0)
+            .map(([torsoBagId, quantity]) => ({ torsoBagId, quantity })),
+        };
+      })
+      .filter((b) => b.bundleId);
+
     const addonPayload = selectedAddonIds.map((id) => {
       const config = selectedAddonConfigs[id];
       return {
@@ -617,78 +749,64 @@ export const useDealer = () => {
       .filter(([, qty]) => qty > 0)
       .map(([id, qty]) => ({ extraBagId: id, quantity: qty }));
 
-    const torsoBagsPayload = selectedTorsoBagIds
-      .map((id) => ({
-        torsoBagId: id,
-        quantity: torsoBagSplitQuantities[id] || 0,
-      }))
-      .filter((b) => b.quantity > 0);
-
     checkout({
       orderType: "dealer",
-      bundleId: selectedBundleId || undefined,
-      torsoBags: torsoBagsPayload.length > 0 ? torsoBagsPayload : undefined,
+      bundles: bundlesPayload.length > 0 ? bundlesPayload : undefined,
       addons: addonPayload.length > 0 ? addonPayload : undefined,
       extraBags: extraBagPayload.length > 0 ? extraBagPayload : undefined,
     });
   }, [
     canCheckout,
     checkout,
-    selectedBundleId,
-    selectedTorsoBagIds,
-    torsoBagSplitQuantities,
+    selectedBundleIds,
+    bundleQuantities,
+    torsoSplits,
     selectedAddonIds,
     selectedAddonConfigs,
     extraBagQuantities,
   ]);
 
   return {
-    // States & Setters
-    setSelectedBundleId: handleSelectBundle,
+    // Setters
+    handleToggleBundle,
 
     // Data
     bundles: bundlesWithSelection,
     addons: addonsWithSelection,
     extraBags: extraBagsWithComputed,
-    torsoBags: torsoBagsWithSelection,
 
-    // Bundle Type Info
-    multiplier: currentMultiplier,
-    miscQuantity: miscQuantity * (currentMultiplier / (bagMultiplier || 1)),
-    displayItems,
+    // Torso picker — only the focused bundle's section is shown
+    activeSection,
+    bundleTabs,
+    hasSelectedBundles,
 
     // Memos
-    selectedBundle,
     maxExtraBags,
     totalExtraBags,
-    lastSelectedBag,
 
     // Order Summary
     orderSummary: {
+      bundles: summaryBundles,
       addons: selectedAddonsData,
       extraBags: summaryExtraBags,
-      torsoBags: summaryTorsoBags,
       totalExtraBags,
       totalOrderPrice,
       canCheckout,
+      maxBundleQuantity: MAX_BUNDLE_QUANTITY,
     },
-
-    // Bag split info
-    bagMultiplier,
-    totalAssignedBags,
-    remainingBagSlots,
 
     // Handlers
     handleToggleAddon,
     handleExtraBagQtyChange,
     handleSelectTorsoBag,
     handleTorsoBagQtyChange,
+    handleBundleQtyChange,
+    handleSetActiveBundle,
 
     // Addon Preview Modal
     addonPreview: {
       addon: selectedAddon,
       items: modalSelectedItems,
-      totalBags: modalTotalBags,
       totalPrice: modalTotalPrice,
       canSubmit: modalCanSubmit,
       isUpdate: modalIsUpdate,
@@ -697,16 +815,6 @@ export const useDealer = () => {
       onConfirm: handleModalConfirm,
       onValueChange: handleModalBagValueChange,
     },
-
-    // Reorder (Admin)
-    localItems,
-    hasReorderChanges,
-    isSavingOrder,
-    reorderSensors,
-    reorderItemIds,
-    handleReorderDragEnd,
-    handleSaveReorder,
-    handleResetReorder,
 
     // Checkout
     handleDealerCheckout,

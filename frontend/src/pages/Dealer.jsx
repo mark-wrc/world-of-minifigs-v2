@@ -1,16 +1,10 @@
-import { ArrowDown } from "lucide-react";
 import {
   dealerHero,
   dealerFeatures,
-  dealerProcess,
-  dealerIncluded,
-  dealerBenefits,
 } from "@/constant/dealerData";
 import PageHero from "@/components/shared/PageHero";
-import SectionWithCards from "@/components/shared/SectionWithCards";
 import ErrorState from "@/components/shared/ErrorState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { Button } from "@/components/ui/button";
 import DealerBundle from "@/components/dealer/DealerBundle";
 import DealerAddon from "@/components/dealer/DealerAddon";
 import DealerExtraBag from "@/components/dealer/DealerExtraBag";
@@ -21,52 +15,36 @@ import { useDealer } from "@/hooks/useDealer";
 
 const Dealer = () => {
   const {
-    // States & Setters
-    setSelectedBundleId,
+    // Setters
+    handleToggleBundle,
     handleToggleAddon,
 
     // Data
     bundles,
     addons,
     extraBags,
-    torsoBags,
 
-    // Bundle Type Info
-    multiplier,
-    miscQuantity,
-    displayItems,
+    // Torso picker
+    activeSection,
+    bundleTabs,
+    hasSelectedBundles,
 
     // Memos
-    selectedBundle,
     maxExtraBags,
     totalExtraBags,
-    lastSelectedBag,
 
     // Order Summary
     orderSummary,
-
-    // Bag split info
-    bagMultiplier,
-    totalAssignedBags,
-    remainingBagSlots,
 
     // Handlers
     handleExtraBagQtyChange,
     handleSelectTorsoBag,
     handleTorsoBagQtyChange,
+    handleBundleQtyChange,
+    handleSetActiveBundle,
 
     // Addon Preview Modal
     addonPreview,
-
-    // Reorder (Admin)
-    localItems,
-    hasReorderChanges,
-    isSavingOrder,
-    reorderSensors,
-    reorderItemIds,
-    handleReorderDragEnd,
-    handleSaveReorder,
-    handleResetReorder,
 
     // Checkout
     handleDealerCheckout,
@@ -111,51 +89,10 @@ const Dealer = () => {
         description={dealerHero.description}
         badge={dealerHero.badge}
         features={dealerFeatures}
-        // action={
-        //   <Button
-        //     variant="accent"
-        //     size="lg"
-        //     onClick={() =>
-        //       document
-        //         .getElementById("dealer-bundles")
-        //         ?.scrollIntoView({ behavior: "smooth", block: "start" })
-        //     }
-        //     className="group relative overflow-hidden h-12 px-7 uppercase font-semibold tracking-wide before:content-[''] before:absolute before:top-0 before:left-0 before:h-full before:w-1/2 before:-translate-x-full before:bg-linear-to-r before:from-transparent before:via-white/50 before:to-transparent before:skew-x-12 before:transition-transform before:duration-700 hover:before:translate-x-[300%]"
-        //   >
-        //     Skip to bundles
-        //     <ArrowDown className="transition-transform duration-300 group-hover:translate-y-1 motion-safe:animate-bounce" />
-        //   </Button>
-        // }
       />
 
-      {/* How it works */}
-      {/* <SectionWithCards
-        badge={dealerProcess.badge}
-        title={dealerProcess.title}
-        items={dealerProcess.steps}
-        gridCols="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-      /> */}
-
-      {/* Parts Breakdown */}
-      {/* <SectionWithCards
-        badge={dealerIncluded.badge}
-        title={dealerIncluded.title}
-        description={dealerIncluded.description}
-        items={dealerIncluded.items}
-        gridCols="grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-        background={true}
-      /> */}
-
-      {/* Why Partner with Us */}
-      {/* <SectionWithCards
-        badge={dealerBenefits.badge}
-        title={dealerBenefits.title}
-        description={dealerBenefits.description}
-        items={dealerBenefits.features}
-      /> */}
-
       <div id="dealer-bundles" className="scroll-mt-20">
-        <DealerBundle bundles={bundles} onSelect={setSelectedBundleId} />
+        <DealerBundle bundles={bundles} onSelect={handleToggleBundle} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 p-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
@@ -166,48 +103,63 @@ const Dealer = () => {
             onPreview={addonPreview.onOpen}
           />
 
-          {selectedBundle && (
+          {hasSelectedBundles && (
             <DealerExtraBag
               extraBags={extraBags}
               totalExtraBags={totalExtraBags}
               maxExtraBags={maxExtraBags}
-              selectedBundle={selectedBundle}
+              selectedBundle={hasSelectedBundles}
               onQtyChange={handleExtraBagQtyChange}
             />
           )}
 
-          {selectedBundle && (
-            <DealerTorsoBag
-              torsoBags={torsoBags}
-              lastSelectedBag={lastSelectedBag}
-              onSelect={handleSelectTorsoBag}
-              isAdmin={isAdmin}
-              multiplier={multiplier}
-              bagMultiplier={bagMultiplier}
-              miscQuantity={miscQuantity}
-              displayItems={displayItems}
-              localItems={localItems}
-              hasReorderChanges={hasReorderChanges}
-              isSavingOrder={isSavingOrder}
-              reorderSensors={reorderSensors}
-              reorderItemIds={reorderItemIds}
-              onDragEnd={handleReorderDragEnd}
-              onSave={handleSaveReorder}
-              onReset={handleResetReorder}
-            />
+          {/* Torso picker — follows the focused bundle. The tab strip
+              switches between selected bundles. */}
+          {activeSection && (
+            <div id="step4" className="space-y-5 overflow-visible">
+              {bundleTabs.length > 1 && (
+                <div className="flex flex-wrap gap-2">
+                  {bundleTabs.map((tab) => (
+                    <button
+                      key={tab.bundleId}
+                      type="button"
+                      onClick={() => handleSetActiveBundle(tab.bundleId)}
+                      className={`px-4 py-2 text-sm font-bold uppercase tracking-wide border transition-colors ${
+                        tab.isActive
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "bg-card text-muted-foreground border-border hover:border-accent"
+                      }`}
+                    >
+                      {tab.bundleName}
+                      {tab.needsTorso && (
+                        <span
+                          className="ml-1.5 text-amber-500"
+                          title="Torso bags not fully assigned"
+                        >
+                          ●
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <DealerTorsoBag
+                key={activeSection.bundleId}
+                section={activeSection}
+                isAdmin={isAdmin}
+                onSelectTorsoBag={handleSelectTorsoBag}
+              />
+            </div>
           )}
         </div>
 
         <DealerOrderSummary
-          selectedBundle={selectedBundle}
           {...orderSummary}
           onCheckout={handleDealerCheckout}
           isCheckoutLoading={isCheckoutLoading}
-          bagMultiplier={bagMultiplier}
-          totalAssignedBags={totalAssignedBags}
-          remainingBagSlots={remainingBagSlots}
           onSetTorsoBagQuantity={handleTorsoBagQtyChange}
-          allTorsoBags={torsoBags}
+          onBundleQtyChange={handleBundleQtyChange}
         />
       </div>
 
@@ -215,7 +167,6 @@ const Dealer = () => {
         <AddonPreviewModal
           addon={addonPreview.addon}
           items={addonPreview.items}
-          totalBags={addonPreview.totalBags}
           totalPrice={addonPreview.totalPrice}
           canSubmit={addonPreview.canSubmit}
           isUpdate={addonPreview.isUpdate}

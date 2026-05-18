@@ -12,7 +12,12 @@
       "Bash(grep -E \"frontend.*\\\\.\\(jsx|js\\)$\")",
       "Bash(grep -E \"\\\\.jsx$\")",
       "Bash(grep -E \"\\\\.js$\")",
-      "Bash(dir *)"
+      "Bash(dir *)",
+      "Bash(npx eslint *)",
+      "Bash(node --check backend/services/payment/checkout/dealerCheckout.js)",
+      "Bash(node --check backend/utils/payment/stockManager.js)",
+      "Bash(node --check backend/models/order.model.js)",
+      "Bash(node --check backend/utils/Email/orderEmails.js)"
     ]
   }
 }

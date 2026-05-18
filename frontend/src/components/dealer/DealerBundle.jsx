@@ -10,7 +10,7 @@ const DealerBundle = ({ bundles, onSelect }) => (
         Select Your Bag Quantities
       </h2>
       <p className="text-muted-foreground text-sm">
-        Top-quality, 100% genuine LEGO minifigures
+        Top-quality, 100% genuine LEGO minifigures — select one or more bundles
       </p>
     </div>
 
@@ -30,7 +30,7 @@ const DealerBundle = ({ bundles, onSelect }) => (
               variant="accent"
               className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-semibold px-3 py-1 whitespace-nowrap z-10 uppercase"
             >
-              Current Selection
+              Selected
             </Badge>
           )}
 

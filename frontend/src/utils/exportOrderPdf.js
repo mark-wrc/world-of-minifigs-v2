@@ -485,13 +485,19 @@ export const exportOrderToPdf = async (order) => {
   if (isDealer && order.dealerItems) {
     const di = order.dealerItems;
 
-    // Bundle + torso bags combined into one table
-    if (di.bundle?.name) {
-      const torsoBags = di.torsoBags ?? [];
+    // Bundle(s) + torso bags — one table per ordered bundle.
+    const bundleList = di.bundles?.length
+      ? di.bundles
+      : di.bundle?.name
+        ? [{ ...di.bundle, torsoBags: di.torsoBags ?? [] }]
+        : [];
+
+    for (const bundle of bundleList) {
+      const torsoBags = bundle.torsoBags ?? [];
 
       // Row 0 = bundle, rows 1+ = torso bag entries
       const bundleBody = [
-        [safe(di.bundle.name), formatCurrency(di.bundle.price)],
+        [safe(bundle.name), formatCurrency(bundle.price)],
         ...torsoBags.map((tb) => [`${safe(tb.name)}`, `x${safe(tb.quantity)}`]),
       ];
 

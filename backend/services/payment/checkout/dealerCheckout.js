@@ -16,71 +16,108 @@ import {
 import { EXTRA_BAG_RATIO } from "../paymentConfig.js";
 import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 
+// Dealers may order multiple copies of the same bundle (e.g. 3× the 1000
+// bundle = 3000 minifigs). Hard-capped — to go higher they pick a bigger bundle.
+const MAX_BUNDLE_QUANTITY = 4;
+
+const clampBundleQuantity = (value) =>
+  Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
+
 // ------------ Build Stripe Line Items for Dealer Checkout ------------
 
 export async function buildLineItemsForDealer(body, userId) {
-  const { bundleId, torsoBags: torsoBagsPayload, addons, extraBags } = body;
+  const { bundles: bundlesPayload, addons, extraBags } = body;
 
-  // 1. Bundle is optional — dealers can order add-ons / extra bags alone.
-  let bundle = null;
-  if (bundleId) {
-    bundle = await Bundle.findOne({
-      _id: bundleId,
-      bundleType: "dealer",
-      isActive: true,
-    }).lean();
+  // 1. Validate bundles. Dealers may order several distinct bundles
+  //    (e.g. 1000 + 200), each with its own copy quantity (1-4) and its own
+  //    torso-bag split. Bundles are optional — add-ons / extra bags can stand alone.
+  const validatedBundles = [];
+  const torsoStock = {}; // torsoBagId -> available stock
+  const torsoNeeded = {}; // torsoBagId -> total qty needed across all bundles
+  const torsoName = {}; // torsoBagId -> bag name (for error messages)
+  let largestBundleMinifigs = 0; // biggest bundle's minifig count — extra-bag cap
 
-    if (!bundle) {
-      return {
-        error: {
-          status: 404,
-          message: "Bundle not found",
-          description: "The selected bundle does not exist or is unavailable.",
-        },
-      };
-    }
-  }
-
-  // 2. Validate & fetch torso bags
-  const validatedTorsoBags = [];
-  if (Array.isArray(torsoBagsPayload) && torsoBagsPayload.length > 0) {
-    for (const entry of torsoBagsPayload) {
-      const qty = Math.max(1, Math.floor(Number(entry.quantity) || 1));
-      const bag = await DealerTorsoBag.findOne({
-        _id: entry.torsoBagId,
+  if (Array.isArray(bundlesPayload) && bundlesPayload.length > 0) {
+    for (const entry of bundlesPayload) {
+      const bundle = await Bundle.findOne({
+        _id: entry.bundleId,
+        bundleType: "dealer",
         isActive: true,
       }).lean();
 
-      if (!bag) {
+      if (!bundle) {
         return {
           error: {
             status: 404,
-            message: "Torso bag not found",
+            message: "Bundle not found",
             description:
-              "One of the selected torso bags does not exist or is unavailable.",
+              "One of the selected bundles does not exist or is unavailable.",
           },
         };
       }
 
-      if ((bag.stock ?? 0) < qty) {
+      const quantity = clampBundleQuantity(entry.quantity);
+
+      // Validate this bundle's torso bags. The torso split already spans the
+      // full slot count (per-copy bags × copy quantity), so quantities arrive
+      // pre-scaled — no further multiplication here.
+      const torsoBags = [];
+      if (Array.isArray(entry.torsoBags) && entry.torsoBags.length > 0) {
+        for (const tb of entry.torsoBags) {
+          const qty = Math.max(1, Math.floor(Number(tb.quantity) || 1));
+
+          const bag = await DealerTorsoBag.findOne({
+            _id: tb.torsoBagId,
+            isActive: true,
+          }).lean();
+
+          if (!bag) {
+            return {
+              error: {
+                status: 404,
+                message: "Torso bag not found",
+                description:
+                  "One of the selected torso bags does not exist or is unavailable.",
+              },
+            };
+          }
+
+          const key = bag._id.toString();
+          torsoStock[key] = bag.stock ?? 0;
+          torsoNeeded[key] = (torsoNeeded[key] || 0) + qty;
+          torsoName[key] = bag.bagName;
+
+          torsoBags.push({
+            torsoBagId: bag._id,
+            bagName: bag.bagName,
+            quantity: qty,
+          });
+        }
+      }
+
+      validatedBundles.push({ bundle, quantity, torsoBags });
+      largestBundleMinifigs = Math.max(
+        largestBundleMinifigs,
+        bundle.minifigQuantity,
+      );
+    }
+
+    // Aggregate stock check — the same torso bag may be used by more than
+    // one selected bundle, so validate the combined demand.
+    for (const key of Object.keys(torsoNeeded)) {
+      if ((torsoStock[key] || 0) < torsoNeeded[key]) {
         return {
           error: {
             status: 400,
             message: "Torso bag out of stock",
-            description: `"${bag.bagName}" does not have enough stock to fulfill this order.`,
+            description: `"${torsoName[key]}" does not have enough stock to fulfill this order.`,
           },
         };
       }
-
-      validatedTorsoBags.push({
-        torsoBagId: bag._id,
-        bagName: bag.bagName,
-        quantity: qty,
-      });
     }
   }
 
-  // 3. Validate & fetch addons
+  // 2. Validate & fetch addons
   const validatedAddons = [];
   let addonsTotal = 0;
   if (addons && Array.isArray(addons) && addons.length > 0) {
@@ -112,12 +149,6 @@ export async function buildLineItemsForDealer(body, userId) {
 
       if (addon.addonType === "bundle" && selectedItems) {
         finalPrice = 0;
-        let bulkPartsTotalBags = 0;
-        let isBulkPartsAddon =
-          addon.bundleItems.length > 0 &&
-          addon.bundleItems.every(
-            (bi) => bi.inventoryItemId?.category === "bulk-minifig-parts",
-          );
 
         for (const selItem of selectedItems) {
           const bundleItem = addon.bundleItems.find(
@@ -142,27 +173,12 @@ export async function buildLineItemsForDealer(body, userId) {
             };
           }
 
-          if (inventory.category === "bulk-minifig-parts") {
-            bulkPartsTotalBags += bagsRequested;
-          }
-
           const itemBagPrice = Number(inventory.pricePerBag || 0);
           finalPrice += itemBagPrice * bagsRequested;
           finalItems.push({
             inventoryItemId: selItem.inventoryItemId,
             selectedBags: bagsRequested,
           });
-        }
-
-        // Bulk-minifig-parts addons require a minimum of 10 total bags.
-        if (isBulkPartsAddon && finalItems.length > 0 && bulkPartsTotalBags < 10) {
-          return {
-            error: {
-              status: 400,
-              message: "Minimum order not met",
-              description: `"${addon.addonName}" requires at least 10 total bags across all items. You selected ${bulkPartsTotalBags}.`,
-            },
-          };
         }
       }
 
@@ -177,12 +193,14 @@ export async function buildLineItemsForDealer(body, userId) {
     }
   }
 
-  // 4. Validate & fetch extra bags. Extra-bag cap only applies when a bundle is selected.
+  // 3. Validate & fetch extra bags. Extra-bag cap only applies when at least
+  //    one bundle is selected; it is based on the single largest bundle, not
+  //    the sum of bundles or copy quantities.
   const validatedExtraBags = [];
   let extraBagsTotal = 0;
   if (extraBags && Array.isArray(extraBags) && extraBags.length > 0) {
-    if (bundle) {
-      const maxBags = Math.floor(bundle.minifigQuantity / EXTRA_BAG_RATIO);
+    if (validatedBundles.length > 0) {
+      const maxBags = Math.floor(largestBundleMinifigs / EXTRA_BAG_RATIO);
       const totalSelected = extraBags.reduce(
         (sum, eb) => sum + Math.max(1, Math.floor(Number(eb.quantity) || 1)),
         0,
@@ -223,9 +241,9 @@ export async function buildLineItemsForDealer(body, userId) {
     }
   }
 
-  // 5. Require at least one purchasable item.
+  // 4. Require at least one purchasable item.
   if (
-    !bundle &&
+    validatedBundles.length === 0 &&
     validatedAddons.length === 0 &&
     validatedExtraBags.length === 0
   ) {
@@ -239,20 +257,26 @@ export async function buildLineItemsForDealer(body, userId) {
     };
   }
 
-  // 6. Build Stripe line items
+  // 5. Build Stripe line items — one per ordered bundle.
   const lineItems = [];
 
-  if (bundle) {
-    const bagSummary = validatedTorsoBags
+  validatedBundles.forEach((vb) => {
+    const bagSummary = vb.torsoBags
       .map((tb) =>
         tb.quantity > 1 ? `${tb.bagName}×${tb.quantity}` : tb.bagName,
       )
       .join(", ");
-    const bundleName = `${bundle.minifigQuantity} Minifigs${bagSummary ? ` [${bagSummary}]` : ""}`;
+    const bundleName = `${vb.bundle.minifigQuantity} Minifigs${
+      vb.quantity > 1 ? ` × ${vb.quantity}` : ""
+    }${bagSummary ? ` [${bagSummary}]` : ""}`;
     lineItems.push(
-      buildStripeLineItem(bundleName, Math.round(bundle.totalPrice * 100), 1),
+      buildStripeLineItem(
+        bundleName,
+        Math.round(vb.bundle.totalPrice * vb.quantity * 100),
+        1,
+      ),
     );
-  }
+  });
 
   // Individual Add-ons
   if (validatedAddons.length > 0) {
@@ -285,10 +309,13 @@ export async function buildLineItemsForDealer(body, userId) {
     });
   }
 
-  // 7. Save Draft Snapshot (Scalability & Character Limit Solution)
+  // 6. Save Draft Snapshot (Scalability & Character Limit Solution)
   const draftId = await saveOrderDraft(userId, ORDER_TYPES.DEALER, {
-    bundleId: bundle?._id,
-    torsoBags: validatedTorsoBags.length > 0 ? validatedTorsoBags : undefined,
+    bundles: validatedBundles.map((vb) => ({
+      bundleId: vb.bundle._id,
+      quantity: vb.quantity,
+      torsoBags: vb.torsoBags,
+    })),
     addons: validatedAddons,
     extraBags: validatedExtraBags,
   });
@@ -313,33 +340,34 @@ export async function createDealerOrderFromStripeSession(session) {
     return null;
   }
 
-  const { bundleId, torsoBags, addons, extraBags } = draft.payload;
-
-  // Bundle is optional — dealers can order addons / extra bags alone.
-  const bundle = bundleId ? await Bundle.findById(bundleId).lean() : null;
-  if (bundleId && !bundle) return null;
+  const { bundles: bundlesDraft, addons, extraBags } = draft.payload;
 
   // Build the hierarchical manifest for database persistence
   const manifest = {};
-  if (bundle) {
-    manifest.bundle = {
-      id: bundle._id,
-      name: `${bundle.minifigQuantity} Minifigs`,
-      price: bundle.totalPrice,
-    };
-  }
 
-  if (torsoBags?.length > 0) {
-    const resolvedBags = [];
-    for (const { torsoBagId, bagName, quantity } of torsoBags) {
-      const bag = await DealerTorsoBag.findById(torsoBagId).lean();
-      resolvedBags.push({
-        id: bag?._id || torsoBagId,
-        name: bag?.bagName || bagName,
+  // Bundles are optional — dealers can order addons / extra bags alone.
+  if (Array.isArray(bundlesDraft) && bundlesDraft.length > 0) {
+    manifest.bundles = [];
+    for (const b of bundlesDraft) {
+      const bundle = await Bundle.findById(b.bundleId).lean();
+      if (!bundle) continue;
+
+      const quantity = clampBundleQuantity(b.quantity);
+      manifest.bundles.push({
+        id: bundle._id,
+        name:
+          quantity > 1
+            ? `${bundle.minifigQuantity} Minifigs × ${quantity}`
+            : `${bundle.minifigQuantity} Minifigs`,
+        price: bundle.totalPrice * quantity,
         quantity,
+        torsoBags: (b.torsoBags || []).map((tb) => ({
+          id: tb.torsoBagId,
+          name: tb.bagName,
+          quantity: tb.quantity,
+        })),
       });
     }
-    manifest.torsoBags = resolvedBags;
   }
 
   if (addons?.length > 0) {
@@ -396,8 +424,12 @@ export async function createDealerOrderFromStripeSession(session) {
   });
 
   if (result?.created) {
-    if (torsoBags?.length > 0) {
-      await decrementTorsoBagStock(torsoBags);
+    // Decrement torso-bag stock across every ordered bundle.
+    const allTorsoBags = (bundlesDraft || []).flatMap(
+      (b) => b.torsoBags || [],
+    );
+    if (allTorsoBags.length > 0) {
+      await decrementTorsoBagStock(allTorsoBags);
     }
     if (addons?.length > 0) {
       await decrementDealerAddonStock(

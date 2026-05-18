@@ -71,7 +71,12 @@ const CheckoutSuccess = () => {
   const isDealer = order?.orderType === "dealer";
   const di = order?.dealerItems;
 
-  const torsoBags = di?.torsoBags ?? [];
+  // Multi-bundle orders; fall back to the legacy single-bundle shape.
+  const bundleList = di?.bundles?.length
+    ? di.bundles
+    : di?.bundle?.name
+      ? [{ ...di.bundle, quantity: 1, torsoBags: di.torsoBags ?? [] }]
+      : [];
 
   return (
     <div className="px-5 py-10">
@@ -126,38 +131,51 @@ const CheckoutSuccess = () => {
             {/* ── Dealer Order Layout ── */}
             {isDealer && di && (
               <>
-                {/* Selected Bundle Card */}
-                {di.bundle?.name && (
+                {/* Selected Bundles */}
+                {bundleList.length > 0 && (
                   <Card>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4">
                       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        Selected Bundle
+                        Selected Bundle{bundleList.length !== 1 ? "s" : ""}
                       </p>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-base">
-                          {di.bundle.name}
-                        </span>
-                        <span className="font-bold text-base text-success dark:text-accent whitespace-nowrap">
-                          {formatCurrency(di.bundle.price)}
-                        </span>
-                      </div>
+                      {bundleList.map((bundle, bi) => (
+                        <div
+                          key={bi}
+                          className={
+                            bi > 0
+                              ? "pt-4 border-t border-dashed space-y-3"
+                              : "space-y-3"
+                          }
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-base">
+                              {bundle.name}
+                            </span>
+                            <span className="font-bold text-base text-success dark:text-accent whitespace-nowrap">
+                              {formatCurrency(bundle.price)}
+                            </span>
+                          </div>
 
-                      {/* Torso Bags */}
-                      {torsoBags.length > 0 && (
-                        <div className="pt-2 border-t border-dashed space-y-2">
-                          {torsoBags.map((tb, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between text-sm"
-                            >
-                              <span className="font-medium">{tb.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                ×{tb.quantity}
-                              </span>
+                          {/* Torso Bags */}
+                          {bundle.torsoBags?.length > 0 && (
+                            <div className="pt-2 border-t border-dashed space-y-2">
+                              {bundle.torsoBags.map((tb, i) => (
+                                <div
+                                  key={i}
+                                  className="flex items-center justify-between text-sm"
+                                >
+                                  <span className="font-medium">
+                                    {tb.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    ×{tb.quantity}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
-                      )}
+                      ))}
                     </CardContent>
                   </Card>
                 )}

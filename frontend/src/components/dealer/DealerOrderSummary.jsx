@@ -6,21 +6,101 @@ import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import QuantityControl from "@/components/shared/QuantityControl";
 
+// ─── A single ordered bundle: name, copy-quantity control, torso-bag split ─────
+const BundleRow = ({
+  bundle,
+  maxBundleQuantity,
+  onBundleQtyChange,
+  onSetTorsoBagQuantity,
+}) => (
+  <div className="space-y-3">
+    <div className="flex justify-between items-start gap-2">
+      <p className="text-sm font-bold">{bundle.bundleName}</p>
+      <p className="text-sm font-bold text-success dark:text-accent shrink-0">
+        {formatCurrency(bundle.totalPrice)}
+      </p>
+    </div>
+
+    {/* Bundle copy quantity — dealers can order up to maxBundleQuantity copies */}
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col">
+        <span className="text-xs font-medium text-foreground">
+          Bundle Quantity
+        </span>
+        <span className="text-[10px] text-muted-foreground font-medium">
+          {(bundle.minifigQuantity * bundle.quantity).toLocaleString()} minifigs
+          total
+        </span>
+      </div>
+      <QuantityControl
+        value={bundle.quantity}
+        onChange={(val) => onBundleQtyChange?.(bundle._id, val)}
+        min={1}
+        max={maxBundleQuantity}
+        size="xs"
+      />
+    </div>
+
+    {/* Torso bag split */}
+    {bundle.bagMultiplier > 1 ? (
+      <div className="space-y-2">
+        {bundle.torsoBags.length > 0 && (
+          <div className="space-y-1.5">
+            {bundle.torsoBags.map((bag) => (
+              <div
+                key={bag._id}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="text-xs font-medium text-foreground flex-1 truncate">
+                  {bag.bagName}
+                </span>
+                <QuantityControl
+                  value={bag.quantity}
+                  onChange={(val) =>
+                    onSetTorsoBagQuantity?.(bundle._id, bag._id, val)
+                  }
+                  min={0}
+                  max={bag.quantity + bundle.remainingBagSlots}
+                  size="xs"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {bundle.remainingBagSlots > 0 && bundle.torsoBags.length > 0 && (
+          <p className="text-[10px] text-amber-500 dark:text-amber-400 font-medium">
+            {bundle.remainingBagSlots} slot
+            {bundle.remainingBagSlots !== 1 ? "s" : ""} remaining — fill all
+            slots to checkout
+          </p>
+        )}
+      </div>
+    ) : (
+      bundle.torsoBags.map((bag) => (
+        <p
+          key={bag._id}
+          className="text-xs text-muted-foreground font-medium"
+        >
+          {bag.bagName}
+        </p>
+      ))
+    )}
+  </div>
+);
+
 const DealerOrderSummary = ({
-  selectedBundle,
-  addons,
-  extraBags,
-  torsoBags,
+  bundles = [],
+  addons = [],
+  extraBags = [],
   totalExtraBags,
   totalOrderPrice,
   canCheckout,
   onCheckout,
   isCheckoutLoading,
-  bagMultiplier = 1,
-  totalAssignedBags = 0,
-  remainingBagSlots = 0,
+  maxBundleQuantity = 4,
   onSetTorsoBagQuantity,
-  allTorsoBags = [],
+  onBundleQtyChange,
 }) => {
   const [expandedAddons, setExpandedAddons] = useState({});
 
@@ -31,7 +111,8 @@ const DealerOrderSummary = ({
     }));
   };
 
-  const hasItems = !!selectedBundle || addons.length > 0 || totalExtraBags > 0;
+  const hasItems =
+    bundles.length > 0 || addons.length > 0 || totalExtraBags > 0;
 
   return (
     <aside className="lg:sticky lg:top-24 space-y-5">
@@ -53,61 +134,22 @@ const DealerOrderSummary = ({
             </div>
           )}
 
-          {/* Main Bundle Section */}
-          {selectedBundle && (
-            <div className="space-y-3 pb-3">
-              <div className="flex justify-between items-start gap-2">
-                <p className="text-sm font-bold">{selectedBundle.bundleName}</p>
-                <p className="text-sm font-bold text-success dark:text-accent shrink-0">
-                  {formatCurrency(selectedBundle.totalPrice)}
-                </p>
-              </div>
-
-              {/* Torso bag display */}
-              {bagMultiplier > 1 ? (
-                <div className="space-y-2">
-                  {torsoBags.length > 0 && (
-                    <div className="space-y-1.5">
-                      {torsoBags.map((bag) => (
-                        <div
-                          key={bag._id}
-                          className="flex items-center justify-between gap-2"
-                        >
-                          <span className="text-xs font-medium text-foreground flex-1 truncate">
-                            {bag.bagName}
-                          </span>
-                          <QuantityControl
-                            value={bag.quantity}
-                            onChange={(val) =>
-                              onSetTorsoBagQuantity?.(bag._id, val)
-                            }
-                            min={0}
-                            max={bag.quantity + remainingBagSlots}
-                            size="xs"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {remainingBagSlots > 0 && torsoBags.length > 0 && (
-                    <p className="text-[10px] text-amber-500 dark:text-amber-400 font-medium">
-                      {remainingBagSlots} slot
-                      {remainingBagSlots !== 1 ? "s" : ""} remaining — fill all
-                      slots to checkout
-                    </p>
-                  )}
+          {/* Bundles Section — one block per selected bundle */}
+          {bundles.length > 0 && (
+            <div className="space-y-5">
+              {bundles.map((bundle, idx) => (
+                <div
+                  key={bundle._id}
+                  className={idx > 0 ? "pt-4 border-t border-dashed" : ""}
+                >
+                  <BundleRow
+                    bundle={bundle}
+                    maxBundleQuantity={maxBundleQuantity}
+                    onBundleQtyChange={onBundleQtyChange}
+                    onSetTorsoBagQuantity={onSetTorsoBagQuantity}
+                  />
                 </div>
-              ) : (
-                torsoBags.map((bag) => (
-                  <p
-                    key={bag._id}
-                    className="text-xs text-muted-foreground font-medium"
-                  >
-                    {bag.bagName}
-                  </p>
-                ))
-              )}
+              ))}
             </div>
           )}
 

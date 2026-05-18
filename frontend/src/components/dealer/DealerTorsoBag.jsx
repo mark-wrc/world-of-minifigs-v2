@@ -1,5 +1,18 @@
-import { DndContext, closestCenter } from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
+import { useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,6 +22,7 @@ import {
   PreviewItem,
   SortablePreviewItem,
 } from "@/components/dealer/TorsoPreviewItems";
+import { useReorderTorsoBagItemsMutation } from "@/redux/api/adminApi";
 
 // ─── Shared grid — renders items + misc tail in one place ──────────────────────
 const PreviewGrid = ({
@@ -61,32 +75,86 @@ const PreviewGrid = ({
   );
 };
 
-// ─── Main component ────────────────────────────────────────────────────────────
-const DealerTorsoBag = ({
-  torsoBags,
-  lastSelectedBag,
-  onSelect,
-  isAdmin,
-  multiplier,
-  bagMultiplier,
-  miscQuantity,
-  displayItems,
-  localItems,
-  hasReorderChanges,
-  isSavingOrder,
-  reorderSensors,
-  reorderItemIds,
-  onDragEnd,
-  onSave,
-  onReset,
-}) => {
+// ─── Main component — one instance per selected bundle ─────────────────────────
+const DealerTorsoBag = ({ section, isAdmin, onSelectTorsoBag }) => {
+  const {
+    bundle,
+    bundleId,
+    bagMultiplier,
+    torsoBags,
+    lastSelectedBag,
+    multiplier,
+    miscQuantity,
+    displayItems,
+  } = section;
+
   const rawTorsoQty = (bag) =>
     bag?.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
 
+  // ─── Admin reorder — self-contained per previewed torso bag ──────────────────
+  const [reorderTorsoBagItems] = useReorderTorsoBagItemsMutation();
+  const [localItems, setLocalItems] = useState([]);
+  const [hasReorderChanges, setHasReorderChanges] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+
+  useEffect(() => {
+    setLocalItems(lastSelectedBag?.items || []);
+    setHasReorderChanges(false);
+  }, [lastSelectedBag]);
+
+  const reorderSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const reorderItemIds = useMemo(
+    () => localItems.map((_, idx) => idx.toString()),
+    [localItems],
+  );
+
+  const handleReorderDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over?.id && lastSelectedBag) {
+      const oldIndex = parseInt(active.id);
+      const newIndex = parseInt(over.id);
+      setLocalItems((prev) => arrayMove(prev, oldIndex, newIndex));
+      setHasReorderChanges(true);
+    }
+  };
+
+  const handleSaveReorder = async () => {
+    if (!lastSelectedBag || !hasReorderChanges) return;
+    setIsSavingOrder(true);
+    try {
+      const reorderIndices = localItems.map((newItem) =>
+        lastSelectedBag.items.findIndex(
+          (origItem) => origItem.image?.url === newItem.image?.url,
+        ),
+      );
+      await reorderTorsoBagItems({
+        id: lastSelectedBag._id,
+        itemOrder: reorderIndices,
+      }).unwrap();
+      setHasReorderChanges(false);
+    } catch (error) {
+      console.error("Failed to save order:", error);
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const handleResetReorder = () => {
+    setLocalItems(lastSelectedBag?.items || []);
+    setHasReorderChanges(false);
+  };
+
   return (
-    <section id="step4" className="overflow-visible">
+    <section className="overflow-visible">
       <div className="text-left mb-5">
         <h2 className="text-2xl font-bold mb-2 tracking-tight">
+          {bundle.bundleName} —{" "}
           {torsoBags.length === 1
             ? "Review Your LEGO Torsos"
             : "Choose Your LEGO Torso"}
@@ -95,7 +163,7 @@ const DealerTorsoBag = ({
           {torsoBags.length === 1
             ? "Your bundle includes the following curated torso designs."
             : bagMultiplier > 1
-              ? `Your bundle includes ${bagMultiplier} bags — customize the split in the order summary.`
+              ? `This bundle includes ${bagMultiplier} bags — customize the split in the order summary.`
               : "Select your preferred torso bag design."}
         </p>
       </div>
@@ -166,7 +234,7 @@ const DealerTorsoBag = ({
           {torsoBags.map((bag) => (
             <Card
               key={bag._id}
-              onClick={() => onSelect(bag._id)}
+              onClick={() => onSelectTorsoBag(bundleId, bag._id)}
               className={`relative cursor-pointer transition-all duration-300 group p-0 gap-0 overflow-visible hover:shadow-2xl hover:-translate-y-2 ${
                 bag.isSelected
                   ? "border-accent ring-2 ring-accent ring-offset-2"
@@ -235,7 +303,7 @@ const DealerTorsoBag = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onReset}
+                  onClick={handleResetReorder}
                   disabled={isSavingOrder}
                 >
                   Reset
@@ -243,7 +311,7 @@ const DealerTorsoBag = ({
                 <Button
                   variant="accent"
                   size="sm"
-                  onClick={onSave}
+                  onClick={handleSaveReorder}
                   disabled={isSavingOrder}
                 >
                   {isSavingOrder ? "Saving..." : "Save Order"}
@@ -260,7 +328,7 @@ const DealerTorsoBag = ({
             multiplier={multiplier}
             reorderItemIds={reorderItemIds}
             reorderSensors={reorderSensors}
-            onDragEnd={onDragEnd}
+            onDragEnd={handleReorderDragEnd}
           />
         </div>
       )}

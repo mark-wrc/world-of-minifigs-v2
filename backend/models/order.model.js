@@ -26,8 +26,39 @@ const productItemSchema = new mongoose.Schema(
 
 /* ----------------------------------------- Dealer Schema ------------------------------------------ */
 
+// A torso bag entry as it belongs to a single ordered bundle.
+const dealerBundleTorsoSchema = new mongoose.Schema(
+  {
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "DealerTorsoBag" },
+    name: { type: String },
+    quantity: { type: Number },
+  },
+  { _id: false },
+);
+
+// A single ordered bundle. Dealers can order several distinct bundles
+// (e.g. 1000 + 200) in one order, each with its own copy quantity (1-4)
+// and its own torso-bag split.
+const dealerBundleSchema = new mongoose.Schema(
+  {
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
+    name: { type: String },
+    price: { type: Number },
+    quantity: { type: Number, default: 1 },
+    torsoBags: { type: [dealerBundleTorsoSchema], default: [] },
+  },
+  { _id: false },
+);
+
 const dealerItemSchema = new mongoose.Schema(
   {
+    // Multi-bundle orders. Legacy single-bundle fields below are kept so
+    // historical orders still render.
+    bundles: {
+      type: [dealerBundleSchema],
+      default: undefined,
+    },
+    // --- Legacy (single-bundle orders placed before multi-bundle support) ---
     bundle: {
       type: new mongoose.Schema(
         {

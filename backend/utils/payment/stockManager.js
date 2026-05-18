@@ -171,7 +171,12 @@ export const decrementTorsoBagStock = async (torsoBags) => {
 };
 
 const restockTorsoBagItems = async (dealerItems) => {
-  const torsoBags = dealerItems?.torsoBags;
+  // Multi-bundle orders nest torso bags under each bundle; legacy orders keep
+  // a flat dealerItems.torsoBags array.
+  const fromBundles = (dealerItems?.bundles || []).flatMap(
+    (b) => b.torsoBags || [],
+  );
+  const torsoBags = fromBundles.length > 0 ? fromBundles : dealerItems?.torsoBags;
   if (!torsoBags?.length) return;
   for (const bag of torsoBags) {
     const id = bag.id?._id ?? bag.id;

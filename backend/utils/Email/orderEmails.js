@@ -118,27 +118,28 @@ const buildItemsHtml = (order) => {
     const di = order.dealerItems;
     const allRows = [];
 
-    if (di.bundle?.name) {
+    // Multi-bundle orders; fall back to the legacy single-bundle shape.
+    const bundleList = di.bundles?.length
+      ? di.bundles
+      : di.bundle?.name
+        ? [{ ...di.bundle, torsoBags: di.torsoBags || [] }]
+        : [];
+
+    bundleList.forEach((bundle) => {
       allRows.push({
         type: "main",
-        name: di.bundle.name,
-        value: fmt(di.bundle.price),
+        name: bundle.name,
+        value: fmt(bundle.price),
       });
 
-      const torsoBags =
-        di.torsoBags?.length > 0
-          ? di.torsoBags
-          : di.torsoBag
-            ? [{ name: di.torsoBag.name, quantity: di.torsoBag.multiplier }]
-            : [];
-      torsoBags.forEach((tb) => {
+      (bundle.torsoBags || []).forEach((tb) => {
         allRows.push({
           type: "sub",
           name: tb.name,
           value: `&times;${tb.quantity}`,
         });
       });
-    }
+    });
 
     di.addons?.forEach((a) => {
       allRows.push({
