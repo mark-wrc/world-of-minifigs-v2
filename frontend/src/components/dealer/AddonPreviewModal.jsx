@@ -35,11 +35,9 @@ const ADDON_SORT_OPTIONS = SORT_OPTIONS.filter(
 const AddonPreviewModal = ({
   addon,
   items,
-  totalBags,
   totalPrice,
   canSubmit,
   isUpdate,
-  minBags = 0,
   onClose,
   onConfirm,
   onValueChange,
@@ -206,11 +204,6 @@ const AddonPreviewModal = ({
           </div>
         </div>
 
-        {minBags > 0 && totalBags < minBags && (
-          <div className="mx-1 mb-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
-            {`Minimum order is ${minBags} bags total across all items. You have ${totalBags} — add ${minBags - totalBags} more to continue.`}
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1">

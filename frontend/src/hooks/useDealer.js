@@ -340,15 +340,9 @@ export const useDealer = () => {
     0,
   );
 
-  // Bulk-minifig-parts addons require a minimum of 10 total bags across all items.
-  const modalIsBulkParts =
-    modalItems.length > 0 &&
-    modalItems.every((i) => i.category === "bulk-minifig-parts");
-  const modalMinBags = modalIsBulkParts ? 10 : 0;
-
-  const modalCanSubmit = modalIsBulkParts
-    ? modalTotalBags >= modalMinBags
-    : modalSelectedItems.some((item) => item.selectedBags > 0);
+  const modalCanSubmit = modalSelectedItems.some(
+    (item) => item.selectedBags > 0,
+  );
 
   const modalIsUpdate = selectedAddonIds.includes(selectedAddon?._id);
 
@@ -698,7 +692,6 @@ export const useDealer = () => {
       totalPrice: modalTotalPrice,
       canSubmit: modalCanSubmit,
       isUpdate: modalIsUpdate,
-      minBags: modalMinBags,
       onOpen: setSelectedAddon,
       onClose: handleModalClose,
       onConfirm: handleModalConfirm,
