@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ const DealerAddonManagement = () => {
     groupedBulkPartItems,
     itemCategory,
     setItemCategory,
+    selectAdjacentCategory,
     bundleItems,
     bundleDisplayItems,
     selectedBundleItemIds,
@@ -127,6 +128,21 @@ const DealerAddonManagement = () => {
     handleAddonFileChange,
     handleAddonFileRemove,
   } = useDealerAddonManagement();
+
+  const activeTabRef = useRef(null);
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [itemCategory]);
+
+  const handleCategoryKeyDown = (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    selectAdjacentCategory(e.key === "ArrowRight" ? 1 : -1);
+  };
 
   return (
     <div className="space-y-5">
@@ -297,13 +313,17 @@ const DealerAddonManagement = () => {
                     </Button>
                   </DropdownMenuTrigger>
 
-                  <DropdownMenuContent>
-                    {/* Category tabs */}
+                  <DropdownMenuContent onKeyDown={handleCategoryKeyDown}>
+                    {/* Category tabs — single scrollable row; use ←/→ keys to
+                        switch tabs and reach off-screen ones */}
                     <div className="flex border-b px-1 pt-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40">
                       {ADDON_ITEM_CATEGORIES.map((cat) => (
                         <button
                           key={cat.value}
                           type="button"
+                          ref={
+                            itemCategory === cat.value ? activeTabRef : undefined
+                          }
                           onMouseDown={(e) => {
                             e.preventDefault();
                             setItemCategory(cat.value);

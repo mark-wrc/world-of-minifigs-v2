@@ -66,6 +66,19 @@ const useDealerAddonManagement = () => {
   // ------------------------------- Item Category Filter ------------------------------------
   const [itemCategory, setItemCategory] = useState("accessories");
 
+  // Step the category filter to the previous/next tab (wraps around).
+  // direction: +1 = next, -1 = previous.
+  const selectAdjacentCategory = useCallback((direction) => {
+    setItemCategory((current) => {
+      const idx = ADDON_ITEM_CATEGORIES.findIndex(
+        (c) => c.value === current,
+      );
+      if (idx === -1) return current;
+      const count = ADDON_ITEM_CATEGORIES.length;
+      return ADDON_ITEM_CATEGORIES[(idx + direction + count) % count].value;
+    });
+  }, []);
+
   // ------------------------------- Inventory Search (debounced) ------------------------------------
   const [itemSearch, setItemSearch] = useState("");
   const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
@@ -390,6 +403,7 @@ const useDealerAddonManagement = () => {
     itemSearch,
     itemCategory,
     setItemCategory,
+    selectAdjacentCategory,
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,
