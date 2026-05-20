@@ -14,6 +14,9 @@ import { useCheckout } from "@/hooks/useCheckout";
 // higher the dealer picks a bigger bundle.
 const MAX_BUNDLE_QUANTITY = 4;
 
+// Optional shipping insurance — 0.5% of the order subtotal.
+const SHIPPING_INSURANCE_RATE = 0.005;
+
 const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
@@ -33,6 +36,9 @@ export const useDealer = () => {
   const [selectedAddonConfigs, setSelectedAddonConfigs] = useState({});
   const [selectedAddon, setSelectedAddon] = useState(null);
   const [extraBagQuantities, setExtraBagQuantities] = useState({});
+
+  // Optional shipping insurance opt-in (checkbox in the order summary).
+  const [insuranceEnabled, setInsuranceEnabled] = useState(false);
 
   // ==================== Data Fetching ====================
 
@@ -503,6 +509,10 @@ export const useDealer = () => {
     });
   };
 
+  const handleToggleInsurance = useCallback((checked) => {
+    setInsuranceEnabled(checked === true);
+  }, []);
+
   // ==================== Addon Preview Modal ====================
 
   const modalItems = useMemo(() => {
@@ -669,7 +679,17 @@ export const useDealer = () => {
     0,
   );
 
-  const totalOrderPrice = bundlesTotalPrice + addonsTotalPrice + extraBagsCost;
+  const itemsTotalPrice =
+    bundlesTotalPrice + addonsTotalPrice + extraBagsCost;
+
+  // Optional shipping insurance — 0.5% of the items subtotal. The amount is
+  // always computed so the dealer can see the cost up front; it is only added
+  // to the order total when the checkbox is ticked.
+  const insuranceAmount =
+    Math.round(itemsTotalPrice * SHIPPING_INSURANCE_RATE * 100) / 100;
+
+  const totalOrderPrice =
+    itemsTotalPrice + (insuranceEnabled ? insuranceAmount : 0);
 
   const summaryExtraBags = extraBagsWithComputed.filter((bag) => bag.qty > 0);
 
@@ -754,6 +774,7 @@ export const useDealer = () => {
       bundles: bundlesPayload.length > 0 ? bundlesPayload : undefined,
       addons: addonPayload.length > 0 ? addonPayload : undefined,
       extraBags: extraBagPayload.length > 0 ? extraBagPayload : undefined,
+      shippingInsurance: insuranceEnabled,
     });
   }, [
     canCheckout,
@@ -764,6 +785,7 @@ export const useDealer = () => {
     selectedAddonIds,
     selectedAddonConfigs,
     extraBagQuantities,
+    insuranceEnabled,
   ]);
 
   return {
@@ -791,6 +813,8 @@ export const useDealer = () => {
       extraBags: summaryExtraBags,
       totalExtraBags,
       totalOrderPrice,
+      insuranceEnabled,
+      insuranceAmount,
       canCheckout,
       maxBundleQuantity: MAX_BUNDLE_QUANTITY,
     },
@@ -802,6 +826,7 @@ export const useDealer = () => {
     handleTorsoBagQtyChange,
     handleBundleQtyChange,
     handleSetActiveBundle,
+    handleToggleInsurance,
 
     // Addon Preview Modal
     addonPreview: {

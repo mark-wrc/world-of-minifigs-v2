@@ -148,6 +148,7 @@ const orderSchema = new mongoose.Schema(
     payment: {
       subtotal: { type: Number, required: true, min: 0 },
       shippingFee: { type: Number, default: 0, min: 0 },
+      shippingInsurance: { type: Number, default: 0, min: 0 },
       taxAmount: { type: Number, default: 0, min: 0 },
       discount: {
         type: new mongoose.Schema(

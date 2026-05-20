@@ -758,6 +758,16 @@ const OrderManagement = () => {
                 {formatCurrency(viewOrder?.payment?.shippingFee)}
               </span>
             </div>
+            {viewOrder?.payment?.shippingInsurance > 0 && (
+              <div className="flex justify-between items-center p-3">
+                <span className="font-semibold text-xs">
+                  Shipping Insurance (0.5%)
+                </span>
+                <span className="text-xs">
+                  {formatCurrency(viewOrder.payment.shippingInsurance)}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between items-center p-3">
               <span className="font-semibold text-xs">Sales Tax</span>
               <span className="text-xs">

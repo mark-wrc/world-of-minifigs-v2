@@ -13,7 +13,7 @@ import {
   saveOrderDraft,
   getDraftAndClean,
 } from "../paymentCore.js";
-import { EXTRA_BAG_RATIO } from "../paymentConfig.js";
+import { EXTRA_BAG_RATIO, SHIPPING_INSURANCE_RATE } from "../paymentConfig.js";
 import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 
 // Dealers may order multiple copies of the same bundle (e.g. 3× the 1000
@@ -259,6 +259,7 @@ export async function buildLineItemsForDealer(body, userId) {
 
   // 5. Build Stripe line items — one per ordered bundle.
   const lineItems = [];
+  let bundlesTotal = 0;
 
   validatedBundles.forEach((vb) => {
     const bagSummary = vb.torsoBags
@@ -269,6 +270,7 @@ export async function buildLineItemsForDealer(body, userId) {
     const bundleName = `${vb.bundle.minifigQuantity} Minifigs${
       vb.quantity > 1 ? ` × ${vb.quantity}` : ""
     }${bagSummary ? ` [${bagSummary}]` : ""}`;
+    bundlesTotal += vb.bundle.totalPrice * vb.quantity;
     lineItems.push(
       buildStripeLineItem(
         bundleName,
@@ -309,7 +311,24 @@ export async function buildLineItemsForDealer(body, userId) {
     });
   }
 
-  // 6. Save Draft Snapshot (Scalability & Character Limit Solution)
+  // 6. Optional shipping insurance — 0.5% of the order subtotal.
+  const orderSubtotal = bundlesTotal + addonsTotal + extraBagsTotal;
+  const shippingInsurance =
+    body.shippingInsurance === true
+      ? Math.round(orderSubtotal * SHIPPING_INSURANCE_RATE * 100) / 100
+      : 0;
+
+  if (shippingInsurance > 0) {
+    lineItems.push(
+      buildStripeLineItem(
+        "Shipping Insurance (0.5%)",
+        Math.round(shippingInsurance * 100),
+        1,
+      ),
+    );
+  }
+
+  // 7. Save Draft Snapshot (Scalability & Character Limit Solution)
   const draftId = await saveOrderDraft(userId, ORDER_TYPES.DEALER, {
     bundles: validatedBundles.map((vb) => ({
       bundleId: vb.bundle._id,
@@ -318,6 +337,7 @@ export async function buildLineItemsForDealer(body, userId) {
     })),
     addons: validatedAddons,
     extraBags: validatedExtraBags,
+    shippingInsurance,
   });
 
   return {
@@ -340,7 +360,12 @@ export async function createDealerOrderFromStripeSession(session) {
     return null;
   }
 
-  const { bundles: bundlesDraft, addons, extraBags } = draft.payload;
+  const {
+    bundles: bundlesDraft,
+    addons,
+    extraBags,
+    shippingInsurance = 0,
+  } = draft.payload;
 
   // Build the hierarchical manifest for database persistence
   const manifest = {};
@@ -421,13 +446,12 @@ export async function createDealerOrderFromStripeSession(session) {
   const result = await createOrderRecord(session, {
     orderType: ORDER_TYPES.DEALER,
     items: manifest,
+    shippingInsurance,
   });
 
   if (result?.created) {
     // Decrement torso-bag stock across every ordered bundle.
-    const allTorsoBags = (bundlesDraft || []).flatMap(
-      (b) => b.torsoBags || [],
-    );
+    const allTorsoBags = (bundlesDraft || []).flatMap((b) => b.torsoBags || []);
     if (allTorsoBags.length > 0) {
       await decrementTorsoBagStock(allTorsoBags);
     }

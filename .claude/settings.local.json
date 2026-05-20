@@ -17,7 +17,12 @@
       "Bash(node --check backend/services/payment/checkout/dealerCheckout.js)",
       "Bash(node --check backend/utils/payment/stockManager.js)",
       "Bash(node --check backend/models/order.model.js)",
-      "Bash(node --check backend/utils/Email/orderEmails.js)"
+      "Bash(node --check backend/utils/Email/orderEmails.js)",
+      "Bash(node --check services/payment/checkout/dealerCheckout.js)",
+      "Bash(node --check services/payment/paymentCore.js)",
+      "Bash(node --check services/payment/paymentConfig.js)",
+      "Bash(node --check models/order.model.js)",
+      "Bash(node --check utils/Email/orderEmails.js)"
     ]
   }
 }

@@ -42,6 +42,7 @@ const Dealer = () => {
     handleTorsoBagQtyChange,
     handleBundleQtyChange,
     handleSetActiveBundle,
+    handleToggleInsurance,
 
     // Addon Preview Modal
     addonPreview,
@@ -160,6 +161,7 @@ const Dealer = () => {
           isCheckoutLoading={isCheckoutLoading}
           onSetTorsoBagQuantity={handleTorsoBagQtyChange}
           onBundleQtyChange={handleBundleQtyChange}
+          onToggleInsurance={handleToggleInsurance}
         />
       </div>
 

@@ -537,6 +537,14 @@ const CheckoutSuccess = () => {
                     {formatCurrency(order?.payment?.shippingFee)}
                   </span>
                 </div>
+                {order?.payment?.shippingInsurance > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Shipping Insurance (0.5%)</span>
+                    <span className="font-bold">
+                      {formatCurrency(order.payment.shippingInsurance)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Sales Tax</span>
                   <span className="font-bold">

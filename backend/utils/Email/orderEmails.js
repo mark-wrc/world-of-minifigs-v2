@@ -260,6 +260,9 @@ const buildPaymentSummaryHtml = (order, { totalColor = "#0f172a" } = {}) => {
       "Shipping Fee",
       p.shippingFee != null ? fmt(p.shippingFee) : "—",
     );
+    if (p.shippingInsurance > 0) {
+      rows += kv("Shipping Insurance (0.5%)", fmt(p.shippingInsurance));
+    }
     rows += kv("Sales Tax", p.taxAmount != null ? fmt(p.taxAmount) : "—");
   }
 

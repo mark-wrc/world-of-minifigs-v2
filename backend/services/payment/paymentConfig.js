@@ -32,3 +32,5 @@ export const STRIPE_SESSION_CONFIG = {
 };
 
 export const EXTRA_BAG_RATIO = 100; // 1 extra bag allowed per 100 minifigs
+
+export const SHIPPING_INSURANCE_RATE = 0.005;

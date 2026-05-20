@@ -669,8 +669,14 @@ export const exportOrderToPdf = async (order) => {
   const summaryRows = [
     ["Subtotal", formatCurrency(order.payment?.subtotal)],
     ["Shipping Fee", formatCurrency(order.payment?.shippingFee)],
-    ["Sales Tax", formatCurrency(order.payment?.taxAmount)],
   ];
+  if (order.payment?.shippingInsurance > 0) {
+    summaryRows.push([
+      "Shipping Insurance (0.5%)",
+      formatCurrency(order.payment.shippingInsurance),
+    ]);
+  }
+  summaryRows.push(["Sales Tax", formatCurrency(order.payment?.taxAmount)]);
   let discountRowIndex = -1;
   let discountCodeText = "";
   if (order.payment?.discount?.amount > 0) {

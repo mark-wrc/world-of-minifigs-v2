@@ -38,7 +38,12 @@ export async function getDraftAndClean(draftId) {
 
 export async function createOrderRecord(
   session,
-  { orderType = ORDER_TYPES.PRODUCT, items, extraFields = {} },
+  {
+    orderType = ORDER_TYPES.PRODUCT,
+    items,
+    extraFields = {},
+    shippingInsurance = 0,
+  },
 ) {
   // 1. Prevent duplicate orders from same session
   const existingOrder = await Order.findOne({
@@ -60,8 +65,10 @@ export async function createOrderRecord(
     orderType,
     ...extraFields,
     payment: {
-      subtotal: totals.subtotal,
+      subtotal:
+        Math.round((totals.subtotal - (shippingInsurance || 0)) * 100) / 100,
       shippingFee: totals.shippingFee,
+      shippingInsurance: shippingInsurance || 0,
       taxAmount: totals.taxAmount,
       totalAmount: totals.totalAmount,
       paidAt: new Date(),

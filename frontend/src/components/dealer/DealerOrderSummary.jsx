@@ -4,6 +4,8 @@ import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import { formatCurrency } from "@/utils/formatting";
 import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import QuantityControl from "@/components/shared/QuantityControl";
 
 // ─── A single ordered bundle: name, copy-quantity control, torso-bag split ─────
@@ -78,10 +80,7 @@ const BundleRow = ({
       </div>
     ) : (
       bundle.torsoBags.map((bag) => (
-        <p
-          key={bag._id}
-          className="text-xs text-muted-foreground font-medium"
-        >
+        <p key={bag._id} className="text-xs text-muted-foreground font-medium">
           {bag.bagName}
         </p>
       ))
@@ -95,12 +94,15 @@ const DealerOrderSummary = ({
   extraBags = [],
   totalExtraBags,
   totalOrderPrice,
+  insuranceEnabled = false,
+  insuranceAmount = 0,
   canCheckout,
   onCheckout,
   isCheckoutLoading,
   maxBundleQuantity = 4,
   onSetTorsoBagQuantity,
   onBundleQtyChange,
+  onToggleInsurance,
 }) => {
   const [expandedAddons, setExpandedAddons] = useState({});
 
@@ -250,6 +252,35 @@ const DealerOrderSummary = ({
 
           {/* Totals Section */}
           <div className="pt-5 border-t border-dashed">
+            {/* Optional Shipping Insurance */}
+            {hasItems && (
+              <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b border-dashed">
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="dealer-shipping-insurance"
+                    checked={insuranceEnabled}
+                    onCheckedChange={onToggleInsurance}
+                    className="mt-0.5"
+                  />
+                  <Label
+                    htmlFor="dealer-shipping-insurance"
+                    className="cursor-pointer flex flex-col items-start gap-0.5"
+                  >
+                    <span className="text-sm font-bold flex items-center gap-1.5">
+                      Shipping Insurance
+                    </span>
+                    <span className="text-xs text-muted-foreground font-medium leading-snug">
+                      Protect your order against loss, theft, or damage during
+                      shipping.
+                    </span>
+                  </Label>
+                </div>
+                <span className="text-sm font-bold text-success dark:text-accent shrink-0">
+                  {formatCurrency(insuranceAmount)}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-bold uppercase text-muted-foreground">
                 Total Amount
