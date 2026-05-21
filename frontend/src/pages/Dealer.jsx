@@ -177,6 +177,7 @@ const Dealer = () => {
           onBundleQtyChange={handleBundleQtyChange}
           onToggleInsurance={handleToggleInsurance}
           onRemoveAddonSubItem={handleRemoveAddonSubItem}
+          onRemoveBundle={handleToggleBundle}
         />
       </div>
 

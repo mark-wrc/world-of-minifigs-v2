@@ -14,6 +14,7 @@ const BundleRow = ({
   maxBundleQuantity,
   onBundleQtyChange,
   onSetTorsoBagQuantity,
+  onRemoveBundle,
 }) => (
   <div className="space-y-3">
     <div className="flex justify-between items-start gap-2">
@@ -36,8 +37,15 @@ const BundleRow = ({
       </div>
       <QuantityControl
         value={bundle.quantity}
-        onChange={(val) => onBundleQtyChange?.(bundle._id, val)}
-        min={1}
+        onChange={(val) => {
+          // Decrementing past 1 drops the whole bundle from the order.
+          if (val < 1) {
+            onRemoveBundle?.(bundle._id);
+            return;
+          }
+          onBundleQtyChange?.(bundle._id, val);
+        }}
+        min={0}
         max={maxBundleQuantity}
         size="xs"
       />
@@ -104,6 +112,7 @@ const DealerOrderSummary = ({
   onBundleQtyChange,
   onToggleInsurance,
   onRemoveAddonSubItem,
+  onRemoveBundle,
 }) => {
   const [expandedAddons, setExpandedAddons] = useState({});
 
@@ -150,6 +159,7 @@ const DealerOrderSummary = ({
                     maxBundleQuantity={maxBundleQuantity}
                     onBundleQtyChange={onBundleQtyChange}
                     onSetTorsoBagQuantity={onSetTorsoBagQuantity}
+                    onRemoveBundle={onRemoveBundle}
                   />
                 </div>
               ))}
