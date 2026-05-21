@@ -10,6 +10,11 @@ import {
   getDealerRejectedEmailTemplate,
   getAdminDealerNotificationTemplate,
 } from "../utils/Email/dealerEmail.js";
+import {
+  getWholesalerApprovedEmailTemplate,
+  getWholesalerRejectedEmailTemplate,
+  getAdminWholesalerNotificationTemplate,
+} from "../utils/Email/wholesalerEmail.js";
 import { generateTokens, verifyRefreshToken } from "../utils/generateToken.js";
 import {
   normalizePagination,
@@ -34,6 +39,7 @@ export const register = async (req, res) => {
       contactNumber,
       password,
       applyAsDealer,
+      applyAsWholesaler,
     } = req.body;
 
     // Validate required fields (basic check before normalization)
@@ -108,6 +114,7 @@ export const register = async (req, res) => {
         verificationTokenExpiry,
         isVerified: false,
         dealerStatus: applyAsDealer ? "pending" : "none",
+        wholesalerStatus: applyAsWholesaler ? "pending" : "none",
       });
     } catch (error) {
       // Handle Mongoose validation errors
@@ -181,6 +188,25 @@ export const register = async (req, res) => {
       }
     }
 
+    // Notify admin of new wholesaler application
+    if (applyAsWholesaler) {
+      const adminEmail = process.env.SMTP_FROM_EMAIL;
+      if (adminEmail) {
+        try {
+          await sendEmail({
+            email: adminEmail,
+            subject: `New Wholesaler Application — ${user.firstName} ${user.lastName}`,
+            message: getAdminWholesalerNotificationTemplate(user),
+          });
+        } catch (adminEmailErr) {
+          console.error(
+            "Error sending admin wholesaler notification:",
+            adminEmailErr.message,
+          );
+        }
+      }
+    }
+
     // Remove sensitive data from response
     const userResponse = {
       id: user._id,
@@ -191,33 +217,40 @@ export const register = async (req, res) => {
       contactNumber: user.contactNumber,
       role: user.role,
       dealerStatus: user.dealerStatus,
+      wholesalerStatus: user.wholesalerStatus,
       isVerified: user.isVerified,
     };
 
     const isDealerApplicant =
       applyAsDealer === true || applyAsDealer === "true";
+    const isWholesalerApplicant =
+      applyAsWholesaler === true || applyAsWholesaler === "true";
+    const isChannelApplicant = isDealerApplicant || isWholesalerApplicant;
+    const channelLabel = isWholesalerApplicant ? "wholesaler" : "dealer";
 
     // Return appropriate response based on email sending status
     if (emailSent) {
       res.status(201).json({
         success: true,
         message: "Your account has been created",
-        description: isDealerApplicant
-          ? "Please verify your account via email. Your dealer application is under review, and we’ll notify you by email once a decision has been made."
+        description: isChannelApplicant
+          ? `Please verify your account via email. Your ${channelLabel} application is under review, and we’ll notify you by email once a decision has been made.`
           : "Please check your email to verify your account.",
         user: userResponse,
         isDealerApplicant,
+        isWholesalerApplicant,
       });
     } else {
       res.status(201).json({
         success: true,
         message: "Your account has been created",
-        description: isDealerApplicant
-          ? "We couldn't send the verification email. Please use 'Resend verification' to get your link. Your dealer application is under review."
+        description: isChannelApplicant
+          ? `We couldn't send the verification email. Please use 'Resend verification' to get your link. Your ${channelLabel} application is under review.`
           : "We couldn't send the verification email. Please enter your registered email to get a new verification link.",
         user: userResponse,
         emailSent: false,
         isDealerApplicant,
+        isWholesalerApplicant,
       });
     }
   } catch (error) {
@@ -1000,7 +1033,7 @@ export const updateUserRole = async (req, res) => {
     }
 
     // Validate role
-    const validRoles = ["admin", "customer", "dealer"];
+    const validRoles = ["admin", "customer", "dealer", "wholesaler"];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
@@ -1047,17 +1080,22 @@ export const updateUserRole = async (req, res) => {
       });
     }
 
-    // Update role and sync dealerStatus
+    // Update role and sync dealerStatus / wholesalerStatus
     const previousRole = user.role;
     user.role = role;
-    if (role === "dealer") {
-      user.dealerStatus = "approved";
-    } else if (previousRole === "dealer" && role === "customer") {
+
+    if (role === "dealer") user.dealerStatus = "approved";
+    if (role === "wholesaler") user.wholesalerStatus = "approved";
+    if (previousRole === "dealer" && role !== "dealer") {
       user.dealerStatus = "rejected";
     }
+    if (previousRole === "wholesaler" && role !== "wholesaler") {
+      user.wholesalerStatus = "rejected";
+    }
+
     await user.save();
 
-    // Send dealer status email
+    // Send dealer / wholesaler status email
     try {
       if (role === "dealer") {
         await sendEmail({
@@ -1065,15 +1103,27 @@ export const updateUserRole = async (req, res) => {
           subject: `Dealer Application Approved - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
           message: getDealerApprovedEmailTemplate(user),
         });
-      } else if (previousRole === "dealer" && role === "customer") {
+      } else if (role === "wholesaler") {
+        await sendEmail({
+          email: user.email,
+          subject: `Wholesaler Application Approved - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+          message: getWholesalerApprovedEmailTemplate(user),
+        });
+      } else if (previousRole === "dealer") {
         await sendEmail({
           email: user.email,
           subject: `Dealer Application Update - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
           message: getDealerRejectedEmailTemplate(user),
         });
+      } else if (previousRole === "wholesaler") {
+        await sendEmail({
+          email: user.email,
+          subject: `Wholesaler Application Update - ${process.env.SMTP_FROM_NAME || "World of Minifigs"}`,
+          message: getWholesalerRejectedEmailTemplate(user),
+        });
       }
     } catch (emailErr) {
-      console.error("Error sending dealer status email:", emailErr.message);
+      console.error("Error sending channel status email:", emailErr.message);
     }
 
     // Remove sensitive data from response

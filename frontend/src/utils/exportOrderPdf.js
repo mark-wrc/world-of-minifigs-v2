@@ -235,7 +235,8 @@ const itemsTableWithImages = (
 export const exportOrderToPdf = async (order) => {
   if (!order) return;
 
-  const isDealer = order.orderType === "dealer";
+  const isDealer =
+    order.orderType === "dealer" || order.orderType === "wholesale";
 
   // Pre-fetch images
   const productImgs = {};

@@ -246,6 +246,13 @@ export const authorizeAdmin = requireRole("admin");
 // authorize admin or dealer users
 export const authorizeAdminOrDealer = requireRole("admin", "dealer");
 
+// authorize admin, dealer, or wholesaler users — used on shared channel endpoints
+export const authorizeAdminOrDealerOrWholesaler = requireRole(
+  "admin",
+  "dealer",
+  "wholesaler",
+);
+
 // Optional authentication - attaches user if token is valid, but doesn't require it
 // Useful for routes that work for both authenticated and unauthenticated users
 export const optionalAuth = async (req, res, next) => {

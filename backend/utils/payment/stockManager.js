@@ -191,7 +191,7 @@ const restockTorsoBagItems = async (dealerItems) => {
 // ------------------------- Generic Restock Dispatcher -----------------------------
 
 export const restockOrder = async (order) => {
-  if (order.orderType === "dealer") {
+  if (order.orderType === "dealer" || order.orderType === "wholesale") {
     await restockDealerAddonItems(order.dealerItems);
     await restockTorsoBagItems(order.dealerItems);
   } else {

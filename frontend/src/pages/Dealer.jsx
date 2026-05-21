@@ -2,6 +2,10 @@ import {
   dealerHero,
   dealerFeatures,
 } from "@/constant/dealerData";
+import {
+  wholesaleHero,
+  wholesaleFeatures,
+} from "@/constant/wholesaleData";
 import PageHero from "@/components/shared/PageHero";
 import ErrorState from "@/components/shared/ErrorState";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
@@ -18,6 +22,7 @@ const Dealer = () => {
     // Setters
     handleToggleBundle,
     handleToggleAddon,
+    handleRemoveAddonSubItem,
 
     // Data
     bundles,
@@ -55,17 +60,26 @@ const Dealer = () => {
     isAdmin,
     isLoading,
     isError,
+
+    // Channel
+    channel,
   } = useDealer();
+
+  const isWholesale = channel === "wholesale";
+  const hero = isWholesale ? wholesaleHero : dealerHero;
+  const features = isWholesale ? wholesaleFeatures : dealerFeatures;
 
   if (isLoading) {
     return <LoadingSpinner minHeight="min-h-screen" />;
   }
 
+  const channelLabel = isWholesale ? "wholesale" : "dealer";
+
   if (isError) {
     return (
       <ErrorState
-        title="Unable to load dealer packages"
-        description="We're experiencing issues loading dealer packages. Please refresh the page or contact support if the problem persists."
+        title={`Unable to load ${channelLabel} packages`}
+        description={`We're experiencing issues loading ${channelLabel} packages. Please refresh the page or contact support if the problem persists.`}
         minHeight="min-h-screen"
       />
     );
@@ -74,8 +88,8 @@ const Dealer = () => {
   if (!bundles) {
     return (
       <ErrorState
-        title="No dealer packages available"
-        description="No dealer packages are currently available. Please check back soon!"
+        title={`No ${channelLabel} packages available`}
+        description={`No ${channelLabel} packages are currently available. Please check back soon!`}
         minHeight="min-h-screen"
       />
     );
@@ -85,18 +99,18 @@ const Dealer = () => {
     <>
       <PageHero
         bannerPadding="py-20"
-        title={dealerHero.title}
-        highlight={dealerHero.highlight}
-        description={dealerHero.description}
-        badge={dealerHero.badge}
-        features={dealerFeatures}
+        title={hero.title}
+        highlight={hero.highlight}
+        description={hero.description}
+        badge={hero.badge}
+        features={features}
       />
 
       <div id="dealer-bundles" className="scroll-mt-20">
         <DealerBundle bundles={bundles} onSelect={handleToggleBundle} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5 p-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-5 p-5 items-start overflow-visible bg-input/50 dark:bg-card/50">
         <div className="space-y-10 overflow-visible">
           <DealerAddon
             addons={addons}
@@ -162,6 +176,7 @@ const Dealer = () => {
           onSetTorsoBagQuantity={handleTorsoBagQtyChange}
           onBundleQtyChange={handleBundleQtyChange}
           onToggleInsurance={handleToggleInsurance}
+          onRemoveAddonSubItem={handleRemoveAddonSubItem}
         />
       </div>
 

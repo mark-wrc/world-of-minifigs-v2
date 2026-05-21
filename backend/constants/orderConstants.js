@@ -30,5 +30,6 @@ export const VALID_STATUS_TRANSITIONS = {
 export const ORDER_TYPES = {
   PRODUCT: "product",
   DEALER: "dealer",
+  WHOLESALE: "wholesale",
   REWARD: "reward",
 };

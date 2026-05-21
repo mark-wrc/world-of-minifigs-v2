@@ -48,6 +48,12 @@ const NAV_LINKS = {
     path: "/dealers",
     icon: Handshake,
   },
+  wholesalers: {
+    id: "wholesalers",
+    label: "Wholesalers",
+    path: "/wholesalers",
+    icon: Handshake,
+  },
 
   // Account / User
   dashboard: {
@@ -88,6 +94,7 @@ export const headerNavigation = [
   NAV_LINKS.contact,
   NAV_LINKS.designer,
   NAV_LINKS.dealers,
+  NAV_LINKS.wholesalers,
 ].filter(Boolean);
 
 // ------------------------------- FOOTER NAVIGATION -----------------------------------------
@@ -106,6 +113,7 @@ export const footerNavigation = [
       NAV_LINKS.contact,
       NAV_LINKS.designer,
       NAV_LINKS.dealers,
+      NAV_LINKS.wholesalers,
       NAV_LINKS.privacy,
       NAV_LINKS.terms,
     ].filter(Boolean),

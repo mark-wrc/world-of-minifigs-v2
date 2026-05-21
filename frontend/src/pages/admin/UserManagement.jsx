@@ -108,6 +108,7 @@ const UserManagement = () => {
                     options={[
                       { value: "customer", label: "Customer" },
                       { value: "dealer", label: "Dealer" },
+                      { value: "wholesaler", label: "Wholesaler" },
                     ]}
                     disabled={isUpdatingRole || !user.isVerified}
                   />

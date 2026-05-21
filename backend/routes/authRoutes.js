@@ -22,7 +22,7 @@ import {
 } from "../controllers/cartController.js";
 import {
   authenticate,
-  authorizeAdminOrDealer,
+  authorizeAdminOrDealerOrWholesaler,
 } from "../middlewares/auth.middleware.js";
 import {
   getDealerBundlesForUser,
@@ -74,29 +74,29 @@ router.get("/orders", authenticate, getUserOrders);
 router.get("/orders/:id", authenticate, getUserOrderById);
 router.post("/orders/:id/cancel", authenticate, cancelOrder);
 
-// Dealer routes (Requires Dealer or Admin role)
+// Channel routes — shared by dealers and wholesalers (Requires Dealer, Wholesaler or Admin role)
 router.get(
   "/dealer/bundles",
   authenticate,
-  authorizeAdminOrDealer,
+  authorizeAdminOrDealerOrWholesaler,
   getDealerBundlesForUser,
 );
 router.get(
   "/dealer/addons",
   authenticate,
-  authorizeAdminOrDealer,
+  authorizeAdminOrDealerOrWholesaler,
   getDealerAddonsForUser,
 );
 router.get(
   "/dealer/extra-bags",
   authenticate,
-  authorizeAdminOrDealer,
+  authorizeAdminOrDealerOrWholesaler,
   getDealerExtraBagsForUser,
 );
 router.get(
   "/dealer/torso-bags",
   authenticate,
-  authorizeAdminOrDealer,
+  authorizeAdminOrDealerOrWholesaler,
   getDealerTorsoBagsForUser,
 );
 

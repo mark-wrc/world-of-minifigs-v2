@@ -129,7 +129,7 @@ const orderSchema = new mongoose.Schema(
     email: { type: String, trim: true },
     orderType: {
       type: String,
-      enum: ["product", "dealer", "reward"],
+      enum: ["product", "dealer", "wholesale", "reward"],
       default: "product",
     },
     status: {

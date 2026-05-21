@@ -114,7 +114,10 @@ const openSection = (title, content, { divider = true } = {}) =>
 const buildItemsHtml = (order) => {
   let rows = "";
 
-  if (order.orderType === "dealer" && order.dealerItems) {
+  if (
+    (order.orderType === "dealer" || order.orderType === "wholesale") &&
+    order.dealerItems
+  ) {
     const di = order.dealerItems;
     const allRows = [];
 

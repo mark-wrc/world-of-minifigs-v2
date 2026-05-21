@@ -24,9 +24,19 @@ const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
 // ------------ Build Stripe Line Items for Dealer Checkout ------------
+// `orderType` lets the same flow tag the resulting order as dealer or
+// wholesale — the data, prices and stock are identical either way.
 
-export async function buildLineItemsForDealer(body, userId) {
+export async function buildLineItemsForDealer(
+  body,
+  userId,
+  orderType = ORDER_TYPES.DEALER,
+) {
   const { bundles: bundlesPayload, addons, extraBags } = body;
+  const channelOrderType =
+    orderType === ORDER_TYPES.WHOLESALE
+      ? ORDER_TYPES.WHOLESALE
+      : ORDER_TYPES.DEALER;
 
   // 1. Validate bundles. Dealers may order several distinct bundles
   //    (e.g. 1000 + 200), each with its own copy quantity (1-4) and its own
@@ -329,7 +339,7 @@ export async function buildLineItemsForDealer(body, userId) {
   }
 
   // 7. Save Draft Snapshot (Scalability & Character Limit Solution)
-  const draftId = await saveOrderDraft(userId, ORDER_TYPES.DEALER, {
+  const draftId = await saveOrderDraft(userId, channelOrderType, {
     bundles: validatedBundles.map((vb) => ({
       bundleId: vb.bundle._id,
       quantity: vb.quantity,
@@ -343,7 +353,7 @@ export async function buildLineItemsForDealer(body, userId) {
   return {
     lineItems,
     metadata: {
-      orderType: ORDER_TYPES.DEALER,
+      orderType: channelOrderType,
       draftId,
     },
   };
@@ -359,6 +369,15 @@ export async function createDealerOrderFromStripeSession(session) {
     console.error("createDealerOrder: draft not found", meta.draftId);
     return null;
   }
+
+  // Tag the resulting order as dealer or wholesale — the session metadata is
+  // the source of truth; fall back to the draft's stored type for older drafts.
+  const channelOrderType =
+    meta.orderType === ORDER_TYPES.WHOLESALE
+      ? ORDER_TYPES.WHOLESALE
+      : draft.orderType === ORDER_TYPES.WHOLESALE
+        ? ORDER_TYPES.WHOLESALE
+        : ORDER_TYPES.DEALER;
 
   const {
     bundles: bundlesDraft,
@@ -444,7 +463,7 @@ export async function createDealerOrderFromStripeSession(session) {
   }
 
   const result = await createOrderRecord(session, {
-    orderType: ORDER_TYPES.DEALER,
+    orderType: channelOrderType,
     items: manifest,
     shippingInsurance,
   });

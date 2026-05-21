@@ -45,6 +45,7 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
     handleChange: handleRegisterChange,
     handleCheckboxChange,
     handleDealerCheckboxChange,
+    handleWholesalerCheckboxChange,
     handlePasswordFocus,
     handlePasswordBlur,
     handleSubmit: handleRegisterSubmit,
@@ -118,6 +119,7 @@ const Auth = ({ open, onOpenChange, defaultTab = "login" }) => {
                 handleChange={handleRegisterChange}
                 handleCheckboxChange={handleCheckboxChange}
                 handleDealerCheckboxChange={handleDealerCheckboxChange}
+                handleWholesalerCheckboxChange={handleWholesalerCheckboxChange}
                 handlePasswordFocus={handlePasswordFocus}
                 handlePasswordBlur={handlePasswordBlur}
                 handleSubmit={handleRegisterSubmit}

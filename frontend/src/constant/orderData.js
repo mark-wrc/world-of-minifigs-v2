@@ -86,8 +86,11 @@ export const getDisplayItems = (order, summarize = false) => {
     return order.productItems || [];
   }
 
-  // 2. Dealer Items (Manifest)
-  if (order.orderType === "dealer" && order.dealerItems) {
+  // 2. Dealer / Wholesale Items (Manifest) — wholesale reuses dealer schema.
+  if (
+    (order.orderType === "dealer" || order.orderType === "wholesale") &&
+    order.dealerItems
+  ) {
     const { bundle, torsoBags, addons, extraBags } = order.dealerItems;
     const items = [];
 

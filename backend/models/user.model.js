@@ -51,10 +51,16 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "customer", "dealer"],
+      enum: ["admin", "customer", "dealer", "wholesaler"],
       default: "customer",
     },
     dealerStatus: {
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
+      default: "none",
+      index: true,
+    },
+    wholesalerStatus: {
       type: String,
       enum: ["none", "pending", "approved", "rejected"],
       default: "none",

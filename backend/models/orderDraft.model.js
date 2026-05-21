@@ -15,7 +15,7 @@ const orderDraftSchema = new mongoose.Schema(
     },
     orderType: {
       type: String,
-      enum: ["product", "dealer", "reward"],
+      enum: ["product", "dealer", "wholesale", "reward"],
       required: true,
     },
     /**

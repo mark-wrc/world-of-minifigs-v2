@@ -494,7 +494,10 @@ const OrderManagement = () => {
         {/* ── Order Items ── */}
         <section className="space-y-2">
           <Label className="font-semibold text-xs uppercase">
-            {viewOrder?.orderType === "dealer" ? "Order Details" : "Items"}
+            {viewOrder?.orderType === "dealer" ||
+            viewOrder?.orderType === "wholesale"
+              ? "Order Details"
+              : "Items"}
           </Label>
 
           {/* Standard Product View */}
@@ -525,7 +528,9 @@ const OrderManagement = () => {
           )}
 
           {/* Dealer Manifest View */}
-          {viewOrder?.orderType === "dealer" && viewOrder.dealerItems && (
+          {(viewOrder?.orderType === "dealer" ||
+            viewOrder?.orderType === "wholesale") &&
+            viewOrder.dealerItems && (
             <div className="space-y-4">
               {/* Bundles + Torso Bags */}
               {(() => {

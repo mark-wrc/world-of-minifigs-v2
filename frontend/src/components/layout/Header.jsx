@@ -52,11 +52,15 @@ const Header = () => {
     return true;
   });
 
-  // Dealer page should only be visible for authenticated users with either dealer or admin role
+  // Dealer / Wholesaler pages are role-gated to their channel (admin sees both).
   const filteredHeaderNavigation = headerNavigation.filter((item) => {
     if (item.id === "dealers") {
       if (!isAuthenticated) return false;
       return user?.role === "dealer" || user?.role === "admin";
+    }
+    if (item.id === "wholesalers") {
+      if (!isAuthenticated) return false;
+      return user?.role === "wholesaler" || user?.role === "admin";
     }
     return true;
   });

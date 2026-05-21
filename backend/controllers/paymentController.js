@@ -87,9 +87,11 @@ export const createCheckoutSession = async (req, res) => {
     let lineItems;
     let metadata = { orderType: "product" };
 
-    if (orderType === "dealer") {
-      // Dealer checkout flow
-      const result = await buildLineItemsForDealer(body, userId);
+    const isChannelOrder = orderType === "dealer" || orderType === "wholesale";
+
+    if (isChannelOrder) {
+      // Shared dealer/wholesale checkout flow — same data, just a different tag.
+      const result = await buildLineItemsForDealer(body, userId, orderType);
       if (result.error) {
         return res.status(result.error.status).json({
           success: false,
@@ -124,7 +126,11 @@ export const createCheckoutSession = async (req, res) => {
     }
 
     const cancelUrl =
-      orderType === "dealer" ? `${FRONTEND_URL}/dealers` : FRONTEND_URL;
+      orderType === "wholesale"
+        ? `${FRONTEND_URL}/wholesalers`
+        : orderType === "dealer"
+          ? `${FRONTEND_URL}/dealers`
+          : FRONTEND_URL;
 
     // Try to get/create a linked Stripe customer for tax exemption support
     // Falls back to customer_email if Stripe customer API is unavailable
@@ -209,7 +215,8 @@ export const confirmOrder = async (req, res) => {
     //    getDraftAndClean uses findByIdAndDelete so only one caller (this request
     //    or the webhook) will get the draft — the other gets null.
     const orderType = session.metadata?.orderType;
-    const result = orderType === "dealer"
+    const isChannelOrder = orderType === "dealer" || orderType === "wholesale";
+    const result = isChannelOrder
       ? await createDealerOrderFromStripeSession(session)
       : await createOrderFromStripeSession(session);
 
@@ -266,7 +273,7 @@ export const stripeWebhook = async (req, res) => {
 
         try {
           const orderType = session.metadata?.orderType;
-          if (orderType === "dealer") {
+          if (orderType === "dealer" || orderType === "wholesale") {
             await createDealerOrderFromStripeSession(session);
           } else {
             await createOrderFromStripeSession(session);

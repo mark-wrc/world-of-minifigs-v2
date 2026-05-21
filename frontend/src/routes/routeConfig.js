@@ -101,6 +101,13 @@ export const privateRoutes = [
     element: Dealer,
     requiredRoles: ["dealer", "admin"],
   },
+  {
+    // Wholesale reuses the dealer experience — same components, same data,
+    // same stock pool. The page reads the channel from the path.
+    path: "/wholesalers",
+    element: Dealer,
+    requiredRoles: ["wholesaler", "admin"],
+  },
 ];
 
 // Admin routes

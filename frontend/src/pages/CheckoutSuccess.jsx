@@ -68,7 +68,8 @@ const CheckoutSuccess = () => {
     );
   }
 
-  const isDealer = order?.orderType === "dealer";
+  const isDealer =
+    order?.orderType === "dealer" || order?.orderType === "wholesale";
   const di = order?.dealerItems;
 
   // Multi-bundle orders; fall back to the legacy single-bundle shape.

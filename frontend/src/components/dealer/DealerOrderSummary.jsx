@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import { formatCurrency } from "@/utils/formatting";
-import { ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronUp, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -103,6 +103,7 @@ const DealerOrderSummary = ({
   onSetTorsoBagQuantity,
   onBundleQtyChange,
   onToggleInsurance,
+  onRemoveAddonSubItem,
 }) => {
   const [expandedAddons, setExpandedAddons] = useState({});
 
@@ -209,12 +210,32 @@ const DealerOrderSummary = ({
                           {addon.items.map((item) => (
                             <div
                               key={item.inventoryItemId}
-                              className="flex items-center justify-between text-xs"
+                              className="flex items-center justify-between text-xs gap-2"
                             >
-                              <span className="text-muted-foreground font-medium pr-2">
-                                {item.itemName} × {item.selectedBags} bag
-                                {item.selectedBags === 1 ? "" : "s"}
-                              </span>
+                              <div className="flex items-center gap-1 min-w-0 flex-1">
+                                {onRemoveAddonSubItem && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      onRemoveAddonSubItem(
+                                        addon._id,
+                                        item.inventoryItemId,
+                                      )
+                                    }
+                                    aria-label={`Remove ${item.itemName}`}
+                                    title="Remove item"
+                                    className="size-4 p-0 shrink-0 text-destructive hover:text-destructive/80 hover:bg-transparent"
+                                  >
+                                    <Trash2 className="size-3" />
+                                  </Button>
+                                )}
+                                <span className="text-muted-foreground font-medium pr-2 truncate">
+                                  {item.itemName} × {item.selectedBags} bag
+                                  {item.selectedBags === 1 ? "" : "s"}
+                                </span>
+                              </div>
                               <span className="font-bold text-success/80 dark:text-accent/80 shrink-0">
                                 {formatCurrency(item.selectedTotal)}
                               </span>

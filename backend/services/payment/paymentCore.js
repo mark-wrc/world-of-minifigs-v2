@@ -84,8 +84,12 @@ export async function createOrderRecord(
     ...(billingDetails && { billing: billingDetails }),
   };
 
-  // 4. Assign items to the correct polymorphic database field
-  if (orderType === ORDER_TYPES.DEALER) {
+  // 4. Assign items to the correct polymorphic database field.
+  // Wholesale orders reuse the dealer item shape — same documents, same stock.
+  if (
+    orderType === ORDER_TYPES.DEALER ||
+    orderType === ORDER_TYPES.WHOLESALE
+  ) {
     orderData.dealerItems = items;
   } else if (orderType === ORDER_TYPES.REWARD) {
     orderData.rewardItems = items;

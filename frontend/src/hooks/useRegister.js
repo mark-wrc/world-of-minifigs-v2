@@ -24,6 +24,7 @@ export const useRegister = (onSuccess) => {
     confirmPassword: "",
     agreeToTerms: false,
     applyAsDealer: false,
+    applyAsWholesaler: false,
   });
 
   const [showPasswordRequirements, setShowPasswordRequirements] =
@@ -54,8 +55,21 @@ export const useRegister = (onSuccess) => {
     setFormData((prev) => ({ ...prev, agreeToTerms: checked }));
   };
 
+  // A user can only apply to one channel at a time — selecting one clears the other.
   const handleDealerCheckboxChange = (checked) => {
-    setFormData((prev) => ({ ...prev, applyAsDealer: checked }));
+    setFormData((prev) => ({
+      ...prev,
+      applyAsDealer: checked,
+      applyAsWholesaler: checked ? false : prev.applyAsWholesaler,
+    }));
+  };
+
+  const handleWholesalerCheckboxChange = (checked) => {
+    setFormData((prev) => ({
+      ...prev,
+      applyAsWholesaler: checked,
+      applyAsDealer: checked ? false : prev.applyAsDealer,
+    }));
   };
 
   const handlePasswordFocus = () => {
@@ -171,6 +185,7 @@ export const useRegister = (onSuccess) => {
         contactNumber: formData.contactNumber.trim(),
         password: formData.password.trim(),
         applyAsDealer: formData.applyAsDealer,
+        applyAsWholesaler: formData.applyAsWholesaler,
       };
 
       const response = await register(userData).unwrap();
@@ -192,7 +207,10 @@ export const useRegister = (onSuccess) => {
           description:
             response?.description ||
             "Your account has been created. Please check your email to verify.",
-          duration: response?.isDealerApplicant ? 8000 : 4000,
+          duration:
+            response?.isDealerApplicant || response?.isWholesalerApplicant
+              ? 8000
+              : 4000,
         });
       }
 
@@ -219,6 +237,7 @@ export const useRegister = (onSuccess) => {
     handleChange,
     handleCheckboxChange,
     handleDealerCheckboxChange,
+    handleWholesalerCheckboxChange,
     handlePasswordFocus,
     handlePasswordBlur,
     handleSubmit,

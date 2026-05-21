@@ -72,6 +72,8 @@ const useUserManagement = () => {
         return "destructive";
       case "dealer":
         return "default";
+      case "wholesaler":
+        return "default";
       case "customer":
         return "secondary";
       default:

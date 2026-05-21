@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSelector } from "react-redux";
+import { useLocation } from "react-router-dom";
 import {
   useGetDealerBundlesQuery,
   useGetDealerAddonsQuery,
@@ -23,6 +24,15 @@ const clampBundleQuantity = (value) =>
 export const useDealer = () => {
   const { user } = useSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
+
+  // Same hook serves /dealers and /wholesalers — the data and stock are
+  // identical; only the order tag and hero copy differ. Detect the channel
+  // from the current path so the same component reused on /wholesalers
+  // checks out as a wholesale order.
+  const location = useLocation();
+  const channel = location?.pathname?.startsWith("/wholesalers")
+    ? "wholesale"
+    : "dealer";
 
   // Multi-bundle selection state — all keyed by bundle id.
   const [selectedBundleIds, setSelectedBundleIds] = useState([]);
@@ -498,6 +508,32 @@ export const useDealer = () => {
     }));
   };
 
+  // Remove a single sub-item from a bundle-type addon (e.g. drop "cat" from
+  // the Animals add-on). The addon's price recomputes from the remaining
+  // bags; if no items are left, the whole addon is deselected.
+  const handleRemoveAddonSubItem = useCallback((addonId, inventoryItemId) => {
+    setSelectedAddonConfigs((prev) => {
+      const cur = prev[addonId];
+      if (!cur) return prev;
+      const filtered = (cur.selectedItems || []).filter(
+        (i) => i.inventoryItemId !== inventoryItemId,
+      );
+      if (filtered.length === 0) {
+        setSelectedAddonIds((ids) => ids.filter((id) => id !== addonId));
+        const { [addonId]: _removed, ...rest } = prev;
+        return rest;
+      }
+      const newPrice = filtered.reduce(
+        (sum, i) => sum + (i.selectedTotal || 0),
+        0,
+      );
+      return {
+        ...prev,
+        [addonId]: { ...cur, price: newPrice, selectedItems: filtered },
+      };
+    });
+  }, []);
+
   const handleExtraBagQtyChange = (bagId, newQty) => {
     setExtraBagQuantities((prev) => {
       const otherBagsQty = Object.entries(prev).reduce(
@@ -770,7 +806,7 @@ export const useDealer = () => {
       .map(([id, qty]) => ({ extraBagId: id, quantity: qty }));
 
     checkout({
-      orderType: "dealer",
+      orderType: channel,
       bundles: bundlesPayload.length > 0 ? bundlesPayload : undefined,
       addons: addonPayload.length > 0 ? addonPayload : undefined,
       extraBags: extraBagPayload.length > 0 ? extraBagPayload : undefined,
@@ -779,6 +815,7 @@ export const useDealer = () => {
   }, [
     canCheckout,
     checkout,
+    channel,
     selectedBundleIds,
     bundleQuantities,
     torsoSplits,
@@ -821,6 +858,7 @@ export const useDealer = () => {
 
     // Handlers
     handleToggleAddon,
+    handleRemoveAddonSubItem,
     handleExtraBagQtyChange,
     handleSelectTorsoBag,
     handleTorsoBagQtyChange,
@@ -849,5 +887,8 @@ export const useDealer = () => {
     isAdmin,
     isLoading,
     isError,
+
+    // Channel — drives hero copy on the page
+    channel,
   };
 };

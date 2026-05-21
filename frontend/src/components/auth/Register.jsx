@@ -18,6 +18,7 @@ const Register = ({
   handleChange,
   handleCheckboxChange,
   handleDealerCheckboxChange,
+  handleWholesalerCheckboxChange,
   handlePasswordFocus,
   handlePasswordBlur,
   handleSubmit,
@@ -177,6 +178,24 @@ const Register = ({
           <p className="text-xs text-muted-foreground mt-2">
             Ready to become a dealer? Submit your application to get started!
             We’ll review it and keep you posted via email.
+          </p>
+        </div>
+      </div>
+
+      {/* Apply as Wholesaler */}
+      <div className="flex items-start gap-2 text-sm my-5 p-3 rounded-md border border-dashed">
+        <Checkbox
+          id="reg-wholesaler"
+          checked={formData.applyAsWholesaler}
+          onCheckedChange={handleWholesalerCheckboxChange}
+        />
+        <div>
+          <Label htmlFor="reg-wholesaler" className="text-primary">
+            Apply as a Wholesaler
+          </Label>
+          <p className="text-xs text-muted-foreground mt-2">
+            Ready to become a wholesaler? Submit your application to get
+            started! We’ll review it and keep you posted via email.
           </p>
         </div>
       </div>
