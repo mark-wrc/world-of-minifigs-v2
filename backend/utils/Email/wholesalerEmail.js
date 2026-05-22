@@ -29,19 +29,3 @@ export const getWholesalerRejectedEmailTemplate = (user) => {
   `;
 };
 
-export const getAdminWholesalerNotificationTemplate = (user) => {
-  const name = `${user.firstName} ${user.lastName}`.trim() || user.username;
-  const adminUrl = `${process.env.FRONTEND_URL}/admin/users`;
-
-  return `
-    <p>Hi Admin,</p>
-    <p><strong>${name}</strong> has submitted a wholesaler application and is awaiting your review.</p>
-    <p>
-      Name: ${name}<br/>
-      Email Address: ${user.email}<br/>
-      Username: ${user.username}<br/>
-      Contact Number: ${user.contactNumber || "—"}
-    </p>
-    <p>Please review the application here: <a href="${adminUrl}">${adminUrl}</a></p>
-  `;
-};

@@ -13,7 +13,6 @@ import {
 import {
   getWholesalerApprovedEmailTemplate,
   getWholesalerRejectedEmailTemplate,
-  getAdminWholesalerNotificationTemplate,
 } from "../utils/Email/wholesalerEmail.js";
 import { generateTokens, verifyRefreshToken } from "../utils/generateToken.js";
 import {
@@ -182,25 +181,6 @@ export const register = async (req, res) => {
         } catch (adminEmailErr) {
           console.error(
             "Error sending admin dealer notification:",
-            adminEmailErr.message,
-          );
-        }
-      }
-    }
-
-    // Notify admin of new wholesaler application
-    if (applyAsWholesaler) {
-      const adminEmail = process.env.SMTP_FROM_EMAIL;
-      if (adminEmail) {
-        try {
-          await sendEmail({
-            email: adminEmail,
-            subject: `New Wholesaler Application — ${user.firstName} ${user.lastName}`,
-            message: getAdminWholesalerNotificationTemplate(user),
-          });
-        } catch (adminEmailErr) {
-          console.error(
-            "Error sending admin wholesaler notification:",
             adminEmailErr.message,
           );
         }
