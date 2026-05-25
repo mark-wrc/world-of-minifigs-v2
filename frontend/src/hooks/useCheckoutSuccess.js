@@ -11,6 +11,7 @@ import {
 import { publicApi } from "@/redux/api/publicApi";
 import { clearCartLocal } from "@/redux/slices/cartSlice";
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
+import { clearDealerDraft } from "@/utils/dealerDraft";
 import { getOrderStatusConfig, getDisplayItems } from "@/constant/orderData";
 
 const useCheckoutSuccess = () => {
@@ -76,6 +77,11 @@ const useCheckoutSuccess = () => {
 
       const order = data.order;
       const tags = [];
+
+      // Drop the persisted dealer/wholesale order draft now that it's paid.
+      if (order.orderType === "dealer" || order.orderType === "wholesale") {
+        clearDealerDraft(order.orderType);
+      }
 
       // Standards Products
       if (order.productItems) {

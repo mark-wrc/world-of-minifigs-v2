@@ -9,6 +9,11 @@ import {
 } from "@/redux/api/authApi";
 import { sortByName } from "@/utils/formatting";
 import { useCheckout } from "@/hooks/useCheckout";
+import {
+  loadDealerDraft,
+  saveDealerDraft,
+  clearDealerDraft,
+} from "@/utils/dealerDraft";
 
 // Dealers may order several distinct bundles in one order (e.g. 1000 + 200),
 // each independently quantity-adjustable. Each bundle copy is capped — to go
@@ -34,21 +39,46 @@ export const useDealer = () => {
     ? "wholesale"
     : "dealer";
 
-  // Multi-bundle selection state — all keyed by bundle id.
-  const [selectedBundleIds, setSelectedBundleIds] = useState([]);
-  const [bundleAutoSelected, setBundleAutoSelected] = useState(false);
-  const [activeBundleId, setActiveBundleId] = useState(null); // bundle whose torso picker is shown
-  const [bundleQuantities, setBundleQuantities] = useState({}); // { [bundleId]: 1-4 }
-  const [torsoSplits, setTorsoSplits] = useState({}); // { [bundleId]: { [bagId]: qty } }
-  const [lastClickedBag, setLastClickedBag] = useState({}); // { [bundleId]: bagId }
+  // Hydrate from localStorage so the order survives the Stripe back/cancel
+  // round-trip (cancel_url is a fresh page load, not an SPA navigation).
+  const [initialDraft] = useState(() => loadDealerDraft(channel));
 
-  const [selectedAddonIds, setSelectedAddonIds] = useState([]);
-  const [selectedAddonConfigs, setSelectedAddonConfigs] = useState({});
+  // Multi-bundle selection state — all keyed by bundle id.
+  const [selectedBundleIds, setSelectedBundleIds] = useState(
+    () => initialDraft?.selectedBundleIds || [],
+  );
+  // Skip auto-select when we already hydrated a draft.
+  const [bundleAutoSelected, setBundleAutoSelected] = useState(
+    () => (initialDraft?.selectedBundleIds?.length ?? 0) > 0,
+  );
+  const [activeBundleId, setActiveBundleId] = useState(
+    () => initialDraft?.activeBundleId ?? null,
+  ); // bundle whose torso picker is shown
+  const [bundleQuantities, setBundleQuantities] = useState(
+    () => initialDraft?.bundleQuantities || {},
+  ); // { [bundleId]: 1-4 }
+  const [torsoSplits, setTorsoSplits] = useState(
+    () => initialDraft?.torsoSplits || {},
+  ); // { [bundleId]: { [bagId]: qty } }
+  const [lastClickedBag, setLastClickedBag] = useState(
+    () => initialDraft?.lastClickedBag || {},
+  ); // { [bundleId]: bagId }
+
+  const [selectedAddonIds, setSelectedAddonIds] = useState(
+    () => initialDraft?.selectedAddonIds || [],
+  );
+  const [selectedAddonConfigs, setSelectedAddonConfigs] = useState(
+    () => initialDraft?.selectedAddonConfigs || {},
+  );
   const [selectedAddon, setSelectedAddon] = useState(null);
-  const [extraBagQuantities, setExtraBagQuantities] = useState({});
+  const [extraBagQuantities, setExtraBagQuantities] = useState(
+    () => initialDraft?.extraBagQuantities || {},
+  );
 
   // Optional shipping insurance opt-in (checkbox in the order summary).
-  const [insuranceEnabled, setInsuranceEnabled] = useState(false);
+  const [insuranceEnabled, setInsuranceEnabled] = useState(
+    () => initialDraft?.insuranceEnabled ?? false,
+  );
 
   // ==================== Data Fetching ====================
 
@@ -482,6 +512,42 @@ export const useDealer = () => {
       setExtraBagQuantities({});
     }
   }, [maxExtraBags, totalExtraBags]);
+
+  // Persist the order draft so it survives the Stripe back/cancel round-trip.
+  // Cleared on a successful checkout in useCheckoutSuccess.
+  useEffect(() => {
+    const hasContent =
+      selectedBundleIds.length > 0 ||
+      selectedAddonIds.length > 0 ||
+      Object.values(extraBagQuantities).some((q) => q > 0);
+
+    if (hasContent) {
+      saveDealerDraft(channel, {
+        selectedBundleIds,
+        bundleQuantities,
+        torsoSplits,
+        lastClickedBag,
+        activeBundleId,
+        selectedAddonIds,
+        selectedAddonConfigs,
+        extraBagQuantities,
+        insuranceEnabled,
+      });
+    } else {
+      clearDealerDraft(channel);
+    }
+  }, [
+    channel,
+    selectedBundleIds,
+    bundleQuantities,
+    torsoSplits,
+    lastClickedBag,
+    activeBundleId,
+    selectedAddonIds,
+    selectedAddonConfigs,
+    extraBagQuantities,
+    insuranceEnabled,
+  ]);
 
   // ==================== Addon Handlers ====================
 
