@@ -543,7 +543,8 @@ export const exportOrderToPdf = async (order) => {
         y += 10;
 
         if (addon.subItems?.length > 0) {
-          const isMinifig = /minifig/i.test(addon.name);
+          const isMinifig =
+            /minifig/i.test(addon.name) && !/(bulk|part)/i.test(addon.name);
           const qtyLabel = isMinifig ? "Minifigs" : "Bags";
           y = itemsTableWithImages(
             doc,

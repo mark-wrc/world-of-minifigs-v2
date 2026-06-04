@@ -619,7 +619,8 @@ const OrderManagement = () => {
                                     </p>
                                     <span className="text-xs text-muted-foreground shrink-0">
                                       {sub.qty}{" "}
-                                      {/minifig/i.test(addon.name)
+                                      {/minifig/i.test(addon.name) &&
+                                      !/(bulk|part)/i.test(addon.name)
                                         ? sub.qty !== 1
                                           ? "minifigs"
                                           : "minifig"
