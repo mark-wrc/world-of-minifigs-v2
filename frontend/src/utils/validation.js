@@ -456,6 +456,13 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
   if (!validateRequired(formData.addonName, "Add-on name")) return false;
   if (!validateRequired(formData.addonType, "Add-on type")) return false;
 
+  if (!formData.visibleChannels || formData.visibleChannels.length === 0) {
+    toast.error("Channel required", {
+      description: "Select at least one channel (Dealer or Wholesale).",
+    });
+    return false;
+  }
+
   if (formData.addonType === "bundle") {
     if (!bundleItems || bundleItems.length === 0) {
       toast.error("Items are required", {

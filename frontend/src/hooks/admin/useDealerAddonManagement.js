@@ -28,6 +28,7 @@ import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
 const initialFormData = {
   addonName: "",
   addonType: "bundle",
+  visibleChannels: ["dealer", "wholesale"],
   price: "",
   discount: "",
   badge: "",
@@ -35,6 +36,25 @@ const initialFormData = {
   image: null,
   isActive: true,
 };
+
+// Options for the "Show on" select. "both" maps to both channels.
+export const ADDON_CHANNEL_SELECT_OPTIONS = [
+  { value: "dealer", label: "Dealer" },
+  { value: "wholesale", label: "Wholesale" },
+  { value: "both", label: "Both" },
+];
+
+// Convert between the stored visibleChannels array and the single select value.
+const channelsToSelectValue = (channels = []) => {
+  const hasDealer = channels.includes("dealer");
+  const hasWholesale = channels.includes("wholesale");
+  if (hasDealer && hasWholesale) return "both";
+  if (hasWholesale) return "wholesale";
+  return "dealer";
+};
+
+const selectValueToChannels = (value) =>
+  value === "both" ? ["dealer", "wholesale"] : [value];
 
 const columns = [
   { key: "addonName", label: "Add-on" },
@@ -70,9 +90,7 @@ const useDealerAddonManagement = () => {
   // direction: +1 = next, -1 = previous.
   const selectAdjacentCategory = useCallback((direction) => {
     setItemCategory((current) => {
-      const idx = ADDON_ITEM_CATEGORIES.findIndex(
-        (c) => c.value === current,
-      );
+      const idx = ADDON_ITEM_CATEGORIES.findIndex((c) => c.value === current);
       if (idx === -1) return current;
       const count = ADDON_ITEM_CATEGORIES.length;
       return ADDON_ITEM_CATEGORIES[(idx + direction + count) % count].value;
@@ -213,7 +231,8 @@ const useDealerAddonManagement = () => {
     if (!isUpgradeType) return null;
     const price = Number(crud.formData.price || 0);
     const discount = crud.formData.discount;
-    if (discount === "" || discount === null || discount === undefined) return null;
+    if (discount === "" || discount === null || discount === undefined)
+      return null;
     const pct = Math.min(100, Math.max(0, Number(discount)));
     return Math.max(0, price * (1 - pct / 100));
   }, [isUpgradeType, crud.formData.price, crud.formData.discount]);
@@ -262,13 +281,7 @@ const useDealerAddonManagement = () => {
         if (exists) {
           return prev.filter((i) => i.inventoryItemId !== inventoryItemId);
         }
-        return [
-          {
-            inventoryItemId,
-            _item: inventoryItem,
-          },
-          ...prev,
-        ];
+        return [{ inventoryItemId, _item: inventoryItem }, ...prev];
       });
     },
     [],
@@ -279,6 +292,21 @@ const useDealerAddonManagement = () => {
       prev.filter((i) => i.inventoryItemId !== inventoryItemId),
     );
   }, []);
+
+  // Which channels the whole add-on shows on, driven by the "Show on" select.
+  const handleChannelSelectChange = useCallback(
+    (value) => {
+      crud.setFormData((prev) => ({
+        ...prev,
+        visibleChannels: selectValueToChannels(value),
+      }));
+    },
+    [crud],
+  );
+
+  const channelSelectValue = channelsToSelectValue(
+    crud.formData.visibleChannels,
+  );
 
   // ------------------------------- Edit Handler ------------------------------------
   const handleEdit = (addon) => {
@@ -293,7 +321,8 @@ const useDealerAddonManagement = () => {
 
     setBundleItems(existingItems);
 
-    const originalPrice = addon.addonType === "upgrade" ? (addon.price ?? "") : "";
+    const originalPrice =
+      addon.addonType === "upgrade" ? (addon.price ?? "") : "";
     // Prefer the stored discount %; fall back to deriving it for legacy records
     // that were saved before `discount` existed.
     let discountField = "";
@@ -314,6 +343,8 @@ const useDealerAddonManagement = () => {
     crud.openEdit(addon, {
       addonName: addon.addonName || "",
       addonType: addon.addonType || "bundle",
+      visibleChannels:
+        addon.visibleChannels?.length > 0 ? addon.visibleChannels : ["dealer"],
       price: originalPrice,
       discount: discountField,
       badge: addon.badge || "",
@@ -334,6 +365,7 @@ const useDealerAddonManagement = () => {
     const payload = {
       addonName: sanitizeString(crud.formData.addonName),
       addonType,
+      visibleChannels: crud.formData.visibleChannels,
       description: sanitizeString(crud.formData.description),
       badge: crud.formData.badge?.trim() || null,
       isActive: crud.formData.isActive,
@@ -407,6 +439,8 @@ const useDealerAddonManagement = () => {
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,
+    handleChannelSelectChange,
+    channelSelectValue,
     handleEdit,
     handleSubmit,
     handleChange,

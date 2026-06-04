@@ -56,6 +56,59 @@ import {
 // Dealer bundles must use one of these two base torso-bag sizes.
 const VALID_BASE_SIZES = [100, 500];
 
+// Add-on sales channels. Dealer and wholesale share one add-on list and the
+// same GeneralInventory stock; visibility per channel is controlled by the
+// `visibleChannels` array on each add-on (and on each bundle item).
+const ADDON_CHANNELS = ["dealer", "wholesale"];
+
+// Normalize an arbitrary channel input to a known value (defaults to dealer).
+const normalizeAddonChannel = (raw) =>
+  raw === "wholesale" ? "wholesale" : "dealer";
+
+// Validate and clean a visibleChannels array: keep only known channels,
+// de-duplicate, and require at least one. `fallback` is used when the input is
+// missing entirely (undefined). Returns { isValid, channels?, error? }.
+const sanitizeVisibleChannels = (raw, fallback) => {
+  if (raw === undefined) return { isValid: true, channels: fallback };
+
+  if (!Array.isArray(raw)) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Invalid channels",
+        description: "Channels must be a list of 'dealer' and/or 'wholesale'.",
+      },
+    };
+  }
+
+  const cleaned = [...new Set(raw)].filter((c) => ADDON_CHANNELS.includes(c));
+  if (cleaned.length === 0) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Channel required",
+        description: "Select at least one channel (dealer or wholesale).",
+      },
+    };
+  }
+
+  return { isValid: true, channels: cleaned };
+};
+
+// Build the Mongo filter for a public read on a channel. Add-ons missing
+// visibleChannels (legacy, pre-migration) are treated as dealer-only.
+const buildAddonChannelFilter = (channel) =>
+  normalizeAddonChannel(channel) === "wholesale"
+    ? { visibleChannels: "wholesale" }
+    : {
+        $or: [
+          { visibleChannels: "dealer" },
+          { visibleChannels: { $exists: false } },
+        ],
+      };
+
 const validateBaseSize = (baseSize, minifigQuantity) => {
   const base = Number(baseSize);
   if (!VALID_BASE_SIZES.includes(base)) {
@@ -387,6 +440,7 @@ export const createDealerAddon = async (req, res) => {
     const {
       addonName,
       addonType,
+      visibleChannels,
       description,
       price,
       discount,
@@ -412,7 +466,16 @@ export const createDealerAddon = async (req, res) => {
       });
     }
 
-    // Check name uniqueness
+    // Which channels this add-on shows on (defaults to both channels).
+    const channelsResult = sanitizeVisibleChannels(visibleChannels, [
+      "dealer",
+      "wholesale",
+    ]);
+    if (!channelsResult.isValid) {
+      return res.status(channelsResult.error.status).json(channelsResult.error);
+    }
+
+    // Check name uniqueness (one add-on per name across all channels)
     const existing = await checkNameConflict(
       DealerAddon,
       "addonName",
@@ -429,6 +492,7 @@ export const createDealerAddon = async (req, res) => {
     const addonData = {
       addonName: addonName.trim(),
       addonType,
+      visibleChannels: channelsResult.channels,
       description: description?.trim() || undefined,
       price: 0,
       discount: null,
@@ -526,6 +590,7 @@ export const updateDealerAddon = async (req, res) => {
     const { id } = req.params;
     const {
       addonName,
+      visibleChannels,
       description,
       price,
       discount,
@@ -545,7 +610,7 @@ export const updateDealerAddon = async (req, res) => {
       });
     }
 
-    // Update name with uniqueness check
+    // Update name with uniqueness check (one add-on per name)
     if (addonName !== undefined) {
       const trimmed = addonName.trim();
       if (!trimmed) {
@@ -577,6 +642,16 @@ export const updateDealerAddon = async (req, res) => {
       addon.description = description?.trim() || undefined;
     if (badge !== undefined) addon.badge = badge?.trim() || null;
     if (isActive !== undefined) addon.isActive = isActive;
+
+    if (visibleChannels !== undefined) {
+      const channelsResult = sanitizeVisibleChannels(visibleChannels);
+      if (!channelsResult.isValid) {
+        return res
+          .status(channelsResult.error.status)
+          .json(channelsResult.error);
+      }
+      addon.visibleChannels = channelsResult.channels;
+    }
 
     // Type-specific updates (type cannot be changed)
     if (addon.addonType === "bundle") {
@@ -1167,7 +1242,12 @@ export const getDealerBundlesForUser = async (req, res) => {
 
 export const getDealerAddonsForUser = async (req, res) => {
   try {
-    const rawAddons = await DealerAddon.find({ isActive: true })
+    const channel = normalizeAddonChannel(req.query.channel);
+
+    const rawAddons = await DealerAddon.find({
+      isActive: true,
+      ...buildAddonChannelFilter(channel),
+    })
       .select("-createdBy -updatedBy -isActive -__v")
       .populate({
         path: "bundleItems.inventoryItemId",
@@ -1182,8 +1262,9 @@ export const getDealerAddonsForUser = async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
 
-    // Drop bundle items whose inventory item is inactive or out of stock (populate returns null for non-matches).
-    // Also drop bundle-type add-ons that end up with no remaining items.
+    // Drop bundle items whose inventory item is inactive or out of stock
+    // (populate returns null for non-matches). Also drop bundle-type add-ons
+    // that end up with no remaining items.
     const addons = rawAddons
       .map((addon) => ({
         ...addon,

@@ -22,7 +22,17 @@
       "Bash(node --check services/payment/paymentCore.js)",
       "Bash(node --check services/payment/paymentConfig.js)",
       "Bash(node --check models/order.model.js)",
-      "Bash(node --check utils/Email/orderEmails.js)"
+      "Bash(node --check utils/Email/orderEmails.js)",
+      "Bash(ls backend/models/ backend/controllers/ backend/routes/ backend/services/payment/)",
+      "Bash(ls frontend/src/pages/admin/ frontend/src/redux/api/)",
+      "Bash(npm run *)",
+      "Bash(node --check controllers/dashboardController.js)",
+      "Bash(node --check routes/adminRoutes.js)",
+      "Bash(node --input-type=module -e \"import\\('./controllers/dashboardController.js'\\).then\\(m => console.log\\('LOADED exports:', Object.keys\\(m\\)\\)\\).catch\\(e => { console.error\\('ERR', e.message\\); process.exit\\(1\\); }\\)\")",
+      "Bash(node --check controllers/dealerController.js)",
+      "Bash(node --check models/dealerAddon.model.js)",
+      "Bash(node --check migrations/scripts/20260603_add_addon_channel.js)",
+      "Bash(node --check migrations/migrate.js)"
     ]
   }
 }

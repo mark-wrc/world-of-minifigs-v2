@@ -262,7 +262,13 @@ export const authApi = createApi({
       providesTags: ["Bundle"],
     }),
     getDealerAddons: builder.query({
-      query: () => ({ url: "/dealer/addons", method: "GET" }),
+      // `channel` ("dealer" | "wholesale") scopes the list — dealer and
+      // wholesale curate independent add-ons from the same shared inventory.
+      query: (channel) => ({
+        url: "/dealer/addons",
+        method: "GET",
+        params: channel ? { channel } : undefined,
+      }),
       providesTags: ["Addon"],
     }),
     getDealerExtraBags: builder.query({

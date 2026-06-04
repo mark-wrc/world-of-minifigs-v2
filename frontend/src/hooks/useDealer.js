@@ -92,7 +92,7 @@ export const useDealer = () => {
     data: addonData,
     isLoading: isLoadingAddons,
     isError: isErrorAddons,
-  } = useGetDealerAddonsQuery();
+  } = useGetDealerAddonsQuery(channel);
 
   const {
     data: extraBagData,

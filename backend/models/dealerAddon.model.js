@@ -12,6 +12,11 @@ const dealerAddonSchema = new mongoose.Schema(
       required: true,
       enum: ["bundle", "upgrade"],
     },
+    visibleChannels: {
+      type: [String],
+      enum: ["dealer", "wholesale"],
+      default: ["dealer"],
+    },
     description: {
       type: String,
       trim: true,
@@ -78,7 +83,9 @@ dealerAddonSchema.index({ isActive: 1 });
 // Sorting by latest
 dealerAddonSchema.index({ createdAt: -1 });
 
-// Uniqueness for addon name
+dealerAddonSchema.index({ visibleChannels: 1, isActive: 1 });
+
+// Uniqueness for addon name (shared across channels).
 dealerAddonSchema.index(
   { addonName: 1 },
   {

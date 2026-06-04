@@ -32,6 +32,7 @@ import CommonImage from "@/components/shared/CommonImage";
 import MediaUpload from "@/components/shared/MediaUpload";
 import useDealerAddonManagement, {
   ADDON_ITEM_CATEGORIES,
+  ADDON_CHANNEL_SELECT_OPTIONS,
 } from "@/hooks/admin/useDealerAddonManagement";
 
 const InventoryDropdownItem = ({ inv, checked, onCheckedChange }) => (
@@ -114,6 +115,8 @@ const DealerAddonManagement = () => {
     handleItemSearchChange,
     handleToggleBundleItem,
     handleRemoveBundleItem,
+    handleChannelSelectChange,
+    channelSelectValue,
     handleSubmit,
     handleDialogClose,
     handleAdd,
@@ -148,8 +151,8 @@ const DealerAddonManagement = () => {
     <div className="space-y-5">
       {/* Admin Page Header */}
       <AdminManagementHeader
-        title="Dealer Add-on Management"
-        description="Manage dealer add-ons — bundles from inventory or service upgrades"
+        title="Add-on Management"
+        description="Manage dealer & wholesale add-ons — choose which channel each add-on shows on"
         actionLabel="Add Add-on"
         onAction={handleAdd}
       />
@@ -246,10 +249,10 @@ const DealerAddonManagement = () => {
         entityName="Add-on"
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        className="sm:max-w-2xl"
+        className="sm:max-w-3xl"
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {/* Add-on Name */}
             <AdminFormInput
               label="Add-on Name"
@@ -273,6 +276,17 @@ const DealerAddonManagement = () => {
                 { value: "upgrade", label: "Upgrade" },
               ]}
               placeholder="Select type"
+            />
+
+            {/* Show on — which pages this add-on appears on */}
+            <AdminFormSelect
+              label="Display on"
+              name="visibleChannels"
+              value={channelSelectValue}
+              onValueChange={handleChannelSelectChange}
+              disabled={isSubmitting}
+              options={ADDON_CHANNEL_SELECT_OPTIONS}
+              placeholder="Select channel"
             />
           </div>
 
@@ -322,7 +336,9 @@ const DealerAddonManagement = () => {
                           key={cat.value}
                           type="button"
                           ref={
-                            itemCategory === cat.value ? activeTabRef : undefined
+                            itemCategory === cat.value
+                              ? activeTabRef
+                              : undefined
                           }
                           onMouseDown={(e) => {
                             e.preventDefault();
