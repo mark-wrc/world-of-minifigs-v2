@@ -11,6 +11,12 @@ const generalInventorySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    itemId: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
 
     category: {
       type: String,

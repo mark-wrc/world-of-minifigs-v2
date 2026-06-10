@@ -29,7 +29,9 @@ const initialFormData = {
 };
 
 const BASE_COLUMNS = [
+  { key: "image", label: "Image" },
   { key: "minifigName", label: "Name" },
+  { key: "itemId", label: "Item ID" },
   { key: "color", label: "Color" },
 ];
 const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
@@ -41,8 +43,6 @@ const PRICING_COLUMNS = [
 ];
 const TAIL_COLUMNS = [
   { key: "isActive", label: "Status" },
-  { key: "createdAt", label: "Created At" },
-  { key: "updatedAt", label: "Updated At" },
   { key: "actions", label: "Actions" },
 ];
 
@@ -53,6 +53,7 @@ const makeNewPreview = (
 ) => ({
   url,
   minifigName: "",
+  itemId: "",
   pricePerBag: "",
   piecesPerBag: "",
   stock: "",
@@ -255,6 +256,7 @@ const useGeneralInventoryManagement = () => {
       {
         url: item.image?.url,
         minifigName: item.minifigName,
+        itemId: item.itemId || "",
         pricePerBag: Number(item.pricePerBag || 0).toFixed(2),
         piecesPerBag: item.piecesPerBag ?? 1,
         stock: item.stock,
@@ -286,6 +288,7 @@ const useGeneralInventoryManagement = () => {
       const payload = {
         items: filePreview.map((item) => ({
           minifigName: sanitizeString(item.minifigName),
+          itemId: sanitizeString(item.itemId) || null,
           pricePerBag: Number(item.pricePerBag),
           piecesPerBag: Number(item.piecesPerBag) || 1,
           stock: Number(item.stock),
@@ -316,6 +319,7 @@ const useGeneralInventoryManagement = () => {
 
       const payload = {
         minifigName: sanitizeString(item.minifigName),
+        itemId: sanitizeString(item.itemId) || null,
         pricePerBag: Number(item.pricePerBag),
         piecesPerBag: Number(item.piecesPerBag) || 1,
         stock: Number(item.stock),

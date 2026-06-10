@@ -7,6 +7,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import ColorSwatch from "@/components/shared/ColorSwatch";
+import CommonImage from "@/components/shared/CommonImage";
 import {
   AdminFormInput,
   AdminFormSelect,
@@ -19,7 +20,6 @@ import {
   StatusCell,
   PriceCell,
   StockCell,
-  TimestampCells,
 } from "@/components/table/BaseColumn";
 import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
@@ -59,6 +59,16 @@ const InventoryItemInputs = React.memo(
         onChange={onChange}
         disabled={isSubmitting}
         required
+        inputClassName="h-8 text-xs"
+      />
+
+      <AdminFormInput
+        name="itemId"
+        type="text"
+        placeholder="Item ID (optional)"
+        value={item.itemId ?? ""}
+        onChange={onChange}
+        disabled={isSubmitting}
         inputClassName="h-8 text-xs"
       />
       <div className="grid grid-cols-2 gap-2">
@@ -275,8 +285,21 @@ const GeneralInventoryManagement = () => {
         }
         renderRow={(item) => (
           <>
+            {/* Thumbnail */}
+            <TableCell>
+              <CommonImage
+                src={item.image?.url}
+                alt={item.minifigName}
+                className="w-14 aspect-4/3 mx-auto"
+                objectFit="object-contain"
+              />
+            </TableCell>
+
             {/* Name */}
             <TableCell>{display(item.minifigName)}</TableCell>
+
+            {/* Item ID */}
+            <TableCell>{display(item.itemId)}</TableCell>
 
             {/* Color */}
             <TableCell>
@@ -310,12 +333,6 @@ const GeneralInventoryManagement = () => {
 
             {/* Status */}
             <StatusCell isActive={item.isActive} />
-
-            {/* Timestamps */}
-            <TimestampCells
-              createdAt={item.createdAt}
-              updatedAt={item.updatedAt}
-            />
 
             {/* Actions */}
             <ActionsColumn

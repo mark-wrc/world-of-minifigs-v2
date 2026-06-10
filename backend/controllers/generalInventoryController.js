@@ -45,6 +45,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
     try {
       const {
         minifigName,
+        itemId,
         pricePerBag,
         piecesPerBag,
         stock,
@@ -121,6 +122,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
 
       const newInventory = await GeneralInventory.create({
         minifigName: String(minifigName).trim(),
+        itemId: itemId ? String(itemId).trim() : null,
         pricePerBag: Number(pricePerBag),
         piecesPerBag:
           piecesPerBag !== undefined && piecesPerBag !== null
@@ -284,6 +286,7 @@ export const updateGeneralInventory = async (req, res) => {
     const { id } = req.params;
     const {
       minifigName,
+      itemId,
       pricePerBag,
       piecesPerBag,
       stock,
@@ -339,6 +342,10 @@ export const updateGeneralInventory = async (req, res) => {
         }
       }
       inventory.minifigName = checkName;
+    }
+
+    if (itemId !== undefined) {
+      inventory.itemId = itemId ? String(itemId).trim() : null;
     }
 
     if (pricePerBag !== undefined) {
