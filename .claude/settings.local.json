@@ -32,7 +32,8 @@
       "Bash(node --check controllers/dealerController.js)",
       "Bash(node --check models/dealerAddon.model.js)",
       "Bash(node --check migrations/scripts/20260603_add_addon_channel.js)",
-      "Bash(node --check migrations/migrate.js)"
+      "Bash(node --check migrations/migrate.js)",
+      "WebFetch(domain:developer.squareup.com)"
     ]
   }
 }

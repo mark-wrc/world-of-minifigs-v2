@@ -61,11 +61,11 @@ const InventoryItemInputs = React.memo(
         required
         inputClassName="h-8 text-xs"
       />
-      {isMinifigsTab ? (
+      <div className="grid grid-cols-2 gap-2">
         <AdminFormInput
           name="pricePerBag"
           type="number"
-          placeholder="Price"
+          placeholder="Bag Price"
           step="0.01"
           value={item.pricePerBag}
           onChange={onChange}
@@ -73,38 +73,24 @@ const InventoryItemInputs = React.memo(
           required
           inputClassName="h-8 text-xs"
         />
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <AdminFormInput
-            name="pricePerBag"
-            type="number"
-            placeholder="Bag Price"
-            step="0.01"
-            value={item.pricePerBag}
-            onChange={onChange}
-            disabled={isSubmitting}
-            required
-            inputClassName="h-8 text-xs"
-          />
 
-          <AdminFormInput
-            name="piecesPerBag"
-            type="number"
-            placeholder="Qty/bag"
-            min="1"
-            step="1"
-            value={item.piecesPerBag ?? ""}
-            onChange={onChange}
-            disabled={isSubmitting}
-            inputClassName="h-8 text-xs"
-          />
-        </div>
-      )}
+        <AdminFormInput
+          name="piecesPerBag"
+          type="number"
+          placeholder="Qty/bag"
+          min="1"
+          step="1"
+          value={item.piecesPerBag ?? ""}
+          onChange={onChange}
+          disabled={isSubmitting}
+          inputClassName="h-8 text-xs"
+        />
+      </div>
 
       <AdminFormInput
         name="stock"
         type="number"
-        placeholder={isMinifigsTab ? "Stocks" : "Stocks/bag"}
+        placeholder="Stocks/bag"
         value={item.stock}
         onChange={onChange}
         disabled={isSubmitting}
@@ -316,16 +302,11 @@ const GeneralInventoryManagement = () => {
             {/* Price per Bag */}
             <PriceCell amount={item.pricePerBag} />
 
-            {/* Pieces per Bag — hidden for minifigs (sold individually) */}
-            {activeTab !== "minifigs" && (
-              <TableCell>{item.piecesPerBag ?? 1}</TableCell>
-            )}
+            {/* Pieces per Bag */}
+            <TableCell>{item.piecesPerBag ?? 1}</TableCell>
 
             {/* Stock (bags) */}
-            <StockCell
-              stock={item.stock}
-              suffix={activeTab === "minifigs" ? "" : "bags"}
-            />
+            <StockCell stock={item.stock} suffix="bags" />
 
             {/* Status */}
             <StatusCell isActive={item.isActive} />

@@ -34,14 +34,10 @@ const BASE_COLUMNS = [
 ];
 const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
 const PART_TYPE_COLUMN = { key: "partType", label: "Part Type" };
-const PRICING_COLUMNS_DEFAULT = [
+const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
   { key: "piecesPerBag", label: "Qty/bag" },
   { key: "stock", label: "Stocks/bag" },
-];
-const PRICING_COLUMNS_MINIFIGS = [
-  { key: "pricePerBag", label: "Price" },
-  { key: "stock", label: "Stocks" },
 ];
 const TAIL_COLUMNS = [
   { key: "isActive", label: "Status" },
@@ -153,10 +149,7 @@ const useGeneralInventoryManagement = () => {
       : isBulkParts
         ? [PART_TYPE_COLUMN]
         : [];
-    const pricing = isMinifigs
-      ? PRICING_COLUMNS_MINIFIGS
-      : PRICING_COLUMNS_DEFAULT;
-    return [...BASE_COLUMNS, ...mid, ...pricing, ...TAIL_COLUMNS];
+    return [...BASE_COLUMNS, ...mid, ...PRICING_COLUMNS, ...TAIL_COLUMNS];
   }, [activeTab]);
 
   useEffect(() => {
