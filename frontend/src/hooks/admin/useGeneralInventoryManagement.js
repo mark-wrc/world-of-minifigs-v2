@@ -22,6 +22,7 @@ export const INVENTORY_TABS = [
   { value: "specialty-bricks", label: "Specialty Bricks" },
   { value: "botanicals", label: "Botanicals" },
   { value: "bulk-minifig-parts", label: "Bulk Minifig Parts" },
+  { value: "minidoll", label: "Minidoll" },
 ];
 
 const initialFormData = {

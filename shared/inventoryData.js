@@ -8,6 +8,7 @@ export const INVENTORY_CATEGORIES = [
   "specialty-bricks",
   "botanicals",
   "bulk-minifig-parts",
+  "minidoll",
 ];
 
 // Fixed part-type "collections" available for bulk-minifig-parts inventory.

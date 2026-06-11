@@ -241,7 +241,7 @@ const GeneralInventoryManagement = () => {
 
       {/* Table Layout */}
       <TableLayout
-        searchPlaceholder="Search by name..."
+        searchPlaceholder="Search item..."
         searchValue={search}
         onSearchChange={handleSearchChange}
         entriesValue={limit}

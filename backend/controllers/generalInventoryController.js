@@ -201,7 +201,7 @@ export const getAllGeneralInventory = async (req, res) => {
     let searchQuery = { ...baseFilter };
 
     if (search) {
-      const nameQuery = buildSearchQuery(search, ["minifigName"]);
+      const nameQuery = buildSearchQuery(search, ["minifigName", "itemId"]);
 
       // Also search by color name
       const matchingColors = await Color.find(
