@@ -171,7 +171,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
-    const { category, stock, status, partType } = req.query;
+    const { category, stock, status, partType, collectionId } = req.query;
 
     const baseFilter = {};
 
@@ -181,6 +181,10 @@ export const getAllGeneralInventory = async (req, res) => {
 
     if (partType && BULK_MINIFIG_PART_TYPES.includes(partType)) {
       baseFilter.partType = partType;
+    }
+
+    if (collectionId) {
+      baseFilter.collectionId = collectionId;
     }
 
     // Stock tier filter — matches the StockCell color tiers used in the UI.

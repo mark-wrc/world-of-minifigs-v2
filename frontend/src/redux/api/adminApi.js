@@ -28,6 +28,8 @@ const buildPaginationParams = ({
   category,
   status,
   stock,
+  partType,
+  collectionId,
 } = {}) => {
   return {
     ...(page && { page }),
@@ -38,6 +40,8 @@ const buildPaginationParams = ({
     ...(category && { category }),
     ...(status && { status }),
     ...(stock && { stock }),
+    ...(partType && { partType }),
+    ...(collectionId && { collectionId }),
   };
 };
 

@@ -71,6 +71,8 @@ const useGeneralInventoryManagement = () => {
   // ------------------------------- Filter State ----------------------------------
   const [stockFilter, setStockFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [collectionFilter, setCollectionFilter] = useState("");
+  const [partTypeFilter, setPartTypeFilter] = useState("");
 
   const handleStockFilterChange = useCallback((value) => {
     setStockFilter(value === "all" ? "" : value);
@@ -78,6 +80,21 @@ const useGeneralInventoryManagement = () => {
 
   const handleStatusFilterChange = useCallback((value) => {
     setStatusFilter(value === "all" ? "" : value);
+  }, []);
+
+  const handleCollectionFilterChange = useCallback((value) => {
+    setCollectionFilter(value === "all" ? "" : value);
+  }, []);
+
+  const handlePartTypeFilterChange = useCallback((value) => {
+    setPartTypeFilter(value === "all" ? "" : value);
+  }, []);
+
+  // Switch tab and clear filters that only apply to other tabs
+  const handleTabChange = useCallback((value) => {
+    setActiveTab(value);
+    if (value !== "minifigs") setCollectionFilter("");
+    if (value !== "bulk-minifig-parts") setPartTypeFilter("");
   }, []);
 
   // ------------------------------- Media ------------------------------------
@@ -117,6 +134,12 @@ const useGeneralInventoryManagement = () => {
       category: activeTab,
       stock: stockFilter || undefined,
       status: statusFilter || undefined,
+      collectionId:
+        activeTab === "minifigs" ? collectionFilter || undefined : undefined,
+      partType:
+        activeTab === "bulk-minifig-parts"
+          ? partTypeFilter || undefined
+          : undefined,
     });
 
   const isLoadingInventory = isLoading || isFetchingInventory;
@@ -153,7 +176,7 @@ const useGeneralInventoryManagement = () => {
   // Reset to page 1 when the active tab or any filter changes
   useEffect(() => {
     crud.handlePageChange(1);
-  }, [activeTab, stockFilter, statusFilter]);
+  }, [activeTab, stockFilter, statusFilter, collectionFilter, partTypeFilter]);
 
   const isSubmitting = crud.dialogMode === "edit" ? isUpdating : isCreating;
 
@@ -355,10 +378,15 @@ const useGeneralInventoryManagement = () => {
     ...crud,
     activeTab,
     setActiveTab,
+    handleTabChange,
     stockFilter,
     statusFilter,
+    collectionFilter,
+    partTypeFilter,
     handleStockFilterChange,
     handleStatusFilterChange,
+    handleCollectionFilterChange,
+    handlePartTypeFilterChange,
     filePreview,
     fileInputRef,
     inventory,

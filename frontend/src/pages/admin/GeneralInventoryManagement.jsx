@@ -165,11 +165,15 @@ const InventoryItemInputs = React.memo(
 const GeneralInventoryManagement = () => {
   const {
     activeTab,
-    setActiveTab,
+    handleTabChange,
     stockFilter,
     statusFilter,
+    collectionFilter,
+    partTypeFilter,
     handleStockFilterChange,
     handleStatusFilterChange,
+    handleCollectionFilterChange,
+    handlePartTypeFilterChange,
     inventory,
     colors,
     collections,
@@ -226,7 +230,7 @@ const GeneralInventoryManagement = () => {
           <button
             key={tab.value}
             type="button"
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => handleTabChange(tab.value)}
             className={[
               "px-4 py-2 text-sm font-medium transition-colors cursor-pointer",
               activeTab === tab.value
@@ -287,6 +291,44 @@ const GeneralInventoryManagement = () => {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+
+            {activeTab === "minifigs" && (
+              <Select
+                value={collectionFilter || "all"}
+                onValueChange={handleCollectionFilterChange}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="All Collections" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Collections</SelectItem>
+                  {collections.map((c) => (
+                    <SelectItem key={c._id} value={c._id}>
+                      {c.collectionName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {activeTab === "bulk-minifig-parts" && (
+              <Select
+                value={partTypeFilter || "all"}
+                onValueChange={handlePartTypeFilterChange}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="All Part Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Part Types</SelectItem>
+                  {PART_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </>
         }
         renderRow={(item) => (
