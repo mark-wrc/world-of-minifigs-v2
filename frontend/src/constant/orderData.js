@@ -170,7 +170,8 @@ export const buildOrderTabs = (statuses) => {
   return [
     ...base,
     ...Object.values(statuses)
-      .filter((s) => s !== "failed")
+      // "delivered" disabled per client request — "shipped" is the final status.
+      .filter((s) => s !== "failed" && s !== "delivered")
       .map((s) => ({ value: s, label: STATUS_CONFIG[s]?.label || s })),
   ];
 };

@@ -24,7 +24,8 @@ export const REFUND_STATUSES = {
 
 export const VALID_STATUS_TRANSITIONS = {
   [ORDER_STATUSES.PAID]: [ORDER_STATUSES.SHIPPED, ORDER_STATUSES.CANCELLED],
-  [ORDER_STATUSES.SHIPPED]: [ORDER_STATUSES.DELIVERED],
+  // Delivered status disabled per client request — "shipped" is the final status.
+  // [ORDER_STATUSES.SHIPPED]: [ORDER_STATUSES.DELIVERED],
 };
 
 export const ORDER_TYPES = {
