@@ -330,11 +330,6 @@ const GeneralInventoryManagement = () => {
               />
             </TableCell>
 
-            {/* Part Type — bulk-minifig-parts tab only */}
-            {activeTab === "bulk-minifig-parts" && (
-              <TableCell>{display(item.partType)}</TableCell>
-            )}
-
             {/* Price per Bag */}
             <PriceCell amount={item.pricePerBag} />
 

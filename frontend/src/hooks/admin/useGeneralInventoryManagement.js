@@ -35,7 +35,6 @@ const BASE_COLUMNS = [
   { key: "itemId", label: "Item ID" },
   { key: "color", label: "Color" },
 ];
-const PART_TYPE_COLUMN = { key: "partType", label: "Part Type" };
 const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
   { key: "piecesPerBag", label: "Qty/bag" },
@@ -144,10 +143,8 @@ const useGeneralInventoryManagement = () => {
   );
 
   const columns = useMemo(() => {
-    const isBulkParts = activeTab === "bulk-minifig-parts";
-    const mid = isBulkParts ? [PART_TYPE_COLUMN] : [];
-    return [...BASE_COLUMNS, ...mid, ...PRICING_COLUMNS, ...TAIL_COLUMNS];
-  }, [activeTab]);
+    return [...BASE_COLUMNS, ...PRICING_COLUMNS, ...TAIL_COLUMNS];
+  }, []);
 
   useEffect(() => {
     crud.setTotalItems(totalItems);
