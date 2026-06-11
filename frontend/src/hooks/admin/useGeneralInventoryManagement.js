@@ -34,7 +34,6 @@ const BASE_COLUMNS = [
   { key: "itemId", label: "Item ID" },
   { key: "color", label: "Color" },
 ];
-const MINIFIG_COLLECTION_COLUMN = { key: "collection", label: "Collection" };
 const PART_TYPE_COLUMN = { key: "partType", label: "Part Type" };
 const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
@@ -43,6 +42,7 @@ const PRICING_COLUMNS = [
 ];
 const TAIL_COLUMNS = [
   { key: "isActive", label: "Status" },
+  { key: "updatedAt", label: "Updated At" },
   { key: "actions", label: "Actions" },
 ];
 
@@ -143,13 +143,8 @@ const useGeneralInventoryManagement = () => {
   );
 
   const columns = useMemo(() => {
-    const isMinifigs = activeTab === "minifigs";
     const isBulkParts = activeTab === "bulk-minifig-parts";
-    const mid = isMinifigs
-      ? [MINIFIG_COLLECTION_COLUMN]
-      : isBulkParts
-        ? [PART_TYPE_COLUMN]
-        : [];
+    const mid = isBulkParts ? [PART_TYPE_COLUMN] : [];
     return [...BASE_COLUMNS, ...mid, ...PRICING_COLUMNS, ...TAIL_COLUMNS];
   }, [activeTab]);
 

@@ -9,6 +9,11 @@ import {
 import ColorSwatch from "@/components/shared/ColorSwatch";
 import CommonImage from "@/components/shared/CommonImage";
 import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
+import {
   AdminFormInput,
   AdminFormSelect,
 } from "@/components/shared/AdminFormInput";
@@ -20,6 +25,7 @@ import {
   StatusCell,
   PriceCell,
   StockCell,
+  TimestampCells,
 } from "@/components/table/BaseColumn";
 import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
@@ -285,14 +291,28 @@ const GeneralInventoryManagement = () => {
         }
         renderRow={(item) => (
           <>
-            {/* Thumbnail */}
+            {/* Thumbnail — hover to enlarge */}
             <TableCell>
-              <CommonImage
-                src={item.image?.url}
-                alt={item.minifigName}
-                className="w-14 aspect-4/3 mx-auto"
-                objectFit="object-contain"
-              />
+              <HoverCard openDelay={150} closeDelay={80}>
+                <HoverCardTrigger asChild>
+                  <div className="shrink-0 cursor-zoom-in">
+                    <CommonImage
+                      src={item.image?.url}
+                      alt={item.minifigName}
+                      className="mx-auto w-20 aspect-4/3"
+                      objectFit="object-contain"
+                    />
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardContent>
+                  <CommonImage
+                    src={item.image?.url}
+                    alt={item.minifigName}
+                    className="w-80"
+                    objectFit="object-contain"
+                  />
+                </HoverCardContent>
+              </HoverCard>
             </TableCell>
 
             {/* Name */}
@@ -310,13 +330,6 @@ const GeneralInventoryManagement = () => {
               />
             </TableCell>
 
-            {/* Collection — minifigs tab only */}
-            {activeTab === "minifigs" && (
-              <TableCell>
-                {display(item.collectionId?.collectionName)}
-              </TableCell>
-            )}
-
             {/* Part Type — bulk-minifig-parts tab only */}
             {activeTab === "bulk-minifig-parts" && (
               <TableCell>{display(item.partType)}</TableCell>
@@ -333,6 +346,9 @@ const GeneralInventoryManagement = () => {
 
             {/* Status */}
             <StatusCell isActive={item.isActive} />
+
+            {/* Updated At */}
+            <TimestampCells updatedAt={item.updatedAt} />
 
             {/* Actions */}
             <ActionsColumn
