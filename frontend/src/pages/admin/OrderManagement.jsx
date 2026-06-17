@@ -163,7 +163,7 @@ const OrderManagement = () => {
               </TableCell>
 
               {/* Created At */}
-              <TimestampCells createdAt={order.createdAt} />
+              <TimestampCells createdAt={order.createdAt} withTime />
 
               {/* Actions */}
               <ActionsColumn

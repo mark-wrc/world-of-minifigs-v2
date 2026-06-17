@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import StatusBadge from "@/components/shared/StatusBadge";
-import { formatDate, formatCurrency } from "@/utils/formatting";
+import { formatDate, formatDateShort, formatCurrency } from "@/utils/formatting";
 
 import { getTextContent } from "@/utils/uiHelpers";
 
@@ -41,12 +41,14 @@ export const TableCell = ({
   );
 };
 
-// Standard Table Timestamp Cells
-export const TimestampCells = ({ createdAt, updatedAt }) => {
+// Standard Table Timestamp Cells.
+// Date-only ("1/1/26") by default; pass `withTime` for the full date + time.
+export const TimestampCells = ({ createdAt, updatedAt, withTime = false }) => {
+  const format = withTime ? formatDate : formatDateShort;
   return (
     <>
-      {createdAt && <TableCell>{formatDate(createdAt)}</TableCell>}
-      {updatedAt && <TableCell>{formatDate(updatedAt)}</TableCell>}
+      {createdAt && <TableCell>{format(createdAt)}</TableCell>}
+      {updatedAt && <TableCell>{format(updatedAt)}</TableCell>}
     </>
   );
 };

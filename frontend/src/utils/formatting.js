@@ -61,6 +61,20 @@ export const formatDate = (date) => {
   });
 };
 
+// Compact, date-only format — e.g. "1/1/26".
+export const formatDateShort = (date) => {
+  if (!date) return "-";
+
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) return "-";
+
+  return parsed.toLocaleDateString("en-US", {
+    year: "2-digit",
+    month: "numeric",
+    day: "numeric",
+  });
+};
+
 export const cleanFeatures = (features) =>
   (features || []).map((f) => String(f ?? "").trim()).filter((f) => f !== "");
 
