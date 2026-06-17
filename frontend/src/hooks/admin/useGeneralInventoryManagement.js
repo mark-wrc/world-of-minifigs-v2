@@ -31,6 +31,7 @@ const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
   { key: "piecesPerBag", label: "Qty/bag" },
   { key: "stock", label: "Stocks/bag" },
+  { key: "soldBags", label: "Sales" },
 ];
 const TAIL_COLUMNS = [
   { key: "isActive", label: "Status" },

@@ -381,6 +381,9 @@ const GeneralInventoryManagement = () => {
             {/* Stock (bags) */}
             <StockCell stock={item.stock} suffix="bags" />
 
+            {/* Sales — bags sold across orders */}
+            <TableCell>{(item.soldBags ?? 0).toLocaleString()} sold</TableCell>
+
             {/* Status */}
             <StatusCell isActive={item.isActive} />
 

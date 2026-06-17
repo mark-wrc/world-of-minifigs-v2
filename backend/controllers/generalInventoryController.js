@@ -5,6 +5,8 @@ import GeneralInventory, {
 import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
+import Order from "../models/order.model.js";
+import { ORDER_STATUSES } from "../constants/orderConstants.js";
 import {
   uploadSingleImage,
   replaceSingleImage,
@@ -20,6 +22,34 @@ import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
 const IMAGE_FOLDER = "world-of-minifigs-v2/general-inventory";
+
+// Order statuses that count as a completed sale (excludes cancelled/failed).
+const SOLD_ORDER_STATUSES = [
+  ORDER_STATUSES.PAID,
+  ORDER_STATUSES.SHIPPED,
+  ORDER_STATUSES.DELIVERED,
+];
+
+// Sum the bags sold per inventory item from dealer/wholesale order add-ons.
+// Returns a Map keyed by inventory id (string) -> total bags sold.
+const getSoldBagsMap = async (inventoryIds) => {
+  if (!inventoryIds?.length) return new Map();
+
+  const sales = await Order.aggregate([
+    { $match: { status: { $in: SOLD_ORDER_STATUSES } } },
+    { $unwind: "$dealerItems.addons" },
+    { $unwind: "$dealerItems.addons.subItems" },
+    { $match: { "dealerItems.addons.subItems.invId": { $in: inventoryIds } } },
+    {
+      $group: {
+        _id: "$dealerItems.addons.subItems.invId",
+        soldBags: { $sum: "$dealerItems.addons.subItems.qty" },
+      },
+    },
+  ]);
+
+  return new Map(sales.map((s) => [String(s._id), s.soldBags]));
+};
 
 //------------------------------------------------ Create General Inventory (Bulk) ------------------------------------------
 export const createGeneralInventoryBulk = async (req, res) => {
@@ -239,6 +269,13 @@ export const getAllGeneralInventory = async (req, res) => {
         ...AUDIT_POPULATE,
       ],
     });
+
+    // Attach bags-sold (from orders) to each item on the current page.
+    const soldMap = await getSoldBagsMap(result.data.map((item) => item._id));
+    result.data = result.data.map((item) => ({
+      ...item,
+      soldBags: soldMap.get(String(item._id)) || 0,
+    }));
 
     return res.status(200).json(createPaginationResponse(result, "inventory"));
   } catch (error) {
