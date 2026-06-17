@@ -28,6 +28,7 @@ import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import DeleteDialog from "@/components/table/DeleteDialog";
 import { formatCurrency, display } from "@/utils/formatting";
+import { perBagUnit } from "@shared/inventoryData";
 import CommonImage from "@/components/shared/CommonImage";
 import MediaUpload from "@/components/shared/MediaUpload";
 import useDealerAddonManagement, {
@@ -477,9 +478,12 @@ const DealerAddonManagement = () => {
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground">
+                            <span className="font-bold text-red-600 dark:text-red-500">
+                              {piecesPerBag}
+                            </span>{" "}
                             {piecesPerBag === 1
-                              ? "1 minifig"
-                              : `${piecesPerBag} pcs/bag`}
+                              ? "minifig"
+                              : perBagUnit(item.inventory.category)}
                             {" · "}
                             <span className="font-semibold text-success dark:text-accent">
                               ${pricePerBag.toFixed(2)}

@@ -618,8 +618,10 @@ const OrderManagement = () => {
                                       {sub.name}
                                     </p>
                                     <span className="text-xs text-muted-foreground shrink-0">
-                                      {sub.qty}{" "}
-                                      {/minifig/i.test(addon.name) &&
+                                      <span className="font-bold text-red-600 dark:text-red-500">
+                                        {sub.qty}
+                                      </span>{" "}
+                                      {/minifig|minidoll/i.test(addon.name) &&
                                       !/(bulk|part)/i.test(addon.name)
                                         ? sub.qty !== 1
                                           ? "minifigs"

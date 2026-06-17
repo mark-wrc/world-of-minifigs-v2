@@ -25,7 +25,7 @@ import CommonImage from "@/components/shared/CommonImage";
 import QuantityControl from "@/components/shared/QuantityControl";
 import ProductSort from "@/components/products/ProductSort";
 import { SORT_OPTIONS } from "@/constant/productFilters";
-import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
+import { BULK_MINIFIG_PART_TYPES, perBagUnit } from "@shared/inventoryData";
 import { formatCurrency } from "@/utils/formatting";
 
 const ADDON_SORT_OPTIONS = SORT_OPTIONS.filter(
@@ -241,14 +241,17 @@ const AddonPreviewModal = ({
                     <div className="flex items-start justify-between gap-2">
                       <h4
                         className="text-sm font-semibold line-clamp-1 leading-tight min-w-0"
-                        title={`${item.itemName} - ${item.perBagLimit === 1 ? "1 minifig" : `${item.perBagLimit} pcs/bag`}`}
+                        title={`${item.itemName} - ${item.perBagLimit === 1 ? "1 minifig" : `${item.perBagLimit} ${perBagUnit(item.category)}`}`}
                       >
                         {item.itemName}{" "}
                         <span className="text-xs font-normal">
                           -{" "}
+                          <span className="font-bold text-red-600 dark:text-red-500">
+                            {item.perBagLimit}
+                          </span>{" "}
                           {item.perBagLimit === 1
-                            ? "1 minifig"
-                            : `${item.perBagLimit} pcs/bag`}
+                            ? "minifig"
+                            : perBagUnit(item.category)}
                         </span>
                       </h4>
 
