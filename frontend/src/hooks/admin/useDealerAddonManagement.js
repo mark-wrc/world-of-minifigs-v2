@@ -7,16 +7,9 @@ import {
   useGetGeneralInventoryQuery,
   useGetCollectionsQuery,
 } from "@/redux/api/adminApi";
+import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
 
-export const ADDON_ITEM_CATEGORIES = [
-  { value: "accessories", label: "Accessories" },
-  { value: "animals", label: "Animals" },
-  { value: "minifigs", label: "Minifigs" },
-  { value: "printed-tiles", label: "Printed Tiles" },
-  { value: "specialty-bricks", label: "Specialty Bricks" },
-  { value: "botanicals", label: "Botanicals" },
-  { value: "bulk-minifig-parts", label: "Bulk Minifig Parts" },
-];
+export const ADDON_ITEM_CATEGORIES = INVENTORY_CATEGORY_OPTIONS;
 
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";

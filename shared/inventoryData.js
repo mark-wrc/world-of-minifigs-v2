@@ -11,6 +11,22 @@ export const INVENTORY_CATEGORIES = [
   "minidoll",
 ];
 
+// Human-readable label for a category value (kebab-case → Title Case).
+// e.g. "bulk-minifig-parts" → "Bulk Minifig Parts".
+export const categoryLabel = (value) =>
+  value
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+// { value, label } options for every category. Use this for tabs/selects so
+// adding a category above automatically surfaces everywhere (general inventory,
+// dealer add-ons, etc.).
+export const INVENTORY_CATEGORY_OPTIONS = INVENTORY_CATEGORIES.map((value) => ({
+  value,
+  label: categoryLabel(value),
+}));
+
 // Categories sold as individual figures, where a "piece" is a minifig/minidoll.
 // These show "X minifigs/bag" instead of the generic "X pcs/bag".
 export const MINIFIG_CATEGORIES = ["minifigs", "minidoll"];

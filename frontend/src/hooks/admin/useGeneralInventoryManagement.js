@@ -13,17 +13,9 @@ import { validateGeneralInventory } from "@/utils/validation";
 import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
+import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
 
-export const INVENTORY_TABS = [
-  { value: "accessories", label: "Accessories" },
-  { value: "animals", label: "Animals" },
-  { value: "minifigs", label: "Minifigs" },
-  { value: "printed-tiles", label: "Printed Tiles" },
-  { value: "specialty-bricks", label: "Specialty Bricks" },
-  { value: "botanicals", label: "Botanicals" },
-  { value: "bulk-minifig-parts", label: "Bulk Minifig Parts" },
-  { value: "minidoll", label: "Minidoll" },
-];
+export const INVENTORY_TABS = INVENTORY_CATEGORY_OPTIONS;
 
 const initialFormData = {
   isActive: true,
