@@ -42,6 +42,75 @@ const PART_TYPE_OPTIONS = BULK_MINIFIG_PART_TYPES.map((name) => ({
   label: name,
 }));
 
+// Inline-editable admin "cost" note. Click to enter a number; saved value shows
+// as a green, bold, $-prefixed amount. Purely informational — no logic depends on it.
+const CostCell = ({ item, onSave }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(item.cost ?? "");
+
+  React.useEffect(() => {
+    setValue(item.cost ?? "");
+  }, [item.cost]);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = String(value).trim();
+    const next = trimmed === "" ? null : Number(trimmed);
+    const current = item.cost ?? null;
+    if (next === current) return;
+    if (next !== null && (isNaN(next) || next < 0)) {
+      setValue(item.cost ?? "");
+      return;
+    }
+    onSave(item._id, next);
+  };
+
+  if (editing) {
+    return (
+      <TableCell>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              setValue(item.cost ?? "");
+              setEditing(false);
+            }
+          }}
+          className="mx-auto block w-20 border-0 border-b border-foreground/50 bg-transparent px-1 py-0.5 text-center text-sm font-bold text-success focus:outline-none dark:text-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title="Click to set cost"
+        className="mx-auto block"
+      >
+        {item.cost != null ? (
+          <span className="text-sm font-bold text-success dark:text-accent underline underline-offset-2">
+            ${Number(item.cost).toFixed(2)}
+          </span>
+        ) : (
+          <span className="inline-block w-20 border-b border-foreground/50">
+            &nbsp;
+          </span>
+        )}
+      </button>
+    </TableCell>
+  );
+};
+
 const InventoryItemInputs = React.memo(
   ({
     item,
@@ -212,6 +281,7 @@ const GeneralInventoryManagement = () => {
     handleNext,
     handleAdd,
     handleValueChange,
+    handleCostSave,
   } = useGeneralInventoryManagement();
 
   return (
@@ -371,6 +441,9 @@ const GeneralInventoryManagement = () => {
                 className="justify-center"
               />
             </TableCell>
+
+            {/* Cost — inline-editable admin note */}
+            <CostCell item={item} onSave={handleCostSave} />
 
             {/* Price per Bag */}
             <PriceCell amount={item.pricePerBag} />

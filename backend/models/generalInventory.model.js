@@ -47,6 +47,13 @@ const generalInventorySchema = new mongoose.Schema(
       min: [0.01, "Price per bag must be at least 0.01"],
     },
 
+    // Admin-only note for their own cost basis. Informational; affects no logic.
+    cost: {
+      type: Number,
+      default: null,
+      min: [0, "Cost cannot be negative"],
+    },
+
     // Informational only — shown to customers as "X pcs/bag". Defaults to 1 (a single minifig).
     piecesPerBag: {
       type: Number,

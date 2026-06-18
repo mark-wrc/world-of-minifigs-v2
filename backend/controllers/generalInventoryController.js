@@ -330,6 +330,7 @@ export const updateGeneralInventory = async (req, res) => {
       itemId,
       pricePerBag,
       piecesPerBag,
+      cost,
       stock,
       colorId,
       image,
@@ -409,6 +410,21 @@ export const updateGeneralInventory = async (req, res) => {
         });
       }
       inventory.piecesPerBag = Number(piecesPerBag);
+    }
+
+    // Admin cost note — optional, clearable with null/"".
+    if (cost !== undefined) {
+      if (cost === null || cost === "") {
+        inventory.cost = null;
+      } else if (isNaN(Number(cost)) || Number(cost) < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Cost must be a non-negative number",
+          description: "Please provide a valid cost value (≥ 0).",
+        });
+      } else {
+        inventory.cost = Number(cost);
+      }
     }
 
     if (stock !== undefined) {

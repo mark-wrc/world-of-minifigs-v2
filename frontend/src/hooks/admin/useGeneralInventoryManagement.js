@@ -14,6 +14,7 @@ import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
+import { toast } from "sonner";
 
 export const INVENTORY_TABS = INVENTORY_CATEGORY_OPTIONS;
 
@@ -26,6 +27,7 @@ const BASE_COLUMNS = [
   { key: "minifigName", label: "Name" },
   { key: "itemId", label: "Item ID" },
   { key: "color", label: "Color" },
+  { key: "cost", label: "Cost" },
 ];
 const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
@@ -346,6 +348,19 @@ const useGeneralInventoryManagement = () => {
     }
   };
 
+  // Inline cost-note save — updates only the `cost` field, no dialog.
+  const handleCostSave = useCallback(
+    async (id, cost) => {
+      try {
+        await updateItem({ id, cost }).unwrap();
+        toast.success("Cost updated");
+      } catch (err) {
+        toast.error(err?.data?.message || "Failed to update cost");
+      }
+    },
+    [updateItem],
+  );
+
   // ------------------------------- Handlers ------------------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -400,6 +415,7 @@ const useGeneralInventoryManagement = () => {
     handleSubmit,
     handleChange,
     handleValueChange,
+    handleCostSave,
   };
 };
 
