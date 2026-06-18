@@ -94,6 +94,8 @@ const dealerItemSchema = new mongoose.Schema(
             },
             name: { type: String },
             qty: { type: Number },
+            piecesPerBag: { type: Number },
+            category: { type: String },
             imageUrl: { type: String },
             colorName: { type: String },
             colorHex: { type: String },

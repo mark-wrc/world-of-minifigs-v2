@@ -439,6 +439,8 @@ export async function createDealerOrderFromStripeSession(session) {
               invId: inv._id,
               name: inv.minifigName,
               qty: sub.selectedBags,
+              piecesPerBag: inv.piecesPerBag ?? 1,
+              category: inv.category,
               imageUrl: inv.image?.url,
               colorName: inv.colorId?.colorName,
               colorHex: inv.colorId?.hexCode,

@@ -8,7 +8,6 @@ export const INVENTORY_CATEGORIES = [
   "specialty-bricks",
   "botanicals",
   "bulk-minifig-parts",
-  "minidoll",
 ];
 
 // Human-readable label for a category value (kebab-case → Title Case).
@@ -27,9 +26,9 @@ export const INVENTORY_CATEGORY_OPTIONS = INVENTORY_CATEGORIES.map((value) => ({
   label: categoryLabel(value),
 }));
 
-// Categories sold as individual figures, where a "piece" is a minifig/minidoll.
+// Categories sold as individual figures, where a "piece" is a minifig.
 // These show "X minifigs/bag" instead of the generic "X pcs/bag".
-export const MINIFIG_CATEGORIES = ["minifigs", "minidoll"];
+export const MINIFIG_CATEGORIES = ["minifigs"];
 
 // Unit label for the per-bag piece count, based on the inventory category.
 export const perBagUnit = (category) =>

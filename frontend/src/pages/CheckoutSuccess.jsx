@@ -10,6 +10,7 @@ import CancelOrderModal from "@/components/products/CancelOrderModal";
 import CommonImage from "@/components/shared/CommonImage";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
+import { perBagUnit } from "@shared/inventoryData";
 
 const CheckoutSuccess = () => {
   const {
@@ -224,6 +225,15 @@ const CheckoutSuccess = () => {
                                     <div className="flex items-center justify-between gap-2">
                                       <span className="text-sm font-semibold truncate">
                                         {sub.name}
+                                        {sub.piecesPerBag != null && (
+                                          <span className="text-xs font-normal">
+                                            {" - "}
+                                            <span className="font-bold text-red-600 dark:text-red-500">
+                                              {sub.piecesPerBag}
+                                            </span>{" "}
+                                            {perBagUnit(sub.category)}
+                                          </span>
+                                        )}
                                       </span>
                                       <span className="text-xs text-muted-foreground shrink-0">
                                         {sub.qty} bag{sub.qty !== 1 ? "s" : ""}

@@ -35,6 +35,7 @@ import {
 import { getOrderStatusConfig, STATUS_CONFIG } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
 import CommonImage from "@/components/shared/CommonImage";
+import { perBagUnit } from "@shared/inventoryData";
 
 const OrderManagement = () => {
   const {
@@ -616,6 +617,15 @@ const OrderManagement = () => {
                                   <div className="flex items-center justify-between gap-2">
                                     <p className="text-xs font-semibold truncate">
                                       {sub.name}
+                                      {sub.piecesPerBag != null && (
+                                        <span className="font-normal">
+                                          {" - "}
+                                          <span className="font-bold text-red-600 dark:text-red-500">
+                                            {sub.piecesPerBag}
+                                          </span>{" "}
+                                          {perBagUnit(sub.category)}
+                                        </span>
+                                      )}
                                     </p>
                                     <span className="text-xs text-muted-foreground shrink-0">
                                       <span className="font-bold text-red-600 dark:text-red-500">
