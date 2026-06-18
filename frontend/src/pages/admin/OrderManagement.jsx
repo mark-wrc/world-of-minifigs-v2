@@ -621,14 +621,7 @@ const OrderManagement = () => {
                                       <span className="font-bold text-red-600 dark:text-red-500">
                                         {sub.qty}
                                       </span>{" "}
-                                      {/minifig|minidoll/i.test(addon.name) &&
-                                      !/(bulk|part)/i.test(addon.name)
-                                        ? sub.qty !== 1
-                                          ? "minifigs"
-                                          : "minifig"
-                                        : sub.qty !== 1
-                                          ? "bags"
-                                          : "bag"}
+                                      {sub.qty !== 1 ? "bags" : "bag"}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1 text-xs">
