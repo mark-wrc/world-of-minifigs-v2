@@ -224,28 +224,26 @@ body {
     @apply bg-background text-foreground;
   }
 }
-@layer utilities {
-  .custom-scrollbar::-webkit-scrollbar {
-    display: block;
-    width: 6px;
-  }
+.custom-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
 
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: oklch(var(--border));
-    border-radius: 10px;
-  }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(var(--border));
+  border-radius: 10px;
+}
 
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: oklch(var(--muted-foreground));
-  }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--muted-foreground));
+}
 
-  /* Support for Firefox */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: oklch(var(--border)) transparent;
-  }
+/* Support for Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(var(--border)) transparent;
 }

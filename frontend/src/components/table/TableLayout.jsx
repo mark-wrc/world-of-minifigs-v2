@@ -42,7 +42,7 @@ const TableLayout = ({
       </div>
 
       {/* Table */}
-      <div className="border rounded-md overflow-x-auto">
+      <div className="border rounded-md overflow-x-auto custom-scrollbar">
         <table className="w-full">
           <thead className="bg-input dark:bg-card/30">
             <tr>
