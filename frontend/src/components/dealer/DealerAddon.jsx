@@ -28,7 +28,7 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
       </p>
     </div>
 
-    <div className="grid gap-x-3 gap-y-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 pt-5">
+    <div className="grid gap-x-3 gap-y-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 pt-5">
       {addons.map((addon) => {
         const cfg = TYPE_CONFIG[addon.addonType] ?? TYPE_CONFIG.bundle;
         const { Icon } = cfg;
