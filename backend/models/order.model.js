@@ -84,6 +84,8 @@ const dealerItemSchema = new mongoose.Schema(
         id: { type: mongoose.Schema.Types.ObjectId, ref: "DealerAddon" },
         name: { type: String },
         type: { type: String },
+        // Number of copies ordered (upgrade add-ons only; bundles are always 1).
+        quantity: { type: Number, default: 1 },
         totalPrice: { type: Number },
         subItems: [
           {

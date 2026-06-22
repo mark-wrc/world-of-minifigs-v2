@@ -22,6 +22,7 @@ const Dealer = () => {
     // Setters
     handleToggleBundle,
     handleToggleAddon,
+    handleAddonQtyChange,
     handleRemoveAddonSubItem,
 
     // Data
@@ -177,6 +178,7 @@ const Dealer = () => {
           onBundleQtyChange={handleBundleQtyChange}
           onToggleInsurance={handleToggleInsurance}
           onRemoveAddonSubItem={handleRemoveAddonSubItem}
+          onAddonQtyChange={handleAddonQtyChange}
           onRemoveBundle={handleToggleBundle}
         />
       </div>

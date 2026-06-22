@@ -104,8 +104,17 @@ export const decrementDealerAddonStock = async (parsedAddons) => {
   for (const { id, qty, items } of parsedAddons) {
     const addonQty = Number(qty) || 1;
     const addon = await DealerAddon.findById(id).lean();
+    if (!addon) continue;
 
-    if (!addon || addon.addonType !== "bundle") continue;
+    // Upgrade add-ons deplete their own finite stock (when tracked).
+    if (addon.addonType === "upgrade") {
+      if (addon.stock !== null && addon.stock !== undefined) {
+        await safeDecrement(DealerAddon, id, "stock", addonQty);
+      }
+      continue;
+    }
+
+    if (addon.addonType !== "bundle") continue;
 
     // Use selected items if provided, otherwise fallback to whole bundle (for legacy/service)
     const itemsToProcess =
@@ -139,7 +148,19 @@ const restockDealerAddonItems = async (dealerItems) => {
     const subItems = addonEntry.subItems;
 
     const addon = await DealerAddon.findById(addonId).lean();
-    if (!addon || addon.addonType !== "bundle") continue;
+    if (!addon) continue;
+
+    // Restore upgrade add-on stock (when tracked) on cancellation/refund.
+    if (addon.addonType === "upgrade") {
+      if (addon.stock !== null && addon.stock !== undefined) {
+        await DealerAddon.findByIdAndUpdate(addonId, {
+          $inc: { stock: quantity },
+        });
+      }
+      continue;
+    }
+
+    if (addon.addonType !== "bundle") continue;
 
     if (!subItems?.length) continue;
 

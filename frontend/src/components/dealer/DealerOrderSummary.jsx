@@ -112,6 +112,7 @@ const DealerOrderSummary = ({
   onBundleQtyChange,
   onToggleInsurance,
   onRemoveAddonSubItem,
+  onAddonQtyChange,
   onRemoveBundle,
 }) => {
   const [expandedAddons, setExpandedAddons] = useState({});
@@ -212,6 +213,27 @@ const DealerOrderSummary = ({
                         )}
                       </div>
                     </div>
+
+                    {/* Per-order quantity control (limited / unlimited upgrades) */}
+                    {addon.isQuantityAdjustable && (
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-medium text-foreground">
+                            Quantity
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {formatCurrency(addon.unitPrice)} each
+                          </span>
+                        </div>
+                        <QuantityControl
+                          value={addon.quantity}
+                          onChange={(val) => onAddonQtyChange?.(addon._id, val)}
+                          min={0}
+                          max={addon.maxQuantity}
+                          size="xs"
+                        />
+                      </div>
+                    )}
 
                     {/* Expandable Details */}
                     {addon.items?.length > 0 &&

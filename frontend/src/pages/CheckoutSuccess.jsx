@@ -198,6 +198,7 @@ const CheckoutSuccess = () => {
                           <div className="flex items-center justify-between gap-2 mb-2">
                             <span className="font-bold text-sm">
                               {addon.name}
+                              {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
                             </span>
                             <span className="font-bold text-sm text-success dark:text-accent whitespace-nowrap">
                               {addon.totalPrice > 0

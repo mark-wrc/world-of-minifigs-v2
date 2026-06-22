@@ -32,6 +32,54 @@ const computeUpgradePricing = (rawPrice, rawDiscount) => {
   const discountPrice = Math.max(0, price * (1 - pct / 100));
   return { price, discount: pct, discountPrice };
 };
+
+// Resolve the per-order purchase policy for an upgrade add-on. Returns either
+// `{ quantityMode, maxQuantity }` or `{ error }` for the caller to forward.
+// `maxQuantity` is only stored for the "limited" mode; the others null it out.
+const resolveAddonQuantityPolicy = (rawMode, rawMax) => {
+  const mode = ["single", "limited", "unlimited"].includes(rawMode)
+    ? rawMode
+    : "single";
+
+  if (mode !== "limited") {
+    return { quantityMode: mode, maxQuantity: null };
+  }
+
+  const max = Math.floor(Number(rawMax));
+  if (!Number.isFinite(max) || max < 1) {
+    return {
+      error: {
+        status: 400,
+        success: false,
+        message: "Invalid max quantity",
+        description:
+          'A "limited" add-on needs a maximum quantity of at least 1.',
+      },
+    };
+  }
+
+  return { quantityMode: "limited", maxQuantity: max };
+};
+
+// Resolve the optional finite stock for an upgrade add-on. Returns either
+// `{ stock }` (null = untracked) or `{ error }`. Empty input clears tracking.
+const resolveAddonStock = (raw) => {
+  if (raw === "" || raw === null || raw === undefined) {
+    return { stock: null };
+  }
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    return {
+      error: {
+        status: 400,
+        success: false,
+        message: "Invalid stock",
+        description: "Stock must be a whole number of 0 or more.",
+      },
+    };
+  }
+  return { stock: n };
+};
 import {
   normalizePagination,
   buildSearchQuery,
@@ -444,6 +492,9 @@ export const createDealerAddon = async (req, res) => {
       description,
       price,
       discount,
+      quantityMode,
+      maxQuantity,
+      stock,
       badge,
       bundleItems,
       image,
@@ -497,6 +548,9 @@ export const createDealerAddon = async (req, res) => {
       price: 0,
       discount: null,
       discountPrice: null,
+      quantityMode: "single",
+      maxQuantity: null,
+      stock: null,
       badge: badge?.trim() || null,
       bundleItems: [],
       isActive: isActive !== undefined ? isActive : true,
@@ -525,6 +579,19 @@ export const createDealerAddon = async (req, res) => {
       addonData.price = pricing.price;
       addonData.discount = pricing.discount;
       addonData.discountPrice = pricing.discountPrice;
+
+      const policy = resolveAddonQuantityPolicy(quantityMode, maxQuantity);
+      if (policy.error) {
+        return res.status(policy.error.status).json(policy.error);
+      }
+      addonData.quantityMode = policy.quantityMode;
+      addonData.maxQuantity = policy.maxQuantity;
+
+      const stockResult = resolveAddonStock(stock);
+      if (stockResult.error) {
+        return res.status(stockResult.error.status).json(stockResult.error);
+      }
+      addonData.stock = stockResult.stock;
     }
 
     // Optional image upload
@@ -594,6 +661,9 @@ export const updateDealerAddon = async (req, res) => {
       description,
       price,
       discount,
+      quantityMode,
+      maxQuantity,
+      stock,
       badge,
       bundleItems,
       image,
@@ -681,6 +751,27 @@ export const updateDealerAddon = async (req, res) => {
         addon.price = pricing.price;
         addon.discount = pricing.discount;
         addon.discountPrice = pricing.discountPrice;
+      }
+
+      if (quantityMode !== undefined || maxQuantity !== undefined) {
+        const nextMode =
+          quantityMode !== undefined ? quantityMode : addon.quantityMode;
+        const nextMax =
+          maxQuantity !== undefined ? maxQuantity : addon.maxQuantity;
+        const policy = resolveAddonQuantityPolicy(nextMode, nextMax);
+        if (policy.error) {
+          return res.status(policy.error.status).json(policy.error);
+        }
+        addon.quantityMode = policy.quantityMode;
+        addon.maxQuantity = policy.maxQuantity;
+      }
+
+      if (stock !== undefined) {
+        const stockResult = resolveAddonStock(stock);
+        if (stockResult.error) {
+          return res.status(stockResult.error.status).json(stockResult.error);
+        }
+        addon.stock = stockResult.stock;
       }
     }
 
@@ -1272,10 +1363,21 @@ export const getDealerAddonsForUser = async (req, res) => {
           (item) => item.inventoryItemId !== null,
         ),
       }))
-      .filter(
-        (addon) =>
-          addon.addonType !== "bundle" || (addon.bundleItems?.length || 0) > 0,
-      );
+      .filter((addon) => {
+        // Bundle add-ons need at least one in-stock item to be orderable.
+        if (addon.addonType === "bundle") {
+          return (addon.bundleItems?.length || 0) > 0;
+        }
+        // Upgrade add-ons with finite stock disappear once sold out.
+        if (
+          addon.stock !== null &&
+          addon.stock !== undefined &&
+          addon.stock <= 0
+        ) {
+          return false;
+        }
+        return true;
+      });
 
     return res.status(200).json({
       success: true,

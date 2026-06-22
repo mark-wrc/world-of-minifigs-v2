@@ -24,11 +24,21 @@ const initialFormData = {
   visibleChannels: ["dealer", "wholesale"],
   price: "",
   discount: "",
+  quantityMode: "single",
+  maxQuantity: "",
+  stock: "",
   badge: "",
   description: "",
   image: null,
   isActive: true,
 };
+
+// Per-order purchase policy options for upgrade add-ons.
+export const ADDON_QUANTITY_MODE_OPTIONS = [
+  { value: "single", label: "Single" },
+  { value: "limited", label: "Limited (up to a max)" },
+  { value: "unlimited", label: "Unlimited" },
+];
 
 // Options for the "Show on" select. "both" maps to both channels.
 export const ADDON_CHANNEL_SELECT_OPTIONS = [
@@ -340,6 +350,20 @@ const useDealerAddonManagement = () => {
         addon.visibleChannels?.length > 0 ? addon.visibleChannels : ["dealer"],
       price: originalPrice,
       discount: discountField,
+      quantityMode:
+        addon.addonType === "upgrade"
+          ? addon.quantityMode || "single"
+          : "single",
+      maxQuantity:
+        addon.addonType === "upgrade" &&
+        addon.quantityMode === "limited" &&
+        addon.maxQuantity != null
+          ? addon.maxQuantity
+          : "",
+      stock:
+        addon.addonType === "upgrade" && addon.stock != null
+          ? addon.stock
+          : "",
       badge: addon.badge || "",
       description: addon.description || "",
       image: undefined, // undefined = no change to existing image
@@ -383,6 +407,21 @@ const useDealerAddonManagement = () => {
         discount === "" || discount === null || discount === undefined
           ? null
           : Number(discount);
+
+      // Per-order purchase policy. maxQuantity is only sent for "limited".
+      const quantityMode = crud.formData.quantityMode || "single";
+      payload.quantityMode = quantityMode;
+      payload.maxQuantity =
+        quantityMode === "limited"
+          ? Number(crud.formData.maxQuantity || 0)
+          : null;
+
+      // Optional finite stock. Empty = untracked (sells without a limit).
+      const stockVal = crud.formData.stock;
+      payload.stock =
+        stockVal === "" || stockVal === null || stockVal === undefined
+          ? null
+          : Number(stockVal);
     }
 
     await crud.submitForm(payload);

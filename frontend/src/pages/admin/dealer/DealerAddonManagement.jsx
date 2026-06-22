@@ -34,6 +34,7 @@ import MediaUpload from "@/components/shared/MediaUpload";
 import useDealerAddonManagement, {
   ADDON_ITEM_CATEGORIES,
   ADDON_CHANNEL_SELECT_OPTIONS,
+  ADDON_QUANTITY_MODE_OPTIONS,
 } from "@/hooks/admin/useDealerAddonManagement";
 
 const InventoryDropdownItem = ({ inv, checked, onCheckedChange }) => (
@@ -555,6 +556,45 @@ const DealerAddonManagement = () => {
                 }
                 disabled
                 readOnly
+              />
+            </div>
+          )}
+
+          {/* Upgrade-specific: per-order purchase policy */}
+          {isUpgradeType && (
+            <div className="grid grid-cols-3 gap-3">
+              <AdminFormSelect
+                label="Purchase Limit"
+                name="quantityMode"
+                value={formData.quantityMode}
+                onValueChange={handleValueChange("quantityMode")}
+                disabled={isSubmitting}
+                options={ADDON_QUANTITY_MODE_OPTIONS}
+                placeholder="Select limit"
+              />
+              {formData.quantityMode === "limited" && (
+                <AdminFormInput
+                  label="Max per Order"
+                  name="maxQuantity"
+                  type="number"
+                  step="1"
+                  min="1"
+                  placeholder="e.g. 5"
+                  value={formData.maxQuantity}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                />
+              )}
+              <AdminFormInput
+                label="Stock (optional)"
+                name="stock"
+                type="number"
+                step="1"
+                min="0"
+                placeholder="e.g. 50"
+                value={formData.stock}
+                onChange={handleChange}
+                disabled={isSubmitting}
               />
             </div>
           )}

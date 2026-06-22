@@ -23,6 +23,27 @@ const MAX_BUNDLE_QUANTITY = 4;
 const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
+// Safety ceiling for "unlimited" upgrade add-ons so a tampered payload can't
+// request an absurd quantity.
+const UNLIMITED_ADDON_CAP = 999;
+
+// Resolve how many copies of an upgrade add-on may be ordered, honouring its
+// stored per-order policy. The add-on document is the source of truth — the
+// client-supplied quantity is only a request. Bundle add-ons are always a
+// single unit (their quantity lives in the per-item bag split).
+const clampAddonQuantity = (addon, requested) => {
+  if (addon.addonType !== "upgrade") return 1;
+  const qty = Math.max(1, Math.floor(Number(requested) || 1));
+  if (addon.quantityMode === "unlimited") {
+    return Math.min(qty, UNLIMITED_ADDON_CAP);
+  }
+  if (addon.quantityMode === "limited") {
+    const cap = Math.max(1, Math.floor(Number(addon.maxQuantity) || 1));
+    return Math.min(qty, cap);
+  }
+  return 1; // single (default)
+};
+
 // ------------ Build Stripe Line Items for Dealer Checkout ------------
 // `orderType` lets the same flow tag the resulting order as dealer or
 // wholesale — the data, prices and stock are identical either way.
@@ -154,7 +175,37 @@ export async function buildLineItemsForDealer(
           ? addon.discountPrice
           : addon.price || 0;
 
-      let finalPrice = upgradePrice;
+      // Per-order quantity (upgrade add-ons only; bundles stay at 1). Clamped
+      // server-side against the add-on's own policy regardless of the request.
+      const quantity = clampAddonQuantity(addon, addonEntry.quantity);
+
+      // Enforce finite stock for tracked upgrade add-ons.
+      if (
+        addon.addonType === "upgrade" &&
+        addon.stock !== null &&
+        addon.stock !== undefined
+      ) {
+        if (addon.stock <= 0) {
+          return {
+            error: {
+              status: 400,
+              message: "Add-on out of stock",
+              description: `"${addon.addonName}" is currently out of stock.`,
+            },
+          };
+        }
+        if (quantity > addon.stock) {
+          return {
+            error: {
+              status: 400,
+              message: "Not enough stock",
+              description: `Only ${addon.stock} of "${addon.addonName}" left in stock.`,
+            },
+          };
+        }
+      }
+
+      let finalPrice = upgradePrice * quantity;
       const finalItems = [];
 
       if (addon.addonType === "bundle" && selectedItems) {
@@ -197,6 +248,8 @@ export async function buildLineItemsForDealer(
         addonId: addon._id.toString(),
         addonName: addon.addonName,
         addonType: addon.addonType,
+        quantity,
+        unitPrice: addon.addonType === "upgrade" ? upgradePrice : finalPrice,
         selectedItems: finalItems,
         totalPrice: finalPrice,
       });
@@ -302,9 +355,21 @@ export async function buildLineItemsForDealer(
         addonName += ` [${itemCount} Item${itemCount !== 1 ? "s" : ""} (${bagCount} Bag${bagCount !== 1 ? "s" : ""})]`;
       }
 
-      lineItems.push(
-        buildStripeLineItem(addonName, Math.round(addon.totalPrice * 100), 1),
-      );
+      // For multi-quantity upgrades, bill unit price × quantity so the Stripe
+      // receipt shows the real count. Everything else is a single line.
+      if (addon.addonType === "upgrade" && addon.quantity > 1) {
+        lineItems.push(
+          buildStripeLineItem(
+            addonName,
+            Math.round(addon.unitPrice * 100),
+            addon.quantity,
+          ),
+        );
+      } else {
+        lineItems.push(
+          buildStripeLineItem(addonName, Math.round(addon.totalPrice * 100), 1),
+        );
+      }
     });
   }
 
@@ -416,7 +481,7 @@ export async function createDealerOrderFromStripeSession(session) {
 
   if (addons?.length > 0) {
     manifest.addons = [];
-    for (const { addonId, totalPrice, selectedItems } of addons) {
+    for (const { addonId, totalPrice, quantity, selectedItems } of addons) {
       const addonBase = await DealerAddon.findById(addonId).lean();
       if (!addonBase) continue;
 
@@ -424,6 +489,7 @@ export async function createDealerOrderFromStripeSession(session) {
         id: addonBase._id,
         name: addonBase.addonName,
         type: addonBase.addonType,
+        quantity: quantity || 1,
         totalPrice: totalPrice,
         subItems: [],
       };
@@ -480,7 +546,7 @@ export async function createDealerOrderFromStripeSession(session) {
       await decrementDealerAddonStock(
         addons.map((a) => ({
           id: a.addonId,
-          qty: 1,
+          qty: a.quantity || 1,
           items: a.selectedItems,
         })),
       );

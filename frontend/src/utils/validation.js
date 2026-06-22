@@ -496,6 +496,30 @@ export const validateDealerAddon = (formData, bundleItems = []) => {
       })
     )
       return false;
+
+    // A "limited" add-on must declare how many a dealer may buy per order.
+    if (formData.quantityMode === "limited") {
+      const max = Number(formData.maxQuantity);
+      if (!Number.isInteger(max) || max < 1) {
+        toast.error("Max quantity required", {
+          description:
+            'Set a maximum quantity of at least 1 for a "Limited" add-on.',
+        });
+        return false;
+      }
+    }
+
+    // Stock is optional, but when provided it must be a whole number ≥ 0.
+    const stockVal = formData.stock;
+    if (stockVal !== "" && stockVal !== null && stockVal !== undefined) {
+      const stockNum = Number(stockVal);
+      if (!Number.isInteger(stockNum) || stockNum < 0) {
+        toast.error("Invalid stock", {
+          description: "Stock must be a whole number of 0 or more.",
+        });
+        return false;
+      }
+    }
   }
 
   return true;

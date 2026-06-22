@@ -12,6 +12,30 @@ const dealerAddonSchema = new mongoose.Schema(
       required: true,
       enum: ["bundle", "upgrade"],
     },
+    // Per-order purchase policy for `upgrade` add-ons:
+    //   single    → dealer can buy exactly 1 (current default behaviour)
+    //   limited   → dealer can buy 1..maxQuantity
+    //   unlimited → dealer can buy any quantity (hard-capped server-side)
+    // `bundle` add-ons ignore this — their quantity is the per-item bag split.
+    quantityMode: {
+      type: String,
+      enum: ["single", "limited", "unlimited"],
+      default: "single",
+    },
+    // Only meaningful when quantityMode === "limited".
+    maxQuantity: {
+      type: Number,
+      min: [1, "Max quantity must be at least 1"],
+      default: null,
+    },
+    // Optional finite inventory for upgrade add-ons:
+    //   null   → not tracked, sells without a stock limit
+    //   number → depletes as dealers order, blocks once it hits 0
+    stock: {
+      type: Number,
+      min: [0, "Stock cannot be negative"],
+      default: null,
+    },
     visibleChannels: {
       type: [String],
       enum: ["dealer", "wholesale"],

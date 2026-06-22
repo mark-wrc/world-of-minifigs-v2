@@ -147,7 +147,10 @@ const buildItemsHtml = (order) => {
     di.addons?.forEach((a) => {
       allRows.push({
         type: "main",
-        name: a.name,
+        name:
+          a.quantity > 1
+            ? `${a.name} <span style="color:#94a3b8;font-size:12px;">&times;${a.quantity}</span>`
+            : a.name,
         value:
           a.totalPrice > 0
             ? fmt(a.totalPrice)

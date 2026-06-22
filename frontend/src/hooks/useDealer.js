@@ -26,6 +26,31 @@ const SHIPPING_INSURANCE_RATE = 0.005;
 const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
+// Per-order purchase ceiling for "unlimited" upgrade add-ons (UX cap; the
+// server enforces the same limit on checkout).
+const UNLIMITED_ADDON_CAP = 999;
+
+// Highest quantity allowed for an upgrade add-on, per its stored policy.
+// Bundle add-ons are always a single unit (quantity is the bag split).
+// Finite stock, when tracked, further constrains the cap.
+const addonMaxQty = (addon) => {
+  if (!addon || addon.addonType !== "upgrade") return 1;
+
+  let cap;
+  if (addon.quantityMode === "unlimited") cap = UNLIMITED_ADDON_CAP;
+  else if (addon.quantityMode === "limited")
+    cap = Math.max(1, Math.floor(Number(addon.maxQuantity) || 1));
+  else cap = 1; // single (default)
+
+  if (addon.stock !== null && addon.stock !== undefined) {
+    cap = Math.min(cap, Math.max(0, Math.floor(Number(addon.stock))));
+  }
+  return cap;
+};
+
+const clampAddonQty = (addon, qty) =>
+  Math.max(1, Math.min(addonMaxQty(addon), Math.floor(Number(qty) || 1)));
+
 export const useDealer = () => {
   const { user } = useSelector((state) => state.auth);
   const isAdmin = user?.role === "admin";
@@ -69,6 +94,10 @@ export const useDealer = () => {
   );
   const [selectedAddonConfigs, setSelectedAddonConfigs] = useState(
     () => initialDraft?.selectedAddonConfigs || {},
+  );
+  // Per-order quantity for upgrade add-ons, keyed by addon id. { [addonId]: n }
+  const [addonQuantities, setAddonQuantities] = useState(
+    () => initialDraft?.addonQuantities || {},
   );
   const [selectedAddon, setSelectedAddon] = useState(null);
   const [extraBagQuantities, setExtraBagQuantities] = useState(
@@ -530,6 +559,7 @@ export const useDealer = () => {
         activeBundleId,
         selectedAddonIds,
         selectedAddonConfigs,
+        addonQuantities,
         extraBagQuantities,
         insuranceEnabled,
       });
@@ -545,6 +575,7 @@ export const useDealer = () => {
     activeBundleId,
     selectedAddonIds,
     selectedAddonConfigs,
+    addonQuantities,
     extraBagQuantities,
     insuranceEnabled,
   ]);
@@ -558,11 +589,36 @@ export const useDealer = () => {
           const { [addonId]: _, ...rest } = configs;
           return rest;
         });
+        setAddonQuantities((qtys) => {
+          const { [addonId]: _removed, ...rest } = qtys;
+          return rest;
+        });
         return prev.filter((id) => id !== addonId);
       }
+      // New selection — start at a single copy. The summary control adjusts it
+      // for upgrades that allow more.
+      setAddonQuantities((qtys) => ({ ...qtys, [addonId]: 1 }));
       return [...prev, addonId];
     });
   };
+
+  // Adjust how many copies of an upgrade add-on are ordered, clamped to the
+  // add-on's policy. Dropping to 0 deselects the whole add-on.
+  const handleAddonQtyChange = useCallback(
+    (addonId, newQty) => {
+      const addon = addons.find((a) => a._id === addonId);
+      if (!addon) return;
+      if (newQty < 1) {
+        handleToggleAddon(addonId);
+        return;
+      }
+      setAddonQuantities((prev) => ({
+        ...prev,
+        [addonId]: clampAddonQty(addon, newQty),
+      }));
+    },
+    [addons],
+  );
 
   const handleConfigureAddon = ({ addonId, price, selectedItems }) => {
     setSelectedAddonIds((prev) =>
@@ -737,7 +793,16 @@ export const useDealer = () => {
           const effectivePrice = hasDiscount
             ? base.discountPrice
             : (base.price ?? 0);
-          const price = config?.price ?? effectivePrice;
+
+          // Upgrade add-ons can be ordered in multiples; the unit price scales
+          // by quantity. Bundle add-ons are always a single configured unit.
+          const isUpgrade = base.addonType === "upgrade";
+          const quantity = isUpgrade
+            ? clampAddonQty(base, addonQuantities[id] || 1)
+            : 1;
+          const maxQuantity = addonMaxQty(base);
+          const unitPrice = config?.price ?? effectivePrice;
+          const price = isUpgrade ? unitPrice * quantity : unitPrice;
 
           const items = (config?.selectedItems || [])
             .filter((item) => (item.selectedQuantity || 0) > 0)
@@ -754,6 +819,12 @@ export const useDealer = () => {
             addonType: base.addonType,
             isFree: !price || Number(price) === 0,
             price,
+            unitPrice,
+            quantity,
+            quantityMode: base.quantityMode || "single",
+            maxQuantity,
+            // Whether the summary should show a quantity stepper for this add-on.
+            isQuantityAdjustable: isUpgrade && base.quantityMode !== "single",
             originalPrice: hasDiscount ? (base.price ?? 0) : null,
             hasDiscount,
             items,
@@ -763,7 +834,7 @@ export const useDealer = () => {
           };
         })
         .filter(Boolean),
-    [addons, selectedAddonIds, selectedAddonConfigs],
+    [addons, selectedAddonIds, selectedAddonConfigs, addonQuantities],
   );
 
   const addonsTotalPrice = selectedAddonsData.reduce(
@@ -858,8 +929,13 @@ export const useDealer = () => {
 
     const addonPayload = selectedAddonIds.map((id) => {
       const config = selectedAddonConfigs[id];
+      const base = addons.find((a) => a._id === id);
       return {
         addonId: id,
+        quantity:
+          base?.addonType === "upgrade"
+            ? clampAddonQty(base, addonQuantities[id] || 1)
+            : 1,
         selectedItems: config?.selectedItems?.map((item) => ({
           inventoryItemId: item.inventoryItemId,
           selectedBags: item.selectedBags,
@@ -885,8 +961,10 @@ export const useDealer = () => {
     selectedBundleIds,
     bundleQuantities,
     torsoSplits,
+    addons,
     selectedAddonIds,
     selectedAddonConfigs,
+    addonQuantities,
     extraBagQuantities,
     insuranceEnabled,
   ]);
@@ -924,6 +1002,7 @@ export const useDealer = () => {
 
     // Handlers
     handleToggleAddon,
+    handleAddonQtyChange,
     handleRemoveAddonSubItem,
     handleExtraBagQtyChange,
     handleSelectTorsoBag,

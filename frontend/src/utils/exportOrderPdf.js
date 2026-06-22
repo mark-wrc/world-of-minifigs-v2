@@ -533,7 +533,9 @@ export const exportOrderToPdf = async (order) => {
         doc.setFontSize(9.5);
         doc.setFont("helvetica", "bold");
         rgb(doc, C.accent);
-        doc.text(`${addon.name}`, M + 4, y + 5.5);
+        const addonLabel =
+          addon.quantity > 1 ? `${addon.name} x${addon.quantity}` : addon.name;
+        doc.text(`${addonLabel}`, M + 4, y + 5.5);
         doc.setFont("helvetica", "normal");
         rgb(doc, C.gray600);
         const priceLabel =

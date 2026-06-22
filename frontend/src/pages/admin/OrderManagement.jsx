@@ -592,7 +592,10 @@ const OrderManagement = () => {
                     {viewOrder.dealerItems.addons.map((addon, idx) => (
                       <div key={idx} className="p-3 space-y-2">
                         <div className="flex justify-between items-center text-xs">
-                          <span className="font-semibold">{addon.name}</span>
+                          <span className="font-semibold">
+                            {addon.name}
+                            {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
+                          </span>
                           <span className="font-bold text-success dark:text-accent">
                             {addon.totalPrice > 0
                               ? formatCurrency(addon.totalPrice)
