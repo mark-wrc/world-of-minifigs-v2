@@ -626,7 +626,7 @@ const OrderManagement = () => {
                                           <span className="font-bold text-red-600 dark:text-red-500">
                                             {sub.piecesPerBag}
                                           </span>{" "}
-                                          {perBagUnit(sub.category)}
+                                          {perBagUnit(sub.category, sub.piecesPerBag)}
                                         </span>
                                       )}
                                     </p>

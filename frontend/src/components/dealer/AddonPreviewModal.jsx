@@ -241,7 +241,7 @@ const AddonPreviewModal = ({
                     <div className="flex items-start justify-between gap-2">
                       <h4
                         className="text-sm font-semibold line-clamp-1 leading-tight min-w-0"
-                        title={`${item.itemName} - ${item.perBagLimit === 1 ? "1 minifig" : `${item.perBagLimit} ${perBagUnit(item.category)}`}`}
+                        title={`${item.itemName} - ${item.perBagLimit} ${perBagUnit(item.category, item.perBagLimit)}`}
                       >
                         {item.itemName}{" "}
                         <span className="text-xs font-normal">
@@ -249,9 +249,7 @@ const AddonPreviewModal = ({
                           <span className="font-bold text-red-600 dark:text-red-500">
                             {item.perBagLimit}
                           </span>{" "}
-                          {item.perBagLimit === 1
-                            ? "minifig"
-                            : perBagUnit(item.category)}
+                          {perBagUnit(item.category, item.perBagLimit)}
                         </span>
                       </h4>
 

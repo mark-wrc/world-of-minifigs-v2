@@ -459,7 +459,14 @@ const DealerAddonManagement = () => {
                         <div className="flex flex-col min-w-0 flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold line-clamp-1">
-                              {item.inventory.minifigName}
+                              {item.inventory.minifigName}{" "}
+                              <span className="text-xs font-normal">
+                                -{" "}
+                                <span className="font-bold text-red-600 dark:text-red-500">
+                                  {piecesPerBag}
+                                </span>{" "}
+                                {perBagUnit(item.inventory.category, piecesPerBag)}
+                              </span>
                             </span>
                             {item.inventory.isActive === false && (
                               <Badge
@@ -478,23 +485,16 @@ const DealerAddonManagement = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-bold text-red-600 dark:text-red-500">
-                              {piecesPerBag}
-                            </span>{" "}
-                            {piecesPerBag === 1
-                              ? "minifig"
-                              : perBagUnit(item.inventory.category)}
-                            {" · "}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <ColorSwatch
+                              color={item.inventory.colorId?.hexCode}
+                              label={item.inventory.colorId?.colorName || "—"}
+                            />
+                            <span>·</span>
                             <span className="font-semibold text-success dark:text-accent">
                               ${pricePerBag.toFixed(2)}
                             </span>
                           </div>
-                          <ColorSwatch
-                            color={item.inventory.colorId?.hexCode}
-                            label={item.inventory.colorId?.colorName || "—"}
-                            className="text-xs text-muted-foreground"
-                          />
                         </div>
 
                         {/* Remove */}

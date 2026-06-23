@@ -31,8 +31,13 @@ export const INVENTORY_CATEGORY_OPTIONS = INVENTORY_CATEGORIES.map((value) => ({
 export const MINIFIG_CATEGORIES = ["minifigs"];
 
 // Unit label for the per-bag piece count, based on the inventory category.
-export const perBagUnit = (category) =>
-  MINIFIG_CATEGORIES.includes(category) ? "minifigs/bag" : "pcs/bag";
+// Pass `count` so the unit is singular for a single piece, e.g. "minifig/bag"
+// (count 1) vs "minifigs/bag" (count > 1). Always keeps the "/bag" suffix.
+export const perBagUnit = (category, count) => {
+  const isMinifig = MINIFIG_CATEGORIES.includes(category);
+  const noun = isMinifig ? "minifig" : "pc";
+  return `${noun}${count === 1 ? "" : "s"}/bag`;
+};
 
 // Fixed part-type "collections" available for bulk-minifig-parts inventory.
 // These are not Collection documents — they're a closed enum used only for this category.
