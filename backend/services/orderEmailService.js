@@ -1,7 +1,6 @@
 import sendEmail from "../utils/sendEmail.js";
 import {
   getShippingNotificationTemplate,
-  getDeliveryConfirmationTemplate,
   getOrderCancelledTemplate,
 } from "../utils/Email/orderEmails.js";
 
@@ -28,13 +27,6 @@ export const sendShippingNotificationEmail = (order) =>
     order,
     `Your Order Has Been Shipped – ${appName()}`,
     getShippingNotificationTemplate,
-  );
-
-export const sendDeliveryConfirmationEmail = (order) =>
-  send(
-    order,
-    `Your Order Has Been Delivered – ${appName()}`,
-    getDeliveryConfirmationTemplate,
   );
 
 export const sendOrderCancelledEmail = (order) =>

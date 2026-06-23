@@ -24,11 +24,7 @@ import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 const IMAGE_FOLDER = "world-of-minifigs-v2/general-inventory";
 
 // Order statuses that count as a completed sale (excludes cancelled/failed).
-const SOLD_ORDER_STATUSES = [
-  ORDER_STATUSES.PAID,
-  ORDER_STATUSES.SHIPPED,
-  ORDER_STATUSES.DELIVERED,
-];
+const SOLD_ORDER_STATUSES = [ORDER_STATUSES.PAID, ORDER_STATUSES.SHIPPED];
 
 // Sum the bags sold per inventory item from dealer/wholesale order add-ons.
 // Returns a Map keyed by inventory id (string) -> total bags sold.

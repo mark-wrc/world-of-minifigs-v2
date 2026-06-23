@@ -11,7 +11,6 @@ export const CANCELLATION_REASONS = [
 export const ORDER_STATUSES = {
   PAID: "paid",
   SHIPPED: "shipped",
-  DELIVERED: "delivered",
   CANCELLED: "cancelled",
   FAILED: "failed",
 };
@@ -23,9 +22,8 @@ export const REFUND_STATUSES = {
 };
 
 export const VALID_STATUS_TRANSITIONS = {
+  // "shipped" is the final status — no transition beyond it.
   [ORDER_STATUSES.PAID]: [ORDER_STATUSES.SHIPPED, ORDER_STATUSES.CANCELLED],
-  // Delivered status disabled per client request — "shipped" is the final status.
-  // [ORDER_STATUSES.SHIPPED]: [ORDER_STATUSES.DELIVERED],
 };
 
 export const ORDER_TYPES = {

@@ -1,7 +1,6 @@
 import Order from "../models/order.model.js";
 import {
   sendShippingNotificationEmail,
-  sendDeliveryConfirmationEmail,
   sendOrderCancelledEmail,
 } from "../services/orderEmailService.js";
 import {
@@ -437,25 +436,6 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Order marked as shipped",
-        order: {
-          _id: order._id,
-          status: order.status,
-          shipping: order.shipping,
-        },
-      });
-    }
-
-    // Delivered
-    if (status === ORDER_STATUSES.DELIVERED) {
-      order.status = ORDER_STATUSES.DELIVERED;
-      order.shipping.deliveredAt = new Date();
-      await order.save();
-
-      sendDeliveryConfirmationEmail(order).catch(() => {});
-
-      return res.status(200).json({
-        success: true,
-        message: "Order marked as delivered",
         order: {
           _id: order._id,
           status: order.status,

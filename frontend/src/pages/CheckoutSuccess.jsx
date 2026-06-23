@@ -465,7 +465,7 @@ const CheckoutSuccess = () => {
                   )}
 
                   {/* TRACKING INFORMATION */}
-                  {(status === "shipped" || status === "delivered") && (
+                  {status === "shipped" && (
                     <div className="space-y-5">
                       <div className="border-t pt-5">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -502,9 +502,7 @@ const CheckoutSuccess = () => {
                               className="inline-flex items-center gap-2 text-base font-semibold text-success hover:underline"
                             >
                               <ExternalLink className="size-4" />
-                              {status === "delivered"
-                                ? "View delivery details"
-                                : "Track your shipment"}
+                              Track your shipment
                             </a>
                           </div>
                         </div>

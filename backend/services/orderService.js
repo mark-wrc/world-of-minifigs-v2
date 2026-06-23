@@ -54,8 +54,7 @@ export const ensureOrderIsUserCancellable = (order) => {
   return buildErrorResponse(
     400,
     "Order cannot be cancelled",
-    order.status === ORDER_STATUSES.SHIPPED ||
-      order.status === ORDER_STATUSES.DELIVERED
+    order.status === ORDER_STATUSES.SHIPPED
       ? "This order has already been shipped and cannot be cancelled."
       : "This order is not eligible for cancellation.",
   );

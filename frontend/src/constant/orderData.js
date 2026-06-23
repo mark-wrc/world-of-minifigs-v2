@@ -1,11 +1,4 @@
-import {
-  Truck,
-  PackageCheck,
-  XCircle,
-  Clock,
-  RefreshCw,
-  Check,
-} from "lucide-react";
+import { Truck, XCircle, Clock, RefreshCw, Check } from "lucide-react";
 
 export const STATUS_CONFIG = {
   paid: {
@@ -25,15 +18,6 @@ export const STATUS_CONFIG = {
     iconColor: "text-blue-600 bg-blue-100 ring-blue-200",
     description:
       "Your package has been dispatched and is moving through the carrier’s network. You can track its progress using the tracking details below.",
-  },
-  delivered: {
-    label: "Delivered",
-    variant: "success",
-    header: "Your order has been delivered!",
-    icon: PackageCheck,
-    iconColor: "text-success bg-success/10 ring-success/20",
-    description:
-      "Your package has reached its destination. We hope you’re happy with your purchase and enjoy your new items!",
   },
   cancelled: {
     label: "Cancelled",
@@ -170,8 +154,7 @@ export const buildOrderTabs = (statuses) => {
   return [
     ...base,
     ...Object.values(statuses)
-      // "delivered" disabled per client request — "shipped" is the final status.
-      .filter((s) => s !== "failed" && s !== "delivered")
+      .filter((s) => s !== "failed")
       .map((s) => ({ value: s, label: STATUS_CONFIG[s]?.label || s })),
   ];
 };

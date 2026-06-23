@@ -33,7 +33,6 @@ const STATUS_COLORS = {
   paid: C.accentText,
   processing: [37, 99, 235],
   shipped: [59, 130, 246],
-  delivered: C.accentText,
   cancelled: C.red,
   refunded: C.amber,
 };

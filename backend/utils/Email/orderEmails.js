@@ -374,29 +374,6 @@ export const getShippingNotificationTemplate = (order) =>
     "#0ea5e9",
   );
 
-export const getDeliveryConfirmationTemplate = (order) =>
-  wrap(
-    `
-    <tr><td align="center" style="padding:32px 32px 24px;">
-      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Your order has arrived!</h1>
-      <p style="margin:0;font-size:14px;color:#64748b;">Your package has been delivered. We hope you enjoy your items!</p>
-    </td></tr>
-    ${openSection(
-      "Order Information",
-      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
-        ${kv("Invoice Number", invoiceLink(order))}
-        ${kv("Status", `<span style="color:#22c55e;font-weight:600;">Delivered</span>`, true)}
-      </table>`,
-      { divider: false },
-    )}
-    ${trackingSection(order)}
-    ${buildItemsHtml(order)}
-    ${buildPaymentSummaryHtml(order, { totalColor: "#16a34a" })}
-    ${viewOrderBtn(order)}
-  `,
-    "#22c55e",
-  );
-
 export const getOrderCancelledTemplate = (order) =>
   wrap(
     `

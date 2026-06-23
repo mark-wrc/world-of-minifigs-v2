@@ -203,7 +203,6 @@ const orderSchema = new mongoose.Schema(
       trackingNumber: { type: String },
       trackingLink: { type: String },
       shippedAt: { type: Date },
-      deliveredAt: { type: Date },
     },
     billing: {
       cardHolderName: { type: String },
