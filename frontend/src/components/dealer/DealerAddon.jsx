@@ -51,7 +51,9 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
             {/* ── Card ── */}
             <div
               onClick={() => {
-                addon.hasItems ? onPreview(addon) : onSelect(addon._id);
+                addon.hasItems || addon.hasPreview
+                  ? onPreview(addon)
+                  : onSelect(addon._id);
               }}
               className="group flex flex-col rounded-xl overflow-hidden
                 cursor-pointer transition-all duration-300 select-none

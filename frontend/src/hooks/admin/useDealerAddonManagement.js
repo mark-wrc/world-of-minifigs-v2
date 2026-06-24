@@ -18,6 +18,9 @@ import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
 
+// Cap the preview gallery so admins keep it digestible for dealers.
+const MAX_PREVIEW_IMAGES = 8;
+
 const initialFormData = {
   addonName: "",
   addonType: "bundle",
@@ -29,6 +32,7 @@ const initialFormData = {
   stock: "",
   badge: "",
   description: "",
+  previewDescription: "",
   image: null,
   isActive: true,
 };
@@ -86,6 +90,22 @@ const useDealerAddonManagement = () => {
     handleRemoveFile,
   } = useMediaPreview();
 
+  // Preview gallery (upgrade-only). Reuses the shared multi-file hook so the
+  // attach/validate/dedup behaviour matches the product "Image Attachments"
+  // uploader. Each entry is either an existing image { publicId, url, label }
+  // or a freshly-picked one { image: dataURL, url: dataURL (preview), label }.
+  const {
+    filePreview: previewImages,
+    setFilePreview: setPreviewImages,
+    resetFile: resetPreviewImages,
+    handleFileChange: handlePreviewFileChange,
+    handleRemoveFile: handleRemovePreviewImage,
+  } = useMediaPreview({
+    multiple: true,
+    maxFiles: MAX_PREVIEW_IMAGES,
+    maxSizeMB: 10,
+  });
+
   // ------------------------------- Item Category Filter ------------------------------------
   const [itemCategory, setItemCategory] = useState("accessories");
 
@@ -128,8 +148,9 @@ const useDealerAddonManagement = () => {
   // ------------------------------- Core CRUD ------------------------------------
   const resetExtras = useCallback(() => {
     setBundleItems([]);
+    resetPreviewImages();
     resetFile();
-  }, [resetFile]);
+  }, [resetFile, resetPreviewImages]);
 
   const crud = useAdminCrud({
     initialFormData,
@@ -276,6 +297,27 @@ const useDealerAddonManagement = () => {
     crud.setFormData((prev) => ({ ...prev, image: null }));
   }, [handleRemoveFile, crud]);
 
+  // ------------------------------- Preview Gallery Handlers ----------------------------
+  const handleAddPreviewImages = useCallback(
+    async (e) => {
+      // The shared hook reads/validates the files in this event handler (not in
+      // a state updater), so attaching never double-fires under StrictMode.
+      await handlePreviewFileChange(e, {
+        mapFile: (url) => ({ image: url, url, label: "" }),
+      });
+    },
+    [handlePreviewFileChange],
+  );
+
+  const handlePreviewImageLabelChange = useCallback(
+    (index, label) => {
+      setPreviewImages((prev) =>
+        prev.map((p, i) => (i === index ? { ...p, label } : p)),
+      );
+    },
+    [setPreviewImages],
+  );
+
   // ------------------------------- Bundle Item Handlers ------------------------------------
   const handleToggleBundleItem = useCallback(
     (inventoryItemId, inventoryItem) => {
@@ -324,6 +366,14 @@ const useDealerAddonManagement = () => {
 
     setBundleItems(existingItems);
 
+    setPreviewImages(
+      (addon.previewImages || []).map((p) => ({
+        publicId: p.publicId,
+        url: p.url,
+        label: p.label || "",
+      })),
+    );
+
     const originalPrice =
       addon.addonType === "upgrade" ? (addon.price ?? "") : "";
     // Prefer the stored discount %; fall back to deriving it for legacy records
@@ -366,6 +416,8 @@ const useDealerAddonManagement = () => {
           : "",
       badge: addon.badge || "",
       description: addon.description || "",
+      previewDescription:
+        addon.addonType === "upgrade" ? addon.previewDescription || "" : "",
       image: undefined, // undefined = no change to existing image
       isActive: addon.isActive !== false,
     });
@@ -422,6 +474,19 @@ const useDealerAddonManagement = () => {
         stockVal === "" || stockVal === null || stockVal === undefined
           ? null
           : Number(stockVal);
+
+      // Optional preview-modal description (falls back to `description` client-side).
+      payload.previewDescription = sanitizeString(
+        crud.formData.previewDescription,
+      );
+
+      // Preview gallery — existing images carry { publicId, url }; new ones
+      // carry the base64 data URL. Labels ride alongside each entry.
+      payload.previewImages = previewImages.map((p) =>
+        p.publicId
+          ? { publicId: p.publicId, url: p.url, label: p.label?.trim() || "" }
+          : { image: p.image, label: p.label?.trim() || "" },
+      );
     }
 
     await crud.submitForm(payload);
@@ -480,6 +545,11 @@ const useDealerAddonManagement = () => {
     filePreview,
     handleAddonFileChange,
     handleAddonFileRemove,
+    previewImages,
+    maxPreviewImages: MAX_PREVIEW_IMAGES,
+    handleAddPreviewImages,
+    handleRemovePreviewImage,
+    handlePreviewImageLabelChange,
   };
 };
 

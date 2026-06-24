@@ -9,9 +9,62 @@ import {
   uploadSingleImage,
   replaceSingleImage,
   deleteSingleImage,
+  uploadMultipleImages,
+  deleteMultipleImages,
 } from "../services/imageService.js";
 
 const ADDON_IMAGE_FOLDER = "world-of-minifigs-v2/dealers/add-ons";
+const ADDON_PREVIEW_IMAGE_FOLDER =
+  "world-of-minifigs-v2/dealers/add-ons/previews";
+
+// Reconcile an upgrade add-on's preview gallery against the incoming payload.
+// Each incoming entry is either an existing image ({ publicId, url, label }) to
+// keep, or a freshly-picked one ({ image: dataURL, label }) to upload. Labels
+// ride alongside each image; removed images are cleaned up from Cloudinary.
+// Returns the persisted array, preserving the order the admin arranged.
+const processAddonPreviewImages = async (incoming, existing = []) => {
+  if (!Array.isArray(incoming)) return undefined; // omitted = no change
+
+  const result = [];
+  const toUpload = [];
+  const uploadSlots = [];
+
+  incoming.forEach((entry) => {
+    const label = typeof entry?.label === "string" ? entry.label.trim() : "";
+    if (entry?.publicId && entry?.url) {
+      result.push({ publicId: entry.publicId, url: entry.url, label });
+    } else if (
+      typeof entry?.image === "string" &&
+      entry.image.startsWith("data:image/")
+    ) {
+      const slot = result.push({ label }) - 1; // placeholder, filled post-upload
+      uploadSlots.push(slot);
+      toUpload.push(entry.image);
+    }
+  });
+
+  if (toUpload.length > 0) {
+    const uploaded = await uploadMultipleImages(
+      toUpload,
+      ADDON_PREVIEW_IMAGE_FOLDER,
+    );
+    uploaded.forEach((img, i) => {
+      const slot = uploadSlots[i];
+      result[slot] = { publicId: img.publicId, url: img.url, label: result[slot].label };
+    });
+  }
+
+  const final = result.filter((p) => p.publicId && p.url);
+
+  // Delete any previously-stored images the admin dropped.
+  const keptIds = new Set(final.map((p) => p.publicId));
+  const removedIds = (existing || [])
+    .map((p) => p.publicId)
+    .filter((id) => id && !keptIds.has(id));
+  deleteMultipleImages(removedIds);
+
+  return final;
+};
 
 // Single source of truth for upgrade pricing.
 // Returns { price, discount, discountPrice } where discountPrice is derived.
@@ -498,6 +551,8 @@ export const createDealerAddon = async (req, res) => {
       badge,
       bundleItems,
       image,
+      previewImages,
+      previewDescription,
       isActive,
     } = req.body;
 
@@ -592,6 +647,26 @@ export const createDealerAddon = async (req, res) => {
         return res.status(stockResult.error.status).json(stockResult.error);
       }
       addonData.stock = stockResult.stock;
+
+      // Optional preview-modal description (upgrade-only).
+      addonData.previewDescription = previewDescription?.trim() || undefined;
+
+      // Optional read-only preview gallery (upgrade-only).
+      if (Array.isArray(previewImages) && previewImages.length > 0) {
+        try {
+          addonData.previewImages = await processAddonPreviewImages(
+            previewImages,
+            [],
+          );
+        } catch (error) {
+          console.error("Addon preview images upload error:", error);
+          return res.status(400).json({
+            success: false,
+            message: "Failed to upload preview images",
+            description: error.message,
+          });
+        }
+      }
     }
 
     // Optional image upload
@@ -667,6 +742,8 @@ export const updateDealerAddon = async (req, res) => {
       badge,
       bundleItems,
       image,
+      previewImages,
+      previewDescription,
       isActive,
     } = req.body;
 
@@ -773,6 +850,27 @@ export const updateDealerAddon = async (req, res) => {
         }
         addon.stock = stockResult.stock;
       }
+
+      if (previewDescription !== undefined) {
+        addon.previewDescription = previewDescription?.trim() || undefined;
+      }
+
+      // Reconcile the preview gallery (upload new, keep existing, drop removed).
+      if (previewImages !== undefined) {
+        try {
+          addon.previewImages = await processAddonPreviewImages(
+            previewImages,
+            addon.previewImages,
+          );
+        } catch (error) {
+          console.error("Addon preview images update error:", error);
+          return res.status(400).json({
+            success: false,
+            message: "Failed to update preview images",
+            description: error.message,
+          });
+        }
+      }
     }
 
     // Replace image if provided
@@ -836,8 +934,9 @@ export const deleteDealerAddon = async (req, res) => {
       });
     }
 
-    // Clean up Cloudinary image (fire-and-forget)
+    // Clean up Cloudinary images (fire-and-forget)
     if (addon.image?.publicId) deleteSingleImage(addon.image.publicId);
+    deleteMultipleImages((addon.previewImages || []).map((p) => p.publicId));
 
     return res.status(200).json({
       success: true,

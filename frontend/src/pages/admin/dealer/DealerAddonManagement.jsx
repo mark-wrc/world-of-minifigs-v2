@@ -132,6 +132,10 @@ const DealerAddonManagement = () => {
     filePreview,
     handleAddonFileChange,
     handleAddonFileRemove,
+    previewImages,
+    handleAddPreviewImages,
+    handleRemovePreviewImage,
+    handlePreviewImageLabelChange,
   } = useDealerAddonManagement();
 
   const activeTabRef = useRef(null);
@@ -251,7 +255,7 @@ const DealerAddonManagement = () => {
         entityName="Add-on"
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        className="sm:max-w-3xl"
+        className="sm:max-w-4xl"
       >
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
@@ -465,7 +469,10 @@ const DealerAddonManagement = () => {
                                 <span className="font-bold text-red-600 dark:text-red-500">
                                   {piecesPerBag}
                                 </span>{" "}
-                                {perBagUnit(item.inventory.category, piecesPerBag)}
+                                {perBagUnit(
+                                  item.inventory.category,
+                                  piecesPerBag,
+                                )}
                               </span>
                             </span>
                             {item.inventory.isActive === false && (
@@ -597,6 +604,47 @@ const DealerAddonManagement = () => {
                 disabled={isSubmitting}
               />
             </div>
+          )}
+
+          {/* Upgrade-specific: optional description shown in the preview modal */}
+          {isUpgradeType && (
+            <AdminFormTextarea
+              label="Preview Description (optional)"
+              name="previewDescription"
+              placeholder="Shown in the preview modal. Falls back to the description above if left blank."
+              value={formData.previewDescription}
+              onChange={handleChange}
+              disabled={isSubmitting}
+            />
+          )}
+
+          {/* Upgrade-specific: read-only preview gallery shown to dealers */}
+          {isUpgradeType && (
+            <MediaUpload
+              label="Preview Images (optional)"
+              multiple
+              previews={previewImages}
+              onChange={handleAddPreviewImages}
+              onRemove={handleRemovePreviewImage}
+              accept="image/*"
+              description="Display-only gallery"
+              previewClassName="aspect-4/3"
+              imageClassName="object-contain"
+              disabled={isSubmitting}
+              renderItem={(item, index) => (
+                <div className="p-2">
+                  <Input
+                    value={item.label || ""}
+                    onChange={(e) =>
+                      handlePreviewImageLabelChange(index, e.target.value)
+                    }
+                    placeholder="Label (optional)"
+                    disabled={isSubmitting}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              )}
+            />
           )}
 
           {/* Badge (optional, all types) */}

@@ -498,6 +498,11 @@ export const useDealer = () => {
       isSelected: selectedAddonIds.includes(addon._id),
       hasItems:
         addon.addonType === "bundle" && (addon.bundleItems?.length || 0) > 0,
+      // Upgrade add-ons with a preview gallery open a read-only modal instead
+      // of selecting directly on card click.
+      hasPreview:
+        addon.addonType === "upgrade" &&
+        (addon.previewImages?.length || 0) > 0,
     }));
   }, [addons, selectedAddonIds]);
 
@@ -773,6 +778,17 @@ export const useDealer = () => {
     setSelectedAddon(null);
   };
 
+  // Upgrade preview is display-only — confirming just adds the add-on to the
+  // order (if not already added) and closes the modal. Toggling an already-
+  // selected upgrade leaves it selected.
+  const handleUpgradePreviewConfirm = () => {
+    if (!selectedAddon) return;
+    if (!selectedAddonIds.includes(selectedAddon._id)) {
+      handleToggleAddon(selectedAddon._id);
+    }
+    setSelectedAddon(null);
+  };
+
   const handleModalClose = () => setSelectedAddon(null);
 
   // ==================== Order Summary ====================
@@ -1021,6 +1037,7 @@ export const useDealer = () => {
       onOpen: setSelectedAddon,
       onClose: handleModalClose,
       onConfirm: handleModalConfirm,
+      onUpgradeConfirm: handleUpgradePreviewConfirm,
       onValueChange: handleModalBagValueChange,
     },
 

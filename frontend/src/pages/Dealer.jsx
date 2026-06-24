@@ -15,6 +15,7 @@ import DealerExtraBag from "@/components/dealer/DealerExtraBag";
 import DealerTorsoBag from "@/components/dealer/DealerTorsoBag";
 import DealerOrderSummary from "@/components/dealer/DealerOrderSummary";
 import AddonPreviewModal from "@/components/dealer/AddonPreviewModal";
+import UpgradePreviewModal from "@/components/dealer/UpgradePreviewModal";
 import { useDealer } from "@/hooks/useDealer";
 
 const Dealer = () => {
@@ -183,18 +184,26 @@ const Dealer = () => {
         />
       </div>
 
-      {addonPreview.addon && (
-        <AddonPreviewModal
-          addon={addonPreview.addon}
-          items={addonPreview.items}
-          totalPrice={addonPreview.totalPrice}
-          canSubmit={addonPreview.canSubmit}
-          isUpdate={addonPreview.isUpdate}
-          onClose={addonPreview.onClose}
-          onConfirm={addonPreview.onConfirm}
-          onValueChange={addonPreview.onValueChange}
-        />
-      )}
+      {addonPreview.addon &&
+        (addonPreview.addon.addonType === "upgrade" ? (
+          <UpgradePreviewModal
+            addon={addonPreview.addon}
+            isSelected={addonPreview.addon.isSelected}
+            onClose={addonPreview.onClose}
+            onConfirm={addonPreview.onUpgradeConfirm}
+          />
+        ) : (
+          <AddonPreviewModal
+            addon={addonPreview.addon}
+            items={addonPreview.items}
+            totalPrice={addonPreview.totalPrice}
+            canSubmit={addonPreview.canSubmit}
+            isUpdate={addonPreview.isUpdate}
+            onClose={addonPreview.onClose}
+            onConfirm={addonPreview.onConfirm}
+            onValueChange={addonPreview.onValueChange}
+          />
+        ))}
     </>
   );
 };

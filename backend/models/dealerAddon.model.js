@@ -78,6 +78,23 @@ const dealerAddonSchema = new mongoose.Schema(
       publicId: { type: String },
       url: { type: String },
     },
+    // Optional description shown in the `upgrade` preview modal. Falls back to
+    // `description` on the client when left blank. Ignored for `bundle` types.
+    previewDescription: {
+      type: String,
+      trim: true,
+    },
+    // Read-only preview gallery for `upgrade` add-ons — shows the dealer what
+    // they receive once purchased. No quantity/customisation; display only.
+    // Ignored for `bundle` add-ons (which preview their actual bundleItems).
+    previewImages: [
+      {
+        _id: false,
+        publicId: { type: String },
+        url: { type: String },
+        label: { type: String, trim: true },
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,
