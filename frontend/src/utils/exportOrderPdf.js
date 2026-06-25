@@ -7,6 +7,7 @@ import {
   formatPhone,
 } from "@/utils/formatting";
 import { getOrderStatusConfig } from "@/constant/orderData";
+import { perBagUnit } from "@shared/inventoryData";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const M = 12;
@@ -544,16 +545,16 @@ export const exportOrderToPdf = async (order) => {
         y += 10;
 
         if (addon.subItems?.length > 0) {
-          const isMinifig =
-            /minifig/i.test(addon.name) && !/(bulk|part)/i.test(addon.name);
-          const qtyLabel = isMinifig ? "Minifigs" : "Bags";
           y = itemsTableWithImages(
             doc,
             y,
-            ["Item", "Color", qtyLabel, "Unit Price", "Total"],
+            ["Item", "Color", "Per Bag", "Bags", "Unit Price", "Total"],
             addon.subItems.map((s) => [
               safe(s.name),
               safe(s.colorName),
+              s.piecesPerBag != null
+                ? `${s.piecesPerBag} ${perBagUnit(s.category, s.piecesPerBag)}`
+                : "—",
               safe(s.qty),
               s.pricePerBag > 0 ? formatCurrency(s.pricePerBag) : "Free",
               s.totalPrice > 0 ? formatCurrency(s.totalPrice) : "Free",
@@ -561,12 +562,13 @@ export const exportOrderToPdf = async (order) => {
             addonImgs[ai] ?? {},
             {
               1: { halign: "left" },
-              2: { halign: "left", cellWidth: 40 },
-              3: { halign: "center", cellWidth: isMinifig ? 22 : 14 },
-              4: { halign: "center", cellWidth: 24 },
-              5: { halign: "center", cellWidth: 22 },
+              2: { halign: "left", cellWidth: 30 },
+              3: { halign: "center", cellWidth: 26 },
+              4: { halign: "center", cellWidth: 14 },
+              5: { halign: "center", cellWidth: 24 },
+              6: { halign: "center", cellWidth: 22 },
             },
-            // Reduce padding on numeric columns (3-5) in both head and body
+            // Reduce padding on numeric columns (3-6) in both head and body
             (data) => {
               if (data.column.index < 3) return;
               data.cell.styles.cellPadding = {
