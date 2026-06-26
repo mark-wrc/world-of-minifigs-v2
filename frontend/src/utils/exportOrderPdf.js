@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { toast } from "sonner";
 import {
   formatCurrency,
   formatDate,
@@ -58,10 +59,29 @@ const ensureSpace = (doc, y, needed = 35) => {
   return y;
 };
 
+// Cache decoded images across exports so repeated images / re-exports are instant.
+const imageCache = new Map();
+const IMG_TIMEOUT_MS = 8000;
+
 const fetchImageAsBase64 = (url, maxPx = 150) => {
   if (!url) return Promise.resolve(null);
-  return new Promise((resolve) => {
+
+  const cacheKey = `${url}@${maxPx}`;
+  if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
+
+  const promise = new Promise((resolve) => {
     const img = new Image();
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+
+    // Don't let a slow/hanging image block the whole export.
+    const timer = setTimeout(() => finish(null), IMG_TIMEOUT_MS);
+
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
@@ -71,14 +91,21 @@ const fetchImageAsBase64 = (url, maxPx = 150) => {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/png"));
+        finish(canvas.toDataURL("image/png"));
       } catch {
-        resolve(null);
+        finish(null);
       }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => finish(null);
     img.src = url;
   });
+
+  // Cache the result (not failures, so a transient error can be retried).
+  promise.then((result) => {
+    if (result == null) imageCache.delete(cacheKey);
+  });
+  imageCache.set(cacheKey, promise);
+  return promise;
 };
 
 // ── Layout primitives ─────────────────────────────────────────────────────────
@@ -235,6 +262,17 @@ const itemsTableWithImages = (
 export const exportOrderToPdf = async (order) => {
   if (!order) return;
 
+  const toastId = toast.loading("Preparing PDF…");
+  try {
+    await buildOrderPdf(order);
+    toast.success("PDF ready", { id: toastId });
+  } catch (error) {
+    console.error("Failed to export order PDF:", error);
+    toast.error("Failed to export PDF", { id: toastId });
+  }
+};
+
+const buildOrderPdf = async (order) => {
   const isDealer =
     order.orderType === "dealer" || order.orderType === "wholesale";
 
