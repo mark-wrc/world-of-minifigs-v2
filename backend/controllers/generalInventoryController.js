@@ -197,7 +197,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
-    const { category, stock, status, partType, collectionId } = req.query;
+    const { category, stock, status, partType, collectionId, sort } = req.query;
 
     const baseFilter = {};
 
@@ -255,15 +255,73 @@ export const getAllGeneralInventory = async (req, res) => {
       }
     }
 
+    const populate = [
+      { path: "colorId", select: "colorName hexCode" },
+      { path: "collectionId", select: "collectionName" },
+      ...AUDIT_POPULATE,
+    ];
+
+    // Sales sort needs the bags-sold total ranked across the WHOLE filtered set
+    // before paginating, since `soldBags` is derived from orders (not a stored
+    // field) and can't be sorted by the DB query directly.
+    if (sort === "sales-high" || sort === "sales-low") {
+      const allItems = await GeneralInventory.find(searchQuery)
+        .select("_id createdAt")
+        .lean();
+
+      const soldMap = await getSoldBagsMap(allItems.map((item) => item._id));
+
+      const dir = sort === "sales-high" ? -1 : 1;
+      allItems.sort((a, b) => {
+        const sa = soldMap.get(String(a._id)) || 0;
+        const sb = soldMap.get(String(b._id)) || 0;
+        if (sa !== sb) return (sa - sb) * dir;
+        // Tie-breaker: newest first, matching the default listing order.
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      const totalItems = allItems.length;
+      const totalPages = Math.ceil(totalItems / limit);
+      const skip = (page - 1) * limit;
+      const pageIds = allItems.slice(skip, skip + limit).map((i) => i._id);
+
+      const docs = await GeneralInventory.find({ _id: { $in: pageIds } })
+        .select("-__v")
+        .populate(populate)
+        .lean();
+
+      const docMap = new Map(docs.map((d) => [String(d._id), d]));
+      const data = pageIds
+        .map((id) => docMap.get(String(id)))
+        .filter(Boolean)
+        .map((item) => ({
+          ...item,
+          soldBags: soldMap.get(String(item._id)) || 0,
+        }));
+
+      return res.status(200).json(
+        createPaginationResponse(
+          {
+            data,
+            pagination: {
+              page,
+              limit,
+              totalItems,
+              totalPages,
+              hasNextPage: page < totalPages,
+              hasPreviousPage: page > 1,
+            },
+          },
+          "inventory",
+        ),
+      );
+    }
+
     const result = await paginateQuery(GeneralInventory, searchQuery, {
       page,
       limit,
       sort: { createdAt: -1 },
-      populate: [
-        { path: "colorId", select: "colorName hexCode" },
-        { path: "collectionId", select: "collectionName" },
-        ...AUDIT_POPULATE,
-      ],
+      populate,
     });
 
     // Attach bags-sold (from orders) to each item on the current page.

@@ -68,6 +68,7 @@ const useGeneralInventoryManagement = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [collectionFilter, setCollectionFilter] = useState("");
   const [partTypeFilter, setPartTypeFilter] = useState("");
+  const [salesSort, setSalesSort] = useState("");
 
   const handleStockFilterChange = useCallback((value) => {
     setStockFilter(value === "all" ? "" : value);
@@ -83,6 +84,10 @@ const useGeneralInventoryManagement = () => {
 
   const handlePartTypeFilterChange = useCallback((value) => {
     setPartTypeFilter(value === "all" ? "" : value);
+  }, []);
+
+  const handleSalesSortChange = useCallback((value) => {
+    setSalesSort(value === "none" ? "" : value);
   }, []);
 
   // Switch tab and clear filters that only apply to other tabs
@@ -135,6 +140,7 @@ const useGeneralInventoryManagement = () => {
         activeTab === "bulk-minifig-parts"
           ? partTypeFilter || undefined
           : undefined,
+      sort: salesSort || undefined,
     });
 
   const isLoadingInventory = isLoading || isFetchingInventory;
@@ -171,7 +177,14 @@ const useGeneralInventoryManagement = () => {
   // Reset to page 1 when the active tab or any filter changes
   useEffect(() => {
     crud.handlePageChange(1);
-  }, [activeTab, stockFilter, statusFilter, collectionFilter, partTypeFilter]);
+  }, [
+    activeTab,
+    stockFilter,
+    statusFilter,
+    collectionFilter,
+    partTypeFilter,
+    salesSort,
+  ]);
 
   const isSubmitting = crud.dialogMode === "edit" ? isUpdating : isCreating;
 
@@ -391,10 +404,12 @@ const useGeneralInventoryManagement = () => {
     statusFilter,
     collectionFilter,
     partTypeFilter,
+    salesSort,
     handleStockFilterChange,
     handleStatusFilterChange,
     handleCollectionFilterChange,
     handlePartTypeFilterChange,
+    handleSalesSortChange,
     filePreview,
     fileInputRef,
     inventory,

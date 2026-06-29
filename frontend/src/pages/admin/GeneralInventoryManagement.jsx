@@ -239,10 +239,12 @@ const GeneralInventoryManagement = () => {
     statusFilter,
     collectionFilter,
     partTypeFilter,
+    salesSort,
     handleStockFilterChange,
     handleStatusFilterChange,
     handleCollectionFilterChange,
     handlePartTypeFilterChange,
+    handleSalesSortChange,
     inventory,
     colors,
     collections,
@@ -359,6 +361,20 @@ const GeneralInventoryManagement = () => {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={salesSort || "none"}
+              onValueChange={handleSalesSortChange}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Sort by Sales" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sort by Sales</SelectItem>
+                <SelectItem value="sales-high">Highest Sales</SelectItem>
+                <SelectItem value="sales-low">Lowest Sales</SelectItem>
               </SelectContent>
             </Select>
 

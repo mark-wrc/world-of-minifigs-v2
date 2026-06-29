@@ -30,6 +30,7 @@ const buildPaginationParams = ({
   stock,
   partType,
   collectionId,
+  sort,
 } = {}) => {
   return {
     ...(page && { page }),
@@ -42,6 +43,7 @@ const buildPaginationParams = ({
     ...(stock && { stock }),
     ...(partType && { partType }),
     ...(collectionId && { collectionId }),
+    ...(sort && { sort }),
   };
 };
 
