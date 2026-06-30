@@ -1,4 +1,6 @@
 import React from "react";
+import { Check, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +38,37 @@ import { getOrderStatusConfig, STATUS_CONFIG } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
 import CommonImage from "@/components/shared/CommonImage";
 import { perBagUnit } from "@shared/inventoryData";
+
+// Small inline button that copies the given text and briefly shows a check.
+const CopyButton = ({ value, label = "Address" }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async () => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={`Copy ${label.toLowerCase()}`}
+      className="inline-flex shrink-0 cursor-pointer items-center text-blue-600 transition-colors hover:text-blue-700"
+    >
+      {copied ? (
+        <Check className="size-3.5 text-success" />
+      ) : (
+        <Copy className="size-3.5" />
+      )}
+    </button>
+  );
+};
 
 const OrderManagement = () => {
   const {
@@ -409,38 +442,24 @@ const OrderManagement = () => {
               </div>
               <div className="grid grid-cols-[140px_1fr] p-3">
                 <span className="font-semibold text-xs">Address</span>
-                <span className="text-xs">
-                  {[
+                {(() => {
+                  const fullAddress = [
                     viewOrder?.shipping?.address?.line1,
                     viewOrder?.shipping?.address?.line2,
+                    viewOrder?.shipping?.address?.city,
+                    viewOrder?.shipping?.address?.state,
+                    viewOrder?.shipping?.address?.postalCode,
+                    viewOrder?.shipping?.address?.country,
                   ]
                     .filter(Boolean)
-                    .join(", ") || "—"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">City</span>
-                <span className="text-xs">
-                  {viewOrder?.shipping?.address?.city || "—"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">State</span>
-                <span className="text-xs">
-                  {viewOrder?.shipping?.address?.state || "—"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Postal Code</span>
-                <span className="text-xs">
-                  {viewOrder?.shipping?.address?.postalCode || "—"}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Country</span>
-                <span className="text-xs">
-                  {viewOrder?.shipping?.address?.country || "—"}
-                </span>
+                    .join(", ");
+                  return (
+                    <span className="flex items-start justify-between gap-2 text-xs">
+                      <span className="select-all">{fullAddress || "—"}</span>
+                      {fullAddress && <CopyButton value={fullAddress} />}
+                    </span>
+                  );
+                })()}
               </div>
               {viewOrder?.shipping?.address?.phone && (
                 <div className="grid grid-cols-[140px_1fr] p-3">
@@ -532,45 +551,132 @@ const OrderManagement = () => {
           {(viewOrder?.orderType === "dealer" ||
             viewOrder?.orderType === "wholesale") &&
             viewOrder.dealerItems && (
-            <div className="space-y-4">
-              {/* Bundles + Torso Bags */}
-              {(() => {
-                const di = viewOrder.dealerItems;
-                const bundleList = di.bundles?.length
-                  ? di.bundles
-                  : di.bundle?.name
-                    ? [{ ...di.bundle, torsoBags: di.torsoBags ?? [] }]
-                    : [];
-                if (bundleList.length === 0) return null;
-                return (
+              <div className="space-y-4">
+                {/* Bundles + Torso Bags */}
+                {(() => {
+                  const di = viewOrder.dealerItems;
+                  const bundleList = di.bundles?.length
+                    ? di.bundles
+                    : di.bundle?.name
+                      ? [{ ...di.bundle, torsoBags: di.torsoBags ?? [] }]
+                      : [];
+                  if (bundleList.length === 0) return null;
+                  return (
+                    <div className="rounded-lg border">
+                      <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
+                        Selected Bundle{bundleList.length !== 1 ? "s" : ""}
+                      </div>
+                      <div className="divide-y">
+                        {bundleList.map((bundle, bi) => (
+                          <div key={bi}>
+                            <div className="p-3 flex justify-between items-center">
+                              <span className="text-xs font-medium">
+                                {bundle.name}
+                              </span>
+                              <span className="text-xs font-bold text-success dark:text-accent">
+                                {formatCurrency(bundle.price)}
+                              </span>
+                            </div>
+
+                            {/* Torso bags */}
+                            {bundle.torsoBags?.length > 0 && (
+                              <div className="border-t px-3 py-2 space-y-3">
+                                {bundle.torsoBags.map((tb, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex justify-between items-center"
+                                  >
+                                    <span className="text-xs">{tb.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      ×{tb.quantity}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Addons */}
+                {viewOrder.dealerItems.addons?.length > 0 && (
                   <div className="rounded-lg border">
                     <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
-                      Selected Bundle{bundleList.length !== 1 ? "s" : ""}
+                      Add-on Selections
                     </div>
                     <div className="divide-y">
-                      {bundleList.map((bundle, bi) => (
-                        <div key={bi}>
-                          <div className="p-3 flex justify-between items-center">
-                            <span className="text-xs font-medium">
-                              {bundle.name}
+                      {viewOrder.dealerItems.addons.map((addon, idx) => (
+                        <div key={idx} className="p-3 space-y-2">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold">
+                              {addon.name}
+                              {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
                             </span>
-                            <span className="text-xs font-bold text-success dark:text-accent">
-                              {formatCurrency(bundle.price)}
+                            <span className="font-bold text-success dark:text-accent">
+                              {addon.totalPrice > 0
+                                ? formatCurrency(addon.totalPrice)
+                                : "Free"}
                             </span>
                           </div>
-
-                          {/* Torso bags */}
-                          {bundle.torsoBags?.length > 0 && (
-                            <div className="border-t px-3 py-2 space-y-3">
-                              {bundle.torsoBags.map((tb, i) => (
+                          {addon.subItems?.length > 0 && (
+                            <div className="space-y-2 mt-1">
+                              {addon.subItems.map((sub, sIdx) => (
                                 <div
-                                  key={i}
-                                  className="flex justify-between items-center"
+                                  key={sIdx}
+                                  className="flex items-center gap-3 rounded-md border p-2"
                                 >
-                                  <span className="text-xs">{tb.name}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    ×{tb.quantity}
-                                  </span>
+                                  {sub.imageUrl && (
+                                    <CommonImage
+                                      src={sub.imageUrl}
+                                      alt={sub.name}
+                                      className="w-14 object-contain shrink-0"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-xs font-semibold truncate">
+                                        {sub.name}
+                                        {sub.piecesPerBag != null && (
+                                          <span className="font-normal">
+                                            {" - "}
+                                            <span className="font-bold text-red-600 dark:text-red-500">
+                                              {sub.piecesPerBag}
+                                            </span>{" "}
+                                            {perBagUnit(
+                                              sub.category,
+                                              sub.piecesPerBag,
+                                            )}
+                                          </span>
+                                        )}
+                                      </p>
+                                      <span className="text-xs text-muted-foreground shrink-0">
+                                        <span className="font-bold text-red-600 dark:text-red-500">
+                                          {sub.qty}
+                                        </span>{" "}
+                                        {sub.qty !== 1 ? "bags" : "bag"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-xs">
+                                      {sub.colorName && (
+                                        <span className="text-muted-foreground">
+                                          {sub.colorName}
+                                        </span>
+                                      )}
+                                      {sub.colorName && sub.totalPrice > 0 && (
+                                        <span className="text-muted-foreground">
+                                          ·
+                                        </span>
+                                      )}
+                                      {sub.totalPrice > 0 && (
+                                        <span className="font-semibold text-success dark:text-accent">
+                                          {formatCurrency(sub.totalPrice)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -579,119 +685,36 @@ const OrderManagement = () => {
                       ))}
                     </div>
                   </div>
-                );
-              })()}
+                )}
 
-              {/* Addons */}
-              {viewOrder.dealerItems.addons?.length > 0 && (
-                <div className="rounded-lg border">
-                  <div className="p-3 border-b font-semibold text-xs bg-success/20 rounded-t-md">
-                    Add-on Selections
-                  </div>
-                  <div className="divide-y">
-                    {viewOrder.dealerItems.addons.map((addon, idx) => (
-                      <div key={idx} className="p-3 space-y-2">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-semibold">
-                            {addon.name}
-                            {addon.quantity > 1 ? ` × ${addon.quantity}` : ""}
+                {/* Extra Bags */}
+                {viewOrder.dealerItems.extraBags?.length > 0 && (
+                  <div className="rounded-lg border">
+                    <div className="divide-y">
+                      {viewOrder.dealerItems.extraBags.map((bag, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 flex justify-between items-center gap-2"
+                        >
+                          <span className="text-xs font-semibold">
+                            {bag.name}{" "}
+                            <span className="text-muted-foreground font-normal">
+                              ({bag.quantity} bag{bag.quantity !== 1 ? "s" : ""}
+                              )
+                            </span>
                           </span>
-                          <span className="font-bold text-success dark:text-accent">
-                            {addon.totalPrice > 0
-                              ? formatCurrency(addon.totalPrice)
-                              : "Free"}
+                          <span className="text-xs font-semibold shrink-0 text-success">
+                            {formatCurrency(
+                              bag.totalPrice ?? bag.quantity * bag.price,
+                            )}
                           </span>
                         </div>
-                        {addon.subItems?.length > 0 && (
-                          <div className="space-y-2 mt-1">
-                            {addon.subItems.map((sub, sIdx) => (
-                              <div
-                                key={sIdx}
-                                className="flex items-center gap-3 rounded-md border p-2"
-                              >
-                                {sub.imageUrl && (
-                                  <CommonImage
-                                    src={sub.imageUrl}
-                                    alt={sub.name}
-                                    className="w-14 object-contain shrink-0"
-                                  />
-                                )}
-                                <div className="flex-1 min-w-0 space-y-2">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <p className="text-xs font-semibold truncate">
-                                      {sub.name}
-                                      {sub.piecesPerBag != null && (
-                                        <span className="font-normal">
-                                          {" - "}
-                                          <span className="font-bold text-red-600 dark:text-red-500">
-                                            {sub.piecesPerBag}
-                                          </span>{" "}
-                                          {perBagUnit(sub.category, sub.piecesPerBag)}
-                                        </span>
-                                      )}
-                                    </p>
-                                    <span className="text-xs text-muted-foreground shrink-0">
-                                      <span className="font-bold text-red-600 dark:text-red-500">
-                                        {sub.qty}
-                                      </span>{" "}
-                                      {sub.qty !== 1 ? "bags" : "bag"}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-1 text-xs">
-                                    {sub.colorName && (
-                                      <span className="text-muted-foreground">
-                                        {sub.colorName}
-                                      </span>
-                                    )}
-                                    {sub.colorName && sub.totalPrice > 0 && (
-                                      <span className="text-muted-foreground">
-                                        ·
-                                      </span>
-                                    )}
-                                    {sub.totalPrice > 0 && (
-                                      <span className="font-semibold text-success dark:text-accent">
-                                        {formatCurrency(sub.totalPrice)}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Extra Bags */}
-              {viewOrder.dealerItems.extraBags?.length > 0 && (
-                <div className="rounded-lg border">
-                  <div className="divide-y">
-                    {viewOrder.dealerItems.extraBags.map((bag, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 flex justify-between items-center gap-2"
-                      >
-                        <span className="text-xs font-semibold">
-                          {bag.name}{" "}
-                          <span className="text-muted-foreground font-normal">
-                            ({bag.quantity} bag{bag.quantity !== 1 ? "s" : ""})
-                          </span>
-                        </span>
-                        <span className="text-xs font-semibold shrink-0 text-success">
-                          {formatCurrency(
-                            bag.totalPrice ?? bag.quantity * bag.price,
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
         </section>
 
         {/* ── Refund Details ── */}

@@ -438,13 +438,20 @@ const buildOrderPdf = async (order) => {
     y = ensureSpace(doc, y);
     y = sectionHeader(doc, y, "Shipping Address");
     const addr = order.shipping.address;
+    const fullAddress =
+      [
+        addr.line1,
+        addr.line2,
+        addr.city,
+        addr.state,
+        addr.postalCode,
+        addr.country,
+      ]
+        .filter(Boolean)
+        .join(", ") || "—";
     const addrRows = [
       ["Recipient", safe(addr.name)],
-      ["Street", [addr.line1, addr.line2].filter(Boolean).join(", ") || "—"],
-      ["City", safe(addr.city)],
-      ["State", safe(addr.state)],
-      ["Postal Code", safe(addr.postalCode)],
-      ["Country", safe(addr.country)],
+      ["Address", fullAddress],
     ];
     if (addr.phone) addrRows.push(["Contact No.", formatPhone(addr.phone)]);
     y = kvTable(doc, y, addrRows);
