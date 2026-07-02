@@ -510,6 +510,7 @@ export async function createDealerOrderFromStripeSession(session) {
               imageUrl: inv.image?.url,
               colorName: inv.colorId?.colorName,
               colorHex: inv.colorId?.hexCode,
+              bin: inv.bin ?? null,
               pricePerBag,
               totalPrice: pricePerBag * (sub.selectedBags || 0),
             });

@@ -660,16 +660,27 @@ const OrderManagement = () => {
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-1 text-xs">
+                                      {sub.bin && (
+                                        <span className="text-muted-foreground">
+                                          {sub.bin}
+                                        </span>
+                                      )}
+                                      {sub.bin && sub.colorName && (
+                                        <span className="text-muted-foreground">
+                                          ·
+                                        </span>
+                                      )}
                                       {sub.colorName && (
                                         <span className="text-muted-foreground">
                                           {sub.colorName}
                                         </span>
                                       )}
-                                      {sub.colorName && sub.totalPrice > 0 && (
-                                        <span className="text-muted-foreground">
-                                          ·
-                                        </span>
-                                      )}
+                                      {(sub.bin || sub.colorName) &&
+                                        sub.totalPrice > 0 && (
+                                          <span className="text-muted-foreground">
+                                            ·
+                                          </span>
+                                        )}
                                       {sub.totalPrice > 0 && (
                                         <span className="font-semibold text-success dark:text-accent">
                                           {formatCurrency(sub.totalPrice)}

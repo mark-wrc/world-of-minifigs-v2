@@ -87,7 +87,7 @@ const fetchImageAsBase64 = (url, maxPx = 150) => {
       try {
         const scale = Math.min(1, maxPx / Math.max(img.width, img.height, 1));
         const canvas = document.createElement("canvas");
-        canvas.width  = Math.round(img.width  * scale);
+        canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -130,6 +130,7 @@ const kvTable = (doc, y, rows, onParseCell, onDrawCell) => {
     styles: {
       fontSize: 10,
       cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+      overflow: "linebreak",
       lineColor: C.gray200,
       lineWidth: 0.2,
       valign: "middle",
@@ -166,11 +167,12 @@ const itemsTable = (doc, y, head, body, colStyles = {}, onParseCell) => {
       fontStyle: "bold",
       halign: "center",
       valign: "middle",
-      cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
     },
     bodyStyles: {
       fontSize: 9.5,
-      cellPadding: { top: 3.5, bottom: 3, left: 5, right: 5 },
+      cellPadding: { top: 3.5, bottom: 3, left: 3, right: 3 },
+      overflow: "linebreak",
       textColor: C.gray900,
       lineColor: C.gray200,
       lineWidth: 0.2,
@@ -213,11 +215,12 @@ const itemsTableWithImages = (
       fontStyle: "bold",
       halign: "center",
       valign: "middle",
-      cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+      cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
     },
     bodyStyles: {
       fontSize: 9.5,
-      cellPadding: { top: 2, bottom: 2, left: 5, right: 5 },
+      cellPadding: { top: 2, bottom: 2, left: 3, right: 3 },
+      overflow: "linebreak",
       minCellHeight: IMG_CELL_W,
       valign: "middle",
       textColor: C.gray900,
@@ -370,10 +373,7 @@ const buildOrderPdf = async (order) => {
         ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1)
         : "—",
     ],
-    [
-      "Paid At",
-      order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—",
-    ],
+    ["Paid At", order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—"],
   ];
 
   y = kvTable(
@@ -593,12 +593,13 @@ const buildOrderPdf = async (order) => {
           y = itemsTableWithImages(
             doc,
             y,
-            ["Item", "Color", "Per Bag", "Bags", "Unit Price", "Total"],
+            ["Item", "Color", "Bin", "Per Bag", "Bags", "Unit Price", "Total"],
             addon.subItems.map((s) => [
               safe(s.name),
               safe(s.colorName),
+              safe(s.bin),
               s.piecesPerBag != null
-                ? `${s.piecesPerBag} ${perBagUnit(s.category, s.piecesPerBag)}`
+                ? `${s.piecesPerBag} ${perBagUnit(s.category, s.piecesPerBag).replace("/bag", "")}`
                 : "—",
               safe(s.qty),
               s.pricePerBag > 0 ? formatCurrency(s.pricePerBag) : "Free",
@@ -606,16 +607,17 @@ const buildOrderPdf = async (order) => {
             ]),
             addonImgs[ai] ?? {},
             {
-              1: { halign: "left" },
-              2: { halign: "left", cellWidth: 30 },
-              3: { halign: "center", cellWidth: 26 },
-              4: { halign: "center", cellWidth: 14 },
-              5: { halign: "center", cellWidth: 24 },
+              1: { halign: "left", cellWidth: 38 },
+              2: { halign: "left", cellWidth: 28 },
+              3: { halign: "left", cellWidth: 26 },
+              4: { halign: "center", cellWidth: 22 },
+              5: { halign: "center", cellWidth: 14 },
               6: { halign: "center", cellWidth: 22 },
+              7: { halign: "center", cellWidth: 20 },
             },
-            // Reduce padding on numeric columns (3-6) in both head and body
+            // Reduce padding on numeric columns (4-7) in both head and body
             (data) => {
-              if (data.column.index < 3) return;
+              if (data.column.index < 4) return;
               data.cell.styles.cellPadding = {
                 top: 3,
                 bottom: 3,
@@ -753,6 +755,7 @@ const buildOrderPdf = async (order) => {
     styles: {
       fontSize: 10,
       cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 5 },
+      overflow: "linebreak",
       lineColor: C.gray200,
       lineWidth: 0.2,
       valign: "middle",
@@ -801,7 +804,11 @@ const buildOrderPdf = async (order) => {
       doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
       rgb(doc, C.gray600);
-      doc.text(discountCodeText, data.cell.x + 5, data.cell.y + data.cell.height - 3);
+      doc.text(
+        discountCodeText,
+        data.cell.x + 5,
+        data.cell.y + data.cell.height - 3,
+      );
       resetText(doc);
     },
   });

@@ -385,6 +385,7 @@ export const updateGeneralInventory = async (req, res) => {
       pricePerBag,
       piecesPerBag,
       cost,
+      bin,
       stock,
       colorId,
       image,
@@ -479,6 +480,13 @@ export const updateGeneralInventory = async (req, res) => {
       } else {
         inventory.cost = Number(cost);
       }
+    }
+
+    // Admin bin location — optional free-form text, clearable with null/"".
+    if (bin !== undefined) {
+      inventory.bin = bin === null || String(bin).trim() === ""
+        ? null
+        : String(bin).trim();
     }
 
     if (stock !== undefined) {

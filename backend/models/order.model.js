@@ -101,6 +101,7 @@ const dealerItemSchema = new mongoose.Schema(
             imageUrl: { type: String },
             colorName: { type: String },
             colorHex: { type: String },
+            bin: { type: String },
             pricePerBag: { type: Number },
             totalPrice: { type: Number },
           },

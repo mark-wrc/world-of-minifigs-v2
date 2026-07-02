@@ -28,6 +28,7 @@ const BASE_COLUMNS = [
   { key: "itemId", label: "Item ID" },
   { key: "color", label: "Color" },
   { key: "cost", label: "Cost" },
+  { key: "bin", label: "Bin" },
 ];
 const PRICING_COLUMNS = [
   { key: "pricePerBag", label: "Bag Price" },
@@ -374,6 +375,19 @@ const useGeneralInventoryManagement = () => {
     [updateItem],
   );
 
+  // Inline bin-note save — updates only the `bin` field, no dialog.
+  const handleBinSave = useCallback(
+    async (id, bin) => {
+      try {
+        await updateItem({ id, bin }).unwrap();
+        toast.success("Bin updated");
+      } catch (err) {
+        toast.error(err?.data?.message || "Failed to update bin");
+      }
+    },
+    [updateItem],
+  );
+
   // ------------------------------- Handlers ------------------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -431,6 +445,7 @@ const useGeneralInventoryManagement = () => {
     handleChange,
     handleValueChange,
     handleCostSave,
+    handleBinSave,
   };
 };
 

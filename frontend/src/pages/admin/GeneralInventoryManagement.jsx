@@ -111,6 +111,69 @@ const CostCell = ({ item, onSave }) => {
   );
 };
 
+// Inline-editable admin "bin" note. Click to enter free-form text (location code).
+// Purely informational — no logic depends on it.
+const BinCell = ({ item, onSave }) => {
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(item.bin ?? "");
+
+  React.useEffect(() => {
+    setValue(item.bin ?? "");
+  }, [item.bin]);
+
+  const commit = () => {
+    setEditing(false);
+    const trimmed = String(value).trim();
+    const next = trimmed === "" ? null : trimmed;
+    const current = item.bin ?? null;
+    if (next === current) return;
+    onSave(item._id, next);
+  };
+
+  if (editing) {
+    return (
+      <TableCell>
+        <input
+          type="text"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") {
+              setValue(item.bin ?? "");
+              setEditing(false);
+            }
+          }}
+          className="mx-auto block w-24 border-0 border-b border-foreground/50 bg-transparent px-1 py-0.5 text-center text-sm font-bold text-foreground focus:outline-none"
+        />
+      </TableCell>
+    );
+  }
+
+  return (
+    <TableCell>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title="Click to set bin"
+        className="mx-auto block"
+      >
+        {item.bin ? (
+          <span className="text-sm font-bold text-foreground underline underline-offset-2">
+            {item.bin}
+          </span>
+        ) : (
+          <span className="inline-block w-24 border-b border-foreground/50">
+            &nbsp;
+          </span>
+        )}
+      </button>
+    </TableCell>
+  );
+};
+
 const InventoryItemInputs = React.memo(
   ({
     item,
@@ -284,6 +347,7 @@ const GeneralInventoryManagement = () => {
     handleAdd,
     handleValueChange,
     handleCostSave,
+    handleBinSave,
   } = useGeneralInventoryManagement();
 
   return (
@@ -460,6 +524,9 @@ const GeneralInventoryManagement = () => {
 
             {/* Cost — inline-editable admin note */}
             <CostCell item={item} onSave={handleCostSave} />
+
+            {/* Bin — inline-editable admin location note */}
+            <BinCell item={item} onSave={handleBinSave} />
 
             {/* Price per Bag */}
             <PriceCell amount={item.pricePerBag} />

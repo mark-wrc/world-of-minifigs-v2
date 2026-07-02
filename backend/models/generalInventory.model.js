@@ -54,6 +54,13 @@ const generalInventorySchema = new mongoose.Schema(
       min: [0, "Cost cannot be negative"],
     },
 
+    // Admin-only storage bin location (e.g. "A3-12"). Free-form text; affects no logic.
+    bin: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
     // Informational only — shown to customers as "X pcs/bag". Defaults to 1 (a single minifig).
     piecesPerBag: {
       type: Number,
