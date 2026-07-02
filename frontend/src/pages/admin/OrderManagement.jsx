@@ -632,6 +632,7 @@ const OrderManagement = () => {
                                     <CommonImage
                                       src={sub.imageUrl}
                                       alt={sub.name}
+                                      thumb={128}
                                       className="w-14 object-contain shrink-0"
                                     />
                                   )}

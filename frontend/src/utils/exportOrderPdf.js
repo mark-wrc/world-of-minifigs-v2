@@ -9,6 +9,7 @@ import {
 } from "@/utils/formatting";
 import { getOrderStatusConfig } from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
+import { buildCloudinaryUrl } from "@/utils/cloudinary";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const M = 12;
@@ -63,13 +64,9 @@ const ensureSpace = (doc, y, needed = 35) => {
 const imageCache = new Map();
 const IMG_TIMEOUT_MS = 8000;
 
-const fetchImageAsBase64 = (url, maxPx = 150) => {
-  if (!url) return Promise.resolve(null);
-
-  const cacheKey = `${url}@${maxPx}`;
-  if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
-
-  const promise = new Promise((resolve) => {
+// Decode one URL into a downscaled PNG data URL. Resolves null on any failure.
+const loadImageOnce = (src, maxPx) =>
+  new Promise((resolve) => {
     const img = new Image();
     let settled = false;
     const finish = (result) => {
@@ -97,15 +94,53 @@ const fetchImageAsBase64 = (url, maxPx = 150) => {
       }
     };
     img.onerror = () => finish(null);
-    img.src = url;
+    img.src = src;
   });
 
-  // Cache the result (not failures, so a transient error can be retried).
+// Fetch + decode an image for embedding in the PDF.
+//
+// Requests a small PNG-encoded Cloudinary derivative (jsPDF can't embed WebP)
+// so each download is a few KB instead of the multi-MB original, and retries
+// once on failure. Combined with the concurrency limit in the prefetch pool,
+// this is what stops images silently dropping out of large orders.
+const fetchImageAsBase64 = (url, maxPx = 150) => {
+  if (!url) return Promise.resolve(null);
+
+  const src = buildCloudinaryUrl(url, {
+    width: maxPx,
+    height: maxPx,
+    format: "png",
+  });
+
+  const cacheKey = `${src}@${maxPx}`;
+  if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
+
+  const promise = (async () => {
+    const result = await loadImageOnce(src, maxPx);
+    return result ?? (await loadImageOnce(src, maxPx)); // one retry
+  })();
+
+  // Cache successes; drop failures so a later export can retry them.
   promise.then((result) => {
     if (result == null) imageCache.delete(cacheKey);
   });
   imageCache.set(cacheKey, promise);
   return promise;
+};
+
+// Run async `fn` over `items` with at most `limit` in flight at once, so a
+// 50+ item order doesn't saturate the browser's connection pool (which is what
+// caused later images to time out and vanish from the PDF).
+const mapWithConcurrency = async (items, limit, fn) => {
+  let cursor = 0;
+  const runNext = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      await fn(items[index], index);
+    }
+  };
+  const workers = Array.from({ length: Math.min(limit, items.length) }, runNext);
+  await Promise.all(workers);
 };
 
 // ── Layout primitives ─────────────────────────────────────────────────────────
@@ -279,33 +314,43 @@ const buildOrderPdf = async (order) => {
   const isDealer =
     order.orderType === "dealer" || order.orderType === "wholesale";
 
-  // Pre-fetch images
+  // Pre-fetch images. Collect every image as a flat task first, then decode
+  // them through a bounded pool so a large order can't overload the network and
+  // drop images. Each task writes its decoded result back into the right slot.
   const productImgs = {};
-  if (!isDealer && order.productItems?.length > 0) {
-    await Promise.all(
-      order.productItems.map(async (item, i) => {
-        if (item.imageUrl)
-          productImgs[i] = await fetchImageAsBase64(item.imageUrl);
-      }),
-    );
+  const addonImgs = {};
+  const imageTasks = [];
+
+  if (!isDealer) {
+    order.productItems?.forEach((item, i) => {
+      if (item.imageUrl) {
+        imageTasks.push({
+          url: item.imageUrl,
+          assign: (img) => {
+            productImgs[i] = img;
+          },
+        });
+      }
+    });
+  } else {
+    order.dealerItems?.addons?.forEach((addon, ai) => {
+      addonImgs[ai] = {};
+      addon.subItems?.forEach((sub, si) => {
+        if (sub.imageUrl) {
+          imageTasks.push({
+            url: sub.imageUrl,
+            assign: (img) => {
+              addonImgs[ai][si] = img;
+            },
+          });
+        }
+      });
+    });
   }
 
-  const addonImgs = {};
-  if (isDealer && order.dealerItems?.addons?.length > 0) {
-    await Promise.all(
-      order.dealerItems.addons.map(async (addon, ai) => {
-        addonImgs[ai] = {};
-        if (addon.subItems?.length > 0) {
-          await Promise.all(
-            addon.subItems.map(async (sub, si) => {
-              if (sub.imageUrl)
-                addonImgs[ai][si] = await fetchImageAsBase64(sub.imageUrl);
-            }),
-          );
-        }
-      }),
-    );
-  }
+  await mapWithConcurrency(imageTasks, 6, async (task) => {
+    task.assign(await fetchImageAsBase64(task.url));
+  });
 
   // Build PDF
   const doc = new jsPDF({ unit: "mm", format: "a4" });
