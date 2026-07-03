@@ -100,11 +100,15 @@ import {
   updateGeneralInventory,
   deleteGeneralInventory,
 } from "../controllers/generalInventoryController.js";
+import { getUploadSignature } from "../controllers/uploadController.js";
 
 const router = express.Router();
 
 // All admin routes require authentication and admin role
 router.use(authenticate, authorizeAdmin);
+
+// Direct browser→Cloudinary upload signature (keeps large image bytes off the server)
+router.get("/uploads/signature", getUploadSignature);
 
 // Banner CRUD routes
 router.post("/banners", createBanner);

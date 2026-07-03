@@ -1,4 +1,6 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
+import { toast } from "sonner";
+import { uploadImagesToCloudinary } from "@/utils/cloudinaryUpload";
 import {
   useGetDealerTorsoBagsQuery,
   useCreateDealerTorsoBagMutation,
@@ -90,7 +92,15 @@ const useDealerTorsoBagManagement = () => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
 
-  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+  // Tracks the direct browser→Cloudinary upload happening before the save call.
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
+
+  const isSubmitting =
+    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
 
   const baseSize = Number(crud.formData.baseSize) || 100;
   const miscQuantity = MISC_PER_BAG[baseSize] ?? 0;
@@ -127,7 +137,7 @@ const useDealerTorsoBagManagement = () => {
       let skippedCount = 0;
 
       const items = await onFileChange(e, {
-        mapFile: (url) => {
+        mapFile: (url, file) => {
           if (currentTotal + 1 > adminTarget) {
             skippedCount++;
             return null;
@@ -135,7 +145,11 @@ const useDealerTorsoBagManagement = () => {
           return {
             url,
             quantity: 1,
+            // `url` is a local data-URL used only for the preview thumbnail.
+            // `file` is the raw File we upload directly to Cloudinary at submit.
+            // No `publicId` yet marks this as a not-yet-uploaded item.
             image: { url },
+            file,
           };
         },
       });
@@ -184,11 +198,55 @@ const useDealerTorsoBagManagement = () => {
     )
       return;
 
-    const items = crud.formData.items.map((item) => ({
-      image:
-        typeof item?.url === "string" && item.url.startsWith("data:")
-          ? item.url
-          : item?.image,
+    const formItems = crud.formData.items;
+
+    // Freshly-picked items still carry a raw File and no Cloudinary publicId.
+    // Upload those directly to Cloudinary; existing items are already stored.
+    const pendingUploads = formItems
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item?.file && !item?.image?.publicId);
+
+    let uploadedRefs = [];
+    if (pendingUploads.length > 0) {
+      setUploadProgress({
+        isUploading: true,
+        done: 0,
+        total: pendingUploads.length,
+      });
+      try {
+        uploadedRefs = await uploadImagesToCloudinary(
+          pendingUploads.map(({ item }) => item.file),
+          "torso",
+          {
+            onProgress: (done, total) =>
+              setUploadProgress({ isUploading: true, done, total }),
+          },
+        );
+      } catch (error) {
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        toast.error("Image upload failed", {
+          description:
+            error?.message || "Could not upload torso images. Please try again.",
+        });
+        return;
+      }
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+    }
+
+    // Map each uploaded { publicId, url } back to its original item by index.
+    const refByIndex = new Map();
+    pendingUploads.forEach(({ index }, i) => {
+      refByIndex.set(index, uploadedRefs[i]);
+    });
+
+    // Only compact { publicId, url } references leave the browser now — no
+    // base64 image bytes — so the request body stays a few KB regardless of
+    // how many designs the bag contains.
+    const items = formItems.map((item, index) => ({
+      image: refByIndex.get(index) || {
+        publicId: item?.image?.publicId,
+        url: item?.image?.url,
+      },
       quantity:
         item.quantity === "" || item.quantity == null
           ? 1
@@ -269,6 +327,7 @@ const useDealerTorsoBagManagement = () => {
     currentTotal,
     isLoadingBags,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleEdit,
     handleDealerTorsoBagFileChange,

@@ -11,9 +11,14 @@ import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
 
 export const ADDON_ITEM_CATEGORIES = INVENTORY_CATEGORY_OPTIONS;
 
+import { toast } from "sonner";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateDealerAddon } from "@/utils/validation";
+import {
+  uploadImageToCloudinary,
+  uploadImagesToCloudinary,
+} from "@/utils/cloudinaryUpload";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
@@ -80,6 +85,16 @@ const DEBOUNCE_MS = 300;
 const useDealerAddonManagement = () => {
   // ------------------------------- Bundle Items State ------------------------------------
   const [bundleItems, setBundleItems] = useState([]);
+
+  // Raw File for a newly-picked main image (uploaded to Cloudinary at submit).
+  const [addonImageFile, setAddonImageFile] = useState(null);
+
+  // Tracks the direct browser→Cloudinary upload happening before the save call.
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
 
   // ------------------------------- Media ------------------------------------
   const {
@@ -148,6 +163,7 @@ const useDealerAddonManagement = () => {
   // ------------------------------- Core CRUD ------------------------------------
   const resetExtras = useCallback(() => {
     setBundleItems([]);
+    setAddonImageFile(null);
     resetPreviewImages();
     resetFile();
   }, [resetFile, resetPreviewImages]);
@@ -271,7 +287,8 @@ const useDealerAddonManagement = () => {
     setDebouncedItemSearch("");
   }, [itemCategory]);
 
-  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+  const isSubmitting =
+    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
 
   const bundleDisplayItems = bundleItems
     .filter((item) => item._item)
@@ -283,7 +300,15 @@ const useDealerAddonManagement = () => {
   // ------------------------------- Image Handlers ------------------------------------
   const handleAddonFileChange = useCallback(
     async (e) => {
-      const dataUrl = await handleFileChange(e);
+      // Keep the raw File for direct upload; the data-URL is preview-only. We
+      // still set formData.image to the data-URL as the "new image" signal
+      // (data-URL = new, null = remove, undefined = leave alone).
+      const dataUrl = await handleFileChange(e, {
+        mapFile: (url, file) => {
+          setAddonImageFile(file);
+          return url;
+        },
+      });
       if (dataUrl) {
         crud.setFormData((prev) => ({ ...prev, image: dataUrl }));
       }
@@ -293,6 +318,7 @@ const useDealerAddonManagement = () => {
 
   const handleAddonFileRemove = useCallback(() => {
     handleRemoveFile();
+    setAddonImageFile(null);
     // null = explicit removal (controller deletes existing image)
     crud.setFormData((prev) => ({ ...prev, image: null }));
   }, [handleRemoveFile, crud]);
@@ -303,7 +329,8 @@ const useDealerAddonManagement = () => {
       // The shared hook reads/validates the files in this event handler (not in
       // a state updater), so attaching never double-fires under StrictMode.
       await handlePreviewFileChange(e, {
-        mapFile: (url) => ({ image: url, url, label: "" }),
+        // `url` is a preview-only data-URL; `file` uploads to Cloudinary at submit.
+        mapFile: (url, file) => ({ url, label: "", file }),
       });
     },
     [handlePreviewFileChange],
@@ -431,6 +458,62 @@ const useDealerAddonManagement = () => {
 
     if (!validateDealerAddon(crud.formData, bundleItems)) return;
 
+    // --- Upload any newly-picked images directly to Cloudinary first ---
+    const hasNewMainImage =
+      crud.formData.image !== undefined &&
+      crud.formData.image !== null &&
+      !!addonImageFile;
+
+    const newPreviewEntries =
+      addonType !== "bundle"
+        ? previewImages
+            .map((p, i) => ({ p, i }))
+            .filter(({ p }) => !p.publicId && p.file)
+        : [];
+
+    const totalUploads = (hasNewMainImage ? 1 : 0) + newPreviewEntries.length;
+
+    let mainImageRef;
+    const previewRefByIndex = new Map();
+
+    if (totalUploads > 0) {
+      const base = hasNewMainImage ? 1 : 0;
+      setUploadProgress({ isUploading: true, done: 0, total: totalUploads });
+      try {
+        if (hasNewMainImage) {
+          mainImageRef = await uploadImageToCloudinary(
+            addonImageFile,
+            "dealer-addon",
+          );
+          setUploadProgress({ isUploading: true, done: 1, total: totalUploads });
+        }
+        if (newPreviewEntries.length > 0) {
+          const refs = await uploadImagesToCloudinary(
+            newPreviewEntries.map(({ p }) => p.file),
+            "dealer-addon-preview",
+            {
+              onProgress: (completed) =>
+                setUploadProgress({
+                  isUploading: true,
+                  done: base + completed,
+                  total: totalUploads,
+                }),
+            },
+          );
+          newPreviewEntries.forEach(({ i }, k) =>
+            previewRefByIndex.set(i, refs[k]),
+          );
+        }
+      } catch (error) {
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        toast.error("Image upload failed", {
+          description: error?.message || "Could not upload images.",
+        });
+        return;
+      }
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+    }
+
     const payload = {
       addonName: sanitizeString(crud.formData.addonName),
       addonType,
@@ -440,9 +523,11 @@ const useDealerAddonManagement = () => {
       isActive: crud.formData.isActive,
     };
 
-    // Image: data-URL = upload new, null = explicit remove, undefined = leave alone
-    if (crud.formData.image !== undefined) {
-      payload.image = crud.formData.image;
+    // Image: new upload = ref, null = explicit remove, undefined = leave alone
+    if (crud.formData.image === null) {
+      payload.image = null;
+    } else if (mainImageRef) {
+      payload.image = mainImageRef;
     }
 
     if (addonType === "bundle") {
@@ -480,13 +565,17 @@ const useDealerAddonManagement = () => {
         crud.formData.previewDescription,
       );
 
-      // Preview gallery — existing images carry { publicId, url }; new ones
-      // carry the base64 data URL. Labels ride alongside each entry.
-      payload.previewImages = previewImages.map((p) =>
-        p.publicId
-          ? { publicId: p.publicId, url: p.url, label: p.label?.trim() || "" }
-          : { image: p.image, label: p.label?.trim() || "" },
-      );
+      // Preview gallery — every entry is now an uploaded ref { publicId, url }
+      // (existing entries as-is; new ones resolved from the uploads above).
+      // Labels ride alongside each entry.
+      payload.previewImages = previewImages.map((p, i) => {
+        const ref = p.publicId ? p : previewRefByIndex.get(i);
+        return {
+          publicId: ref?.publicId,
+          url: ref?.url,
+          label: p.label?.trim() || "",
+        };
+      });
     }
 
     await crud.submitForm(payload);
@@ -528,6 +617,7 @@ const useDealerAddonManagement = () => {
     isLoadingAddons,
     isLoadingInventory,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     itemSearch,
     itemCategory,

@@ -29,6 +29,31 @@ const configureCloudinary = () => {
   isConfigured = true;
 };
 
+// Generate a signature for a direct browser→Cloudinary upload.
+// The browser uploads the file itself and only sends us back the resulting
+// { publicId, url }, so image bytes never pass through (or are parsed by) our
+// server. The API secret stays server-side; only the signature is exposed.
+export const generateUploadSignature = (folder) => {
+  configureCloudinary();
+
+  const timestamp = Math.round(Date.now() / 1000);
+
+  // Only these params are signed, so the browser must send exactly these
+  // (plus api_key) when uploading — nothing else can be tampered with.
+  const signature = cloudinary.utils.api_sign_request(
+    { folder, timestamp },
+    process.env.CLOUDINARY_API_SECRET,
+  );
+
+  return {
+    signature,
+    timestamp,
+    folder,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+  };
+};
+
 // Validate image format and size
 export const validateImage = (image, maxSizeMB = 25) => {
   if (!image) {

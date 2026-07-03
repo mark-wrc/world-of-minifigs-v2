@@ -18,6 +18,7 @@ import {
 import DeleteDialog from "@/components/table/DeleteDialog";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import MediaUpload from "@/components/shared/MediaUpload";
+import UploadProgress from "@/components/shared/UploadProgress";
 import { display } from "@/utils/formatting";
 import useDealerTorsoBagManagement from "@/hooks/admin/useDealerTorsoBagManagement";
 
@@ -44,6 +45,7 @@ const DealerTorsoBagManagement = () => {
     currentTotal,
     isLoadingBags,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleChange,
     handleValueChange,
@@ -209,6 +211,14 @@ const DealerTorsoBagManagement = () => {
               </div>
             )}
           />
+
+          {/* Upload progress (direct browser→Cloudinary) */}
+          {uploadProgress.isUploading && (
+            <UploadProgress
+              done={uploadProgress.done}
+              total={uploadProgress.total}
+            />
+          )}
 
           {/* Quantity Summary */}
           <div className="p-4 rounded-lg border flex">

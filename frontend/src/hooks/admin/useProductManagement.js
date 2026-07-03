@@ -11,11 +11,13 @@ import {
   useGetColorsQuery,
   useGetSkillLevelsQuery,
 } from "@/redux/api/adminApi";
+import { toast } from "sonner";
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateProduct, handleFileReadError } from "@/utils/validation";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
+import { uploadImagesToCloudinary } from "@/utils/cloudinaryUpload";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
 /* -------------------------------------------------------------------------- */
@@ -72,6 +74,13 @@ const useProductManagement = () => {
   const [productType, setProductType] = useState("standalone");
   const [variants, setVariants] = useState([{ ...defaultVariant }]);
   const [imagesChanged, setImagesChanged] = useState(false);
+
+  // Tracks the direct browser→Cloudinary upload happening before the save call.
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
 
   // ------------------------------- Media ------------------------------------
   const {
@@ -185,7 +194,8 @@ const useProductManagement = () => {
     });
   }, [collections, subCollections]);
 
-  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+  const isSubmitting =
+    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
 
   // ------------------------------- Handlers ------------------------------------
   const handleChange = (e) => {
@@ -239,13 +249,15 @@ const useProductManagement = () => {
   };
 
   const handleImageChange = async (e) => {
-    const dataUrls = await handleFileChange(e, {
-      mapFile: (url) => ({ url }),
+    // Keep the raw File on each entry; it uploads directly to Cloudinary at
+    // submit. `url` is a preview-only data-URL.
+    const items = await handleFileChange(e, {
+      mapFile: (url, file) => ({ url, file }),
     });
-    if (dataUrls?.length) {
+    if (items?.length) {
       crud.setFormData((prev) => ({
         ...prev,
-        images: [...prev.images, ...dataUrls.map((item) => item.url)],
+        images: [...prev.images, ...items],
       }));
       setImagesChanged(true);
     }
@@ -297,6 +309,8 @@ const useProductManagement = () => {
           ...copy[variantIndex],
           imagePreview: dataUrl,
           image: dataUrl,
+          // Raw File for direct Cloudinary upload at submit.
+          imageFile: file,
         };
         return copy;
       });
@@ -312,6 +326,7 @@ const useProductManagement = () => {
         ...copy[variantIndex],
         imagePreview: "",
         image: "",
+        imageFile: null,
       };
       return copy;
     });
@@ -411,33 +426,91 @@ const useProductManagement = () => {
       isActive: crud.formData.isActive,
     };
 
-    if (productType === "standalone") {
-      productData.productType = "standalone";
-      productData.partId = sanitizeString(crud.formData.partId);
-      productData.itemId = sanitizeString(crud.formData.itemId);
-      productData.images = crud.formData.images;
+    try {
+      if (productType === "standalone") {
+        // Upload newly-added images (those carrying a raw File) directly.
+        const imgs = crud.formData.images;
+        const pending = imgs
+          .map((im, i) => ({ im, i }))
+          .filter(({ im }) => !im?.publicId && im?.file);
 
-      if (crud.formData.colorId) productData.colorId = crud.formData.colorId;
+        let refs = [];
+        if (pending.length > 0) {
+          setUploadProgress({ isUploading: true, done: 0, total: pending.length });
+          refs = await uploadImagesToCloudinary(
+            pending.map(({ im }) => im.file),
+            "product",
+            {
+              onProgress: (done, total) =>
+                setUploadProgress({ isUploading: true, done, total }),
+            },
+          );
+          setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        }
+        const refByIndex = new Map();
+        pending.forEach(({ i }, k) => refByIndex.set(i, refs[k]));
 
-      if (crud.formData.secondaryColorId)
-        productData.secondaryColorId = crud.formData.secondaryColorId;
+        productData.productType = "standalone";
+        productData.partId = sanitizeString(crud.formData.partId);
+        productData.itemId = sanitizeString(crud.formData.itemId);
+        productData.images = imgs
+          .map((im, i) =>
+            im?.publicId ? { publicId: im.publicId, url: im.url } : refByIndex.get(i),
+          )
+          .filter(Boolean);
 
-      if (crud.formData.stock !== "")
-        productData.stock = Number(crud.formData.stock) || 0;
-    }
+        if (crud.formData.colorId) productData.colorId = crud.formData.colorId;
 
-    if (productType === "variant") {
-      productData.productType = "variant";
-      productData.partId = sanitizeString(crud.formData.partId);
-      productData.variants = variants.map((variant) => ({
-        colorId: variant.colorId,
-        ...(variant.secondaryColorId && {
-          secondaryColorId: variant.secondaryColorId,
-        }),
-        itemId: sanitizeString(variant.itemId),
-        stock: Number(variant.stock) || 0,
-        image: variant.image || null,
-      }));
+        if (crud.formData.secondaryColorId)
+          productData.secondaryColorId = crud.formData.secondaryColorId;
+
+        if (crud.formData.stock !== "")
+          productData.stock = Number(crud.formData.stock) || 0;
+      }
+
+      if (productType === "variant") {
+        // Upload newly-added variant images (those carrying a raw File) directly.
+        const pending = variants
+          .map((v, i) => ({ v, i }))
+          .filter(({ v }) => !(v?.image && v.image.publicId) && v?.imageFile);
+
+        let refs = [];
+        if (pending.length > 0) {
+          setUploadProgress({ isUploading: true, done: 0, total: pending.length });
+          refs = await uploadImagesToCloudinary(
+            pending.map(({ v }) => v.imageFile),
+            "product-variant",
+            {
+              onProgress: (done, total) =>
+                setUploadProgress({ isUploading: true, done, total }),
+            },
+          );
+          setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        }
+        const refByIndex = new Map();
+        pending.forEach(({ i }, k) => refByIndex.set(i, refs[k]));
+
+        productData.productType = "variant";
+        productData.partId = sanitizeString(crud.formData.partId);
+        productData.variants = variants.map((variant, i) => ({
+          colorId: variant.colorId,
+          ...(variant.secondaryColorId && {
+            secondaryColorId: variant.secondaryColorId,
+          }),
+          itemId: sanitizeString(variant.itemId),
+          stock: Number(variant.stock) || 0,
+          image:
+            variant.image && variant.image.publicId
+              ? { publicId: variant.image.publicId, url: variant.image.url }
+              : refByIndex.get(i) || null,
+        }));
+      }
+    } catch (error) {
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+      toast.error("Image upload failed", {
+        description: error?.message || "Could not upload images.",
+      });
+      return;
     }
 
     if (crud.formData.discount !== "")
@@ -500,6 +573,7 @@ const useProductManagement = () => {
     isLoadingColors,
     isLoadingSkillLevels,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleEdit,
     handleSubmit,

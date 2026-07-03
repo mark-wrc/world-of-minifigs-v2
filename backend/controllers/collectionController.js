@@ -1,8 +1,7 @@
 import Collection from "../models/collection.model.js";
 import SubCollection from "../models/subCollection.model.js";
 import {
-  uploadSingleImage,
-  replaceSingleImage,
+  normalizeImageRef,
   deleteSingleImage,
 } from "../services/imageService.js";
 import {
@@ -16,7 +15,8 @@ import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
 const FEATURED_COLLECTION_LIMIT = 2;
-const IMAGE_FOLDER = "world-of-minifigs-v2/collections";
+// Collection images upload browser→Cloudinary directly; folder (collection) is
+// owned by uploadController.js.
 
 //------------------------------------------------ Create Collection ------------------------------------------
 export const createCollection = async (req, res) => {
@@ -81,15 +81,15 @@ export const createCollection = async (req, res) => {
       }
     }
 
-    // Upload image via imageService
+    // Image uploaded directly to Cloudinary by the browser; store its ref.
     let uploadedImage;
     try {
-      uploadedImage = await uploadSingleImage(image, IMAGE_FOLDER);
+      uploadedImage = normalizeImageRef(image);
     } catch (error) {
-      console.error("Image upload error:", error);
+      console.error("Image reference error:", error);
       return res.status(400).json({
         success: false,
-        message: "Failed to upload image",
+        message: "Failed to save image",
         description: error.message,
       });
     }
@@ -264,15 +264,15 @@ export const updateCollection = async (req, res) => {
       collection.isFeatured = isFeatured;
     }
 
-    // Replace image if provided via imageService
+    // Replace image if a new one was uploaded (ref differs from the current).
     if (image) {
       try {
-        const uploaded = await replaceSingleImage(
-          image,
-          collection.image,
-          IMAGE_FOLDER,
-        );
-        if (uploaded) collection.image = uploaded;
+        const newImage = normalizeImageRef(image);
+        const oldPublicId = collection.image?.publicId;
+        if (newImage.publicId !== oldPublicId) {
+          collection.image = newImage;
+          if (oldPublicId) deleteSingleImage(oldPublicId);
+        }
       } catch (error) {
         console.error("Image update error:", error);
         return res.status(400).json({

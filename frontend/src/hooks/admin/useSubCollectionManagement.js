@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { toast } from "sonner";
 import {
   useGetSubCollectionsQuery,
   useCreateSubCollectionMutation,
@@ -9,6 +10,7 @@ import {
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateSubCollection } from "@/utils/validation";
+import { uploadImageToCloudinary } from "@/utils/cloudinaryUpload";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
@@ -41,6 +43,19 @@ const useSubCollectionManagement = () => {
     handleRemoveFile,
   } = useMediaPreview();
 
+  // Raw File for a newly-picked image, uploaded to Cloudinary at submit.
+  const [imageFile, setImageFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
+
+  const resetSubCollectionImage = useCallback(() => {
+    setImageFile(null);
+    resetFile();
+  }, [resetFile]);
+
   // ------------------------------- Mutations ------------------------------------
   const [createSubCollection, { isLoading: isCreating }] =
     useCreateSubCollectionMutation();
@@ -56,7 +71,7 @@ const useSubCollectionManagement = () => {
     updateFn: updateSubCollection,
     deleteFn: deleteSubCollection,
     entityName: "sub-collection",
-    onReset: resetFile,
+    onReset: resetSubCollectionImage,
   });
 
   // ------------------------------- Fetch ------------------------------------
@@ -85,11 +100,18 @@ const useSubCollectionManagement = () => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
 
-  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+  const isSubmitting =
+    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
 
   // ------------------------------- File Handlers ------------------------------------
   const handleSubCollectionFileChange = async (e) => {
-    const dataUrl = await handleFileChange(e);
+    // Keep the raw File for direct upload; data-URL is the preview + "new" signal.
+    const dataUrl = await handleFileChange(e, {
+      mapFile: (url, file) => {
+        setImageFile(file);
+        return url;
+      },
+    });
     if (dataUrl) {
       crud.setFormData((prev) => ({ ...prev, image: dataUrl }));
     }
@@ -97,6 +119,7 @@ const useSubCollectionManagement = () => {
 
   const handleSubCollectionFileRemove = () => {
     handleRemoveFile();
+    setImageFile(null);
     crud.setFormData((prev) => ({ ...prev, image: null }));
   };
 
@@ -117,11 +140,27 @@ const useSubCollectionManagement = () => {
   const handleSubmit = async () => {
     if (!validateSubCollection(crud.formData, crud.dialogMode)) return;
 
+    // Upload a newly-picked image directly to Cloudinary first.
+    let imageRef;
+    if (crud.formData.image && imageFile) {
+      setUploadProgress({ isUploading: true, done: 0, total: 1 });
+      try {
+        imageRef = await uploadImageToCloudinary(imageFile, "sub-collection");
+      } catch (error) {
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        toast.error("Image upload failed", {
+          description: error?.message || "Could not upload image.",
+        });
+        return;
+      }
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+    }
+
     const payload = {
       subCollectionName: sanitizeString(crud.formData.subCollectionName),
       description: sanitizeString(crud.formData.description),
       isActive: crud.formData.isActive,
-      ...(crud.formData.image && { image: crud.formData.image }),
+      ...(imageRef && { image: imageRef }),
       collection: crud.formData.collection,
     };
 
@@ -154,6 +193,7 @@ const useSubCollectionManagement = () => {
     isLoadingSubCollections,
     isLoadingCollections,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleSubCollectionFileChange,
     handleSubCollectionFileRemove,

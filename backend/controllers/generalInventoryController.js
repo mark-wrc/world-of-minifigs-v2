@@ -8,8 +8,7 @@ import DealerAddon from "../models/dealerAddon.model.js";
 import Order from "../models/order.model.js";
 import { ORDER_STATUSES } from "../constants/orderConstants.js";
 import {
-  uploadSingleImage,
-  replaceSingleImage,
+  normalizeImageRef,
   deleteSingleImage,
 } from "../services/imageService.js";
 import {
@@ -21,7 +20,7 @@ import {
 import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
-const IMAGE_FOLDER = "world-of-minifigs-v2/general-inventory";
+// Image uploads go browser→Cloudinary directly; folder owned by uploadController.js.
 
 // Order statuses that count as a completed sale (excludes cancelled/failed).
 const SOLD_ORDER_STATUSES = [ORDER_STATUSES.PAID, ORDER_STATUSES.SHIPPED];
@@ -143,8 +142,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
         ? `Item with name "${minifigName}" and color "${color.colorName}" already exists.`
         : null;
 
-      // Upload image via imageService (validate + upload)
-      const uploadedImage = await uploadSingleImage(image, IMAGE_FOLDER);
+      // Image was uploaded directly to Cloudinary by the browser; store its ref.
+      const uploadedImage = normalizeImageRef(image);
 
       const newInventory = await GeneralInventory.create({
         minifigName: String(minifigName).trim(),
@@ -513,15 +512,16 @@ export const updateGeneralInventory = async (req, res) => {
       inventory.colorId = colorId;
     }
 
-    // Replace image if new base64 provided via imageService
+    // New image uploaded directly to Cloudinary by the browser: swap the stored
+    // reference and clean up the previous asset if it actually changed.
     if (image !== undefined && image !== null) {
       try {
-        const uploaded = await replaceSingleImage(
-          image,
-          inventory.image,
-          IMAGE_FOLDER,
-        );
-        if (uploaded) inventory.image = uploaded;
+        const newImage = normalizeImageRef(image);
+        const oldPublicId = inventory.image?.publicId;
+        if (newImage.publicId !== oldPublicId) {
+          inventory.image = newImage;
+          if (oldPublicId) deleteSingleImage(oldPublicId);
+        }
       } catch (error) {
         return res.status(400).json({
           success: false,

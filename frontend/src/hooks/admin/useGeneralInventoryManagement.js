@@ -11,6 +11,10 @@ import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateGeneralInventory } from "@/utils/validation";
 import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
+import {
+  uploadImageToCloudinary,
+  uploadImagesToCloudinary,
+} from "@/utils/cloudinaryUpload";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
@@ -45,7 +49,7 @@ const TAIL_COLUMNS = [
 // Factory for preview item
 const makeNewPreview = (
   url,
-  { category = "", collectionId = "", partType = "" } = {},
+  { category = "", collectionId = "", partType = "", file = null } = {},
 ) => ({
   url,
   minifigName: "",
@@ -57,7 +61,10 @@ const makeNewPreview = (
   category,
   collectionId,
   partType,
+  // `url` is a local data-URL preview; `file` is the raw File uploaded directly
+  // to Cloudinary at submit. No `publicId` marks it as not-yet-uploaded.
   image: { url },
+  file,
 });
 
 const useGeneralInventoryManagement = () => {
@@ -187,7 +194,16 @@ const useGeneralInventoryManagement = () => {
     salesSort,
   ]);
 
-  const isSubmitting = crud.dialogMode === "edit" ? isUpdating : isCreating;
+  // Tracks the direct browser→Cloudinary upload happening before the save call.
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
+
+  const isSubmitting =
+    uploadProgress.isUploading ||
+    (crud.dialogMode === "edit" ? isUpdating : isCreating);
 
   // ------------------------------- File Handlers ------------------------------------
   const handleInventoryFileChange = async (e) => {
@@ -197,13 +213,17 @@ const useGeneralInventoryManagement = () => {
         const file = files[0];
         if (!validateFile(file)) return;
         const dataUrl = await readFileAsDataURL(file);
+        // Keep the raw File so it uploads directly to Cloudinary at submit.
         setFilePreview((prev) =>
-          prev.map((item, i) => (i === 0 ? { ...item, url: dataUrl } : item)),
+          prev.map((item, i) =>
+            i === 0 ? { ...item, url: dataUrl, file } : item,
+          ),
         );
       }
     } else {
       await handleFileChange(e, {
-        mapFile: (url) => makeNewPreview(url, { category: activeTab }),
+        mapFile: (url, file) =>
+          makeNewPreview(url, { category: activeTab, file }),
       });
     }
   };
@@ -300,62 +320,76 @@ const useGeneralInventoryManagement = () => {
 
   // ------------------------------- Submit Handler ------------------------------------
   const handleSubmit = async () => {
+    if (
+      !validateGeneralInventory(filePreview, crud.dialogMode === "add", activeTab)
+    )
+      return;
+
+    const buildFields = (item) => ({
+      minifigName: sanitizeString(item.minifigName),
+      itemId: sanitizeString(item.itemId) || null,
+      pricePerBag: Number(item.pricePerBag),
+      piecesPerBag: Number(item.piecesPerBag) || 1,
+      stock: Number(item.stock),
+      colorId: item.color,
+      category: activeTab,
+      collectionId: activeTab === "minifigs" ? item.collectionId : null,
+      partType: activeTab === "bulk-minifig-parts" ? item.partType : null,
+    });
+
     if (crud.dialogMode === "add") {
-      if (
-        !validateGeneralInventory(
-          filePreview,
-          crud.dialogMode === "add",
-          activeTab,
-        )
-      )
+      // Every new row carries a raw File; upload them all directly to Cloudinary.
+      const files = filePreview.map((item) => item.file);
+      let refs = [];
+      setUploadProgress({ isUploading: true, done: 0, total: files.length });
+      try {
+        refs = await uploadImagesToCloudinary(files, "general-inventory", {
+          onProgress: (done, total) =>
+            setUploadProgress({ isUploading: true, done, total }),
+        });
+      } catch (error) {
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        toast.error("Image upload failed", {
+          description: error?.message || "Could not upload images.",
+        });
         return;
+      }
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
 
       const payload = {
-        items: filePreview.map((item) => ({
-          minifigName: sanitizeString(item.minifigName),
-          itemId: sanitizeString(item.itemId) || null,
-          pricePerBag: Number(item.pricePerBag),
-          piecesPerBag: Number(item.piecesPerBag) || 1,
-          stock: Number(item.stock),
-          colorId: item.color,
-          category: activeTab,
-          collectionId: activeTab === "minifigs" ? item.collectionId : null,
-          partType:
-            activeTab === "bulk-minifig-parts" ? item.partType : null,
-          image:
-            typeof item.url === "string" && item.url.startsWith("data:")
-              ? item.url
-              : item.image,
+        items: filePreview.map((item, i) => ({
+          ...buildFields(item),
+          image: refs[i] || item.image,
         })),
       };
 
       await crud.submitForm(payload);
     } else {
-      if (
-        !validateGeneralInventory(
-          filePreview,
-          crud.dialogMode === "add",
-          activeTab,
-        )
-      )
-        return;
-
       const item = filePreview[0];
 
+      // Only upload when the admin picked a new file this edit.
+      let imageRef;
+      if (item.file) {
+        setUploadProgress({ isUploading: true, done: 0, total: 1 });
+        try {
+          imageRef = await uploadImageToCloudinary(
+            item.file,
+            "general-inventory",
+          );
+        } catch (error) {
+          setUploadProgress({ isUploading: false, done: 0, total: 0 });
+          toast.error("Image upload failed", {
+            description: error?.message || "Could not upload image.",
+          });
+          return;
+        }
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+      }
+
       const payload = {
-        minifigName: sanitizeString(item.minifigName),
-        itemId: sanitizeString(item.itemId) || null,
-        pricePerBag: Number(item.pricePerBag),
-        piecesPerBag: Number(item.piecesPerBag) || 1,
-        stock: Number(item.stock),
-        colorId: item.color,
-        category: activeTab,
-        collectionId: activeTab === "minifigs" ? item.collectionId : null,
-        partType:
-          activeTab === "bulk-minifig-parts" ? item.partType : null,
+        ...buildFields(item),
         isActive: crud.formData.isActive,
-        ...(typeof item.url === "string" &&
-          item.url.startsWith("data:") && { image: item.url }),
+        ...(imageRef ? { image: imageRef } : {}),
       };
 
       await crud.submitForm(payload);
@@ -436,6 +470,7 @@ const useGeneralInventoryManagement = () => {
     isLoadingColors,
     isLoadingCollections,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleInventoryFileChange,
     handleInventoryFileRemove,

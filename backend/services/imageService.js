@@ -261,6 +261,59 @@ export const deleteSingleMedia = (publicId, resourceType = "image") => {
   );
 };
 
+// ------------------------------- Direct-upload (reference) helpers -----------------------------
+//
+// Images/media now upload directly from the browser to Cloudinary, so the
+// server receives only { publicId, url } references (plus resourceType/duration
+// for media) — never raw image bytes. These helpers validate those references
+// and clean up any Cloudinary assets that were dropped, replacing the old
+// base64-through-the-server upload paths. This is what keeps request bodies
+// tiny and makes the JSON-parse OOM impossible regardless of image count.
+
+const isImageRef = (val) =>
+  val && typeof val === "object" && !!val.publicId && !!val.url;
+
+// Validate + normalize a single required image reference.
+export const normalizeImageRef = (ref) => {
+  if (!isImageRef(ref)) {
+    throw new Error("A valid uploaded image (publicId and url) is required.");
+  }
+  return { publicId: ref.publicId, url: ref.url };
+};
+
+// Normalize an array of image references (e.g. product galleries).
+// Non-reference entries are dropped.
+export const normalizeImageRefs = (refs) =>
+  (Array.isArray(refs) ? refs : [])
+    .filter(isImageRef)
+    .map((ref) => ({ publicId: ref.publicId, url: ref.url }));
+
+// Validate + normalize a single media reference (image or video),
+// preserving resourceType and (for video) duration.
+export const normalizeMediaRef = (ref) => {
+  if (!isImageRef(ref)) {
+    throw new Error("A valid uploaded media file (publicId and url) is required.");
+  }
+  const resourceType = ref.resourceType === "video" ? "video" : "image";
+  const normalized = { publicId: ref.publicId, url: ref.url, resourceType };
+  if (resourceType === "video" && ref.duration != null) {
+    normalized.duration = Number(ref.duration);
+  }
+  return normalized;
+};
+
+// Given the new set of image references and the previously-stored ones,
+// delete (in background) any Cloudinary images that were dropped.
+export const cleanupRemovedImages = (newRefs, existingRefs) => {
+  const kept = new Set(
+    (newRefs || []).map((ref) => ref?.publicId).filter(Boolean),
+  );
+  const removed = (existingRefs || [])
+    .map((ref) => ref?.publicId)
+    .filter((id) => id && !kept.has(id));
+  deleteMultipleImages(removed);
+};
+
 // ------------------------------- Rollback Helper -----------------------------
 
 // Rollback multiple upload results after a failure

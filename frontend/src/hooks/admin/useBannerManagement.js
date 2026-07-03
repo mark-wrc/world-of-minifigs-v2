@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 import {
   useGetBannersQuery,
   useCreateBannerMutation,
@@ -8,6 +9,7 @@ import {
 import { extractPaginatedData } from "@/utils/apiHelpers";
 import { sanitizeString, sanitizeOptional } from "@/utils/formatting";
 import { validateBanner } from "@/utils/validation";
+import { uploadMediaToCloudinary } from "@/utils/cloudinaryUpload";
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
@@ -50,6 +52,21 @@ const useBannerManagement = () => {
     handleRemoveFile,
   } = useMediaPreview({ allowVideo: true, maxSizeMB: 10 });
 
+  // Raw File for a newly-picked banner media, uploaded to Cloudinary at submit.
+  const [bannerMediaFile, setBannerMediaFile] = useState(null);
+
+  // Tracks the direct browser→Cloudinary upload happening before the save call.
+  const [uploadProgress, setUploadProgress] = useState({
+    isUploading: false,
+    done: 0,
+    total: 0,
+  });
+
+  const resetBannerMedia = useCallback(() => {
+    setBannerMediaFile(null);
+    resetFile();
+  }, [resetFile]);
+
   // ---------------------------- Mutations ----------------------------
   const [createBanner, { isLoading: isCreating }] = useCreateBannerMutation();
   const [updateBanner, { isLoading: isUpdating }] = useUpdateBannerMutation();
@@ -62,7 +79,7 @@ const useBannerManagement = () => {
     updateFn: updateBanner,
     deleteFn: deleteBanner,
     entityName: "banner",
-    onReset: resetFile,
+    onReset: resetBannerMedia,
   });
 
   // ---------------------------- Fetch ----------------------------
@@ -84,7 +101,8 @@ const useBannerManagement = () => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
 
-  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+  const isSubmitting =
+    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
 
   // ---------------------------- Media Handlers ----------------------------
   const handleBannerFileChange = async (e) => {
@@ -92,7 +110,14 @@ const useBannerManagement = () => {
     if (!file) return;
 
     const mediaType = file.type.startsWith("video") ? "video" : "image";
-    const dataUrl = await handleFileChange(e);
+    // Keep the raw File for direct upload; the data-URL is preview-only and
+    // still acts as the "new media" signal on formData.media.
+    const dataUrl = await handleFileChange(e, {
+      mapFile: (url, picked) => {
+        setBannerMediaFile(picked);
+        return url;
+      },
+    });
 
     if (dataUrl) {
       crud.setFormData((prev) => ({
@@ -105,6 +130,7 @@ const useBannerManagement = () => {
 
   const handleBannerFileRemove = () => {
     handleRemoveFile();
+    setBannerMediaFile(null);
     crud.setFormData((prev) => ({
       ...prev,
       media: null,
@@ -152,6 +178,22 @@ const useBannerManagement = () => {
   const handleSubmit = async () => {
     if (!validateBanner(crud.formData, crud.dialogMode)) return;
 
+    // Upload newly-picked media directly to Cloudinary first (image or video).
+    let mediaRef;
+    if (crud.formData.media && bannerMediaFile) {
+      setUploadProgress({ isUploading: true, done: 0, total: 1 });
+      try {
+        mediaRef = await uploadMediaToCloudinary(bannerMediaFile, "banner");
+      } catch (error) {
+        setUploadProgress({ isUploading: false, done: 0, total: 0 });
+        toast.error("Media upload failed", {
+          description: error?.message || "Could not upload banner media.",
+        });
+        return;
+      }
+      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+    }
+
     const buttons = crud.formData.enableButtons
       ? crud.formData.buttons
           .filter((b) => sanitizeString(b.label) && sanitizeString(b.href))
@@ -173,7 +215,8 @@ const useBannerManagement = () => {
       isActive: crud.formData.isActive,
       order: crud.formData.order,
       ...(buttons?.length && { buttons }),
-      ...(crud.formData.media && { media: crud.formData.media }),
+      // Send the uploaded media reference (never the raw bytes).
+      ...(mediaRef && { media: mediaRef }),
     };
 
     await crud.submitForm(payload);
@@ -223,6 +266,7 @@ const useBannerManagement = () => {
     columns,
     isLoadingBanners,
     isSubmitting,
+    uploadProgress,
     isDeleting,
     handleBannerFileChange,
     handleBannerFileRemove,

@@ -7,14 +7,11 @@ import SubCollection from "../models/subCollection.model.js";
 import Color from "../models/color.model.js";
 import SkillLevel from "../models/skillLevel.model.js";
 import {
-  uploadSingleImage,
-  uploadMultipleImages,
-  processImagesForUpdate,
-  processItemsForCreate,
-  processItemsForUpdate,
+  normalizeImageRef,
+  normalizeImageRefs,
+  cleanupRemovedImages,
   cleanupItemImages,
   deleteMultipleImages,
-  rollbackUploads,
 } from "../services/imageService.js";
 import {
   normalizePagination,
@@ -51,8 +48,8 @@ import {
 } from "../utils/Products/productQueryValidator.js";
 import { onProductToggle } from "../utils/Products/visibilityUtils.js";
 
-const IMAGE_FOLDER = "world-of-minifigs-v2/products";
-const VARIANT_FOLDER = "world-of-minifigs-v2/products/variants";
+// Product & variant images upload browser→Cloudinary directly; folders
+// (product, product-variant) are owned by uploadController.js.
 
 //------------------------------------------------ Helpers ------------------------------------------
 
@@ -299,49 +296,31 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    // Upload images for standalone products (parallel batched)
+    // Standalone images were uploaded directly to Cloudinary; store their refs.
     let uploadedImages = [];
     if (isStandalone && images) {
-      try {
-        uploadedImages = await uploadMultipleImages(images, IMAGE_FOLDER);
-      } catch (error) {
-        console.error("Image upload error:", error);
-        return res.status(400).json({
-          success: false,
-          message: "Failed to upload images",
-          description: error.message,
-        });
-      }
+      uploadedImages = normalizeImageRefs(images);
     }
 
-    // Process variants and upload their images (parallel batched)
+    // Variants carry their already-uploaded image ref { publicId, url }.
     let processedVariants = [];
     if (hasVariants && variants) {
       try {
-        processedVariants = await processItemsForCreate(
-          variants,
-          VARIANT_FOLDER,
-          {
-            getImage: (v) => v.image,
-            transform: (v, uploadedImage) => ({
-              colorId: v.colorId,
-              secondaryColorId: v.secondaryColorId || undefined,
-              itemId: v.itemId.trim(),
-              stock:
-                v.stock !== undefined && v.stock !== "" && v.stock !== null
-                  ? Number(v.stock)
-                  : 0,
-              image: uploadedImage,
-            }),
-          },
-        );
+        processedVariants = variants.map((v) => ({
+          colorId: v.colorId,
+          secondaryColorId: v.secondaryColorId || undefined,
+          itemId: v.itemId.trim(),
+          stock:
+            v.stock !== undefined && v.stock !== "" && v.stock !== null
+              ? Number(v.stock)
+              : 0,
+          image: normalizeImageRef(v.image),
+        }));
       } catch (error) {
-        console.error("Variant image upload error:", error);
-        // Rollback standalone images if variants fail
-        rollbackUploads(uploadedImages);
+        console.error("Variant image reference error:", error);
         return res.status(400).json({
           success: false,
-          message: "Failed to upload variant images",
+          message: "Failed to save variant images",
           description: error.message,
         });
       }
@@ -750,60 +729,46 @@ export const updateProduct = async (req, res) => {
       }
     }
 
-    // Handle image updates for standalone products (parallel batched)
+    // Standalone images arrive as uploaded refs; store them and clean up any
+    // previously-stored images the admin dropped.
     let uploadedImages = [];
 
     if (isStandalone && images) {
-      try {
-        uploadedImages = await processImagesForUpdate(
-          images,
-          product.images,
-          IMAGE_FOLDER,
-        );
-      } catch (error) {
-        console.error("Image upload error:", error);
-        return res.status(400).json({
-          success: false,
-          message: "Failed to upload images",
-          description: error.message,
-        });
-      }
+      uploadedImages = normalizeImageRefs(images);
+      cleanupRemovedImages(uploadedImages, product.images);
     }
 
-    // Handle variant image updates (parallel batched)
+    // Variant images also arrive as uploaded refs.
     let processedVariants = [];
 
     if (hasVariants || product.variants?.length) {
       const variantsToProcess = hasVariants ? variants : product.variants;
 
       try {
-        processedVariants = await processItemsForUpdate(
-          variantsToProcess,
-          product.variants || [],
-          VARIANT_FOLDER,
-          {
-            isExisting: (v) => typeof v.image === "object" && v.image?.publicId,
-            getImage: (v) => (typeof v.image === "string" ? v.image : null),
-            transform: (v, uploadedImage) => ({
-              colorId: v.colorId,
-              secondaryColorId: v.secondaryColorId || undefined,
-              itemId: v.itemId.trim(),
-              stock:
-                v.stock !== undefined && v.stock !== "" && v.stock !== null
-                  ? Number(v.stock)
-                  : 0,
-              image: uploadedImage,
-            }),
-          },
-        );
+        processedVariants = variantsToProcess.map((v) => ({
+          colorId: v.colorId,
+          secondaryColorId: v.secondaryColorId || undefined,
+          itemId: v.itemId.trim(),
+          stock:
+            v.stock !== undefined && v.stock !== "" && v.stock !== null
+              ? Number(v.stock)
+              : 0,
+          image: normalizeImageRef(v.image),
+        }));
       } catch (error) {
-        console.error("Variant image upload error:", error);
+        console.error("Variant image reference error:", error);
         return res.status(400).json({
           success: false,
-          message: "Failed to upload variant images",
+          message: "Failed to save variant images",
           description: error.message,
         });
       }
+
+      // Delete variant images that were dropped from the set.
+      cleanupRemovedImages(
+        processedVariants.map((v) => v.image),
+        (product.variants || []).map((v) => v.image),
+      );
 
       // Clean up standalone images if switching to variants
       if (isChangingToVariants && product.images?.length > 0) {
@@ -931,8 +896,8 @@ export const updateProduct = async (req, res) => {
 
     await onProductToggle(product._id);
 
-    // NOTE: Image cleanup is now handled by processImagesForUpdate and
-    // processItemsForUpdate in imageService (fire-and-forget background deletes).
+    // NOTE: Removed images are cleaned up above via cleanupRemovedImages
+    // (fire-and-forget background deletes).
 
     // Populate references
     await product.populate(PRODUCT_DETAILS_POPULATE_WITH_UPDATED);

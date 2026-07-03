@@ -6,55 +6,29 @@ import GeneralInventory from "../models/generalInventory.model.js";
 import SubCollection from "../models/subCollection.model.js";
 import {
   cleanupItemImages,
-  uploadSingleImage,
-  replaceSingleImage,
+  normalizeImageRef,
   deleteSingleImage,
-  uploadMultipleImages,
   deleteMultipleImages,
 } from "../services/imageService.js";
 
-const ADDON_IMAGE_FOLDER = "world-of-minifigs-v2/dealers/add-ons";
-const ADDON_PREVIEW_IMAGE_FOLDER =
-  "world-of-minifigs-v2/dealers/add-ons/previews";
+// Addon images upload browser→Cloudinary directly; folders (dealer-addon,
+// dealer-addon-preview) are owned by uploadController.js.
 
 // Reconcile an upgrade add-on's preview gallery against the incoming payload.
-// Each incoming entry is either an existing image ({ publicId, url, label }) to
-// keep, or a freshly-picked one ({ image: dataURL, label }) to upload. Labels
-// ride alongside each image; removed images are cleaned up from Cloudinary.
-// Returns the persisted array, preserving the order the admin arranged.
-const processAddonPreviewImages = async (incoming, existing = []) => {
+// Images now upload directly from the browser to Cloudinary, so every entry
+// arrives as an uploaded reference { publicId, url, label } (existing or newly
+// added). Labels ride alongside each image; removed images are cleaned up from
+// Cloudinary. Returns the persisted array, preserving the admin's order.
+const processAddonPreviewImages = (incoming, existing = []) => {
   if (!Array.isArray(incoming)) return undefined; // omitted = no change
 
-  const result = [];
-  const toUpload = [];
-  const uploadSlots = [];
-
-  incoming.forEach((entry) => {
-    const label = typeof entry?.label === "string" ? entry.label.trim() : "";
-    if (entry?.publicId && entry?.url) {
-      result.push({ publicId: entry.publicId, url: entry.url, label });
-    } else if (
-      typeof entry?.image === "string" &&
-      entry.image.startsWith("data:image/")
-    ) {
-      const slot = result.push({ label }) - 1; // placeholder, filled post-upload
-      uploadSlots.push(slot);
-      toUpload.push(entry.image);
-    }
-  });
-
-  if (toUpload.length > 0) {
-    const uploaded = await uploadMultipleImages(
-      toUpload,
-      ADDON_PREVIEW_IMAGE_FOLDER,
-    );
-    uploaded.forEach((img, i) => {
-      const slot = uploadSlots[i];
-      result[slot] = { publicId: img.publicId, url: img.url, label: result[slot].label };
-    });
-  }
-
-  const final = result.filter((p) => p.publicId && p.url);
+  const final = incoming
+    .filter((entry) => entry?.publicId && entry?.url)
+    .map((entry) => ({
+      publicId: entry.publicId,
+      url: entry.url,
+      label: typeof entry?.label === "string" ? entry.label.trim() : "",
+    }));
 
   // Delete any previously-stored images the admin dropped.
   const keptIds = new Set(final.map((p) => p.publicId));
@@ -669,15 +643,15 @@ export const createDealerAddon = async (req, res) => {
       }
     }
 
-    // Optional image upload
+    // Optional image (already uploaded to Cloudinary by the browser).
     if (image) {
       try {
-        addonData.image = await uploadSingleImage(image, ADDON_IMAGE_FOLDER);
+        addonData.image = normalizeImageRef(image);
       } catch (error) {
-        console.error("Addon image upload error:", error);
+        console.error("Addon image reference error:", error);
         return res.status(400).json({
           success: false,
-          message: "Failed to upload image",
+          message: "Failed to save image",
           description: error.message,
         });
       }
@@ -873,15 +847,15 @@ export const updateDealerAddon = async (req, res) => {
       }
     }
 
-    // Replace image if provided
+    // Replace image if a new one was uploaded (ref differs from the current).
     if (image) {
       try {
-        const uploaded = await replaceSingleImage(
-          image,
-          addon.image,
-          ADDON_IMAGE_FOLDER,
-        );
-        if (uploaded) addon.image = uploaded;
+        const newImage = normalizeImageRef(image);
+        const oldPublicId = addon.image?.publicId;
+        if (newImage.publicId !== oldPublicId) {
+          addon.image = newImage;
+          if (oldPublicId) deleteSingleImage(oldPublicId);
+        }
       } catch (error) {
         console.error("Addon image update error:", error);
         return res.status(400).json({

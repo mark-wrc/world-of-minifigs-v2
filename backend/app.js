@@ -111,9 +111,8 @@ app.use(cookieParser());
 // Payment routes mounted before express.json - webhook needs raw body, router handles it
 app.use("/api/v1/payment", paymentRoutes);
 
-const BODY_LIMIT = process.env.JSON_BODY_LIMIT || "35mb";
-app.use(express.json({ limit: BODY_LIMIT }));
-app.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }));
+app.use(express.json({ limit: "500mb" }));
+app.use(express.urlencoded({ limit: "500mb", extended: true }));
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -145,26 +144,6 @@ if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
     res.status(404).json({ message: "Route not found" });
   });
 }
-
-// Error handler — catches body-parser payload-too-large (and other errors)
-// so an oversized upload returns a clean 413 instead of crashing the request.
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  if (err?.type === "entity.too.large" || err?.status === 413) {
-    return res.status(413).json({
-      success: false,
-      message: "Upload too large",
-      description:
-        "The images you're uploading exceed the size limit. Please upload fewer or smaller images and try again.",
-    });
-  }
-
-  console.error("Unhandled error:", err);
-  return res.status(err?.status || 500).json({
-    success: false,
-    message: "Something went wrong",
-  });
-});
 
 // Start server after DB connects
 const PORT = process.env.PORT || 4000;

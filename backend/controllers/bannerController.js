@@ -1,9 +1,8 @@
 import Banner from "../models/banner.model.js";
 import {
-  uploadSingleMedia,
+  normalizeMediaRef,
   deleteSingleMedia,
 } from "../services/imageService.js";
-import { validateMedia } from "../utils/cloudinary.js";
 import {
   normalizePagination,
   buildSearchQuery,
@@ -15,7 +14,8 @@ import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 //------------------------------------------------ Helpers ------------------------------------------
 
 const BANNER_VIDEO_MAX_SECONDS = 10;
-const IMAGE_FOLDER = "world-of-minifigs-v2/banners";
+// Banner media uploads browser→Cloudinary directly; folder (banner) is owned
+// by uploadController.js.
 
 const BANNER_VALID_PATHS = [
   "/products",
@@ -157,16 +157,6 @@ export const createBanner = async (req, res) => {
       });
     }
 
-    // Validate media
-    const mediaValidation = validateMedia(media);
-
-    if (!mediaValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid banner media",
-        description: mediaValidation.error,
-      });
-    }
 
     // Validate buttons
     const finalEnableButtons =
@@ -183,11 +173,11 @@ export const createBanner = async (req, res) => {
       }
     }
 
-    // Upload media via imageService
+    // Media was uploaded directly to Cloudinary by the browser; store its ref.
     let uploadedMedia = null;
 
     try {
-      uploadedMedia = await uploadSingleMedia(media, IMAGE_FOLDER);
+      uploadedMedia = normalizeMediaRef(media);
 
       const videoError = await validateBannerVideoDuration(uploadedMedia);
       if (videoError) {
@@ -198,11 +188,11 @@ export const createBanner = async (req, res) => {
         });
       }
     } catch (error) {
-      console.error("Banner media upload error:", error);
+      console.error("Banner media reference error:", error);
 
       return res.status(400).json({
         success: false,
-        message: "Failed to upload banner media",
+        message: "Invalid banner media",
         description: error.message,
       });
     }
@@ -434,22 +424,12 @@ export const updateBanner = async (req, res) => {
       }
     }
 
-    // Replace media if new media is provided
+    // Replace media if a new one was uploaded (ref differs from the current).
     if (media) {
-      const mediaValidation = validateMedia(media);
-
-      if (!mediaValidation.isValid) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid banner media",
-          description: mediaValidation.error,
-        });
-      }
-
       let uploadResult = null;
 
       try {
-        uploadResult = await uploadSingleMedia(media, IMAGE_FOLDER);
+        uploadResult = normalizeMediaRef(media);
 
         const videoError = await validateBannerVideoDuration(uploadResult);
         if (videoError) {
@@ -460,24 +440,26 @@ export const updateBanner = async (req, res) => {
           });
         }
       } catch (error) {
-        console.error("Banner media upload error:", error);
+        console.error("Banner media reference error:", error);
 
         return res.status(400).json({
           success: false,
-          message: "Failed to upload banner media",
+          message: "Invalid banner media",
           description: error.message,
         });
       }
 
-      // Delete old media in background (fire-and-forget)
-      deleteSingleMedia(banner.media?.publicId, banner.media?.resourceType);
+      if (uploadResult.publicId !== banner.media?.publicId) {
+        // Delete old media in background (fire-and-forget)
+        deleteSingleMedia(banner.media?.publicId, banner.media?.resourceType);
 
-      banner.media = {
-        publicId: uploadResult.publicId,
-        url: uploadResult.url,
-        resourceType: uploadResult.resourceType,
-        duration: uploadResult.duration,
-      };
+        banner.media = {
+          publicId: uploadResult.publicId,
+          url: uploadResult.url,
+          resourceType: uploadResult.resourceType,
+          duration: uploadResult.duration,
+        };
+      }
     }
 
     if (badge !== undefined) banner.badge = badge?.trim() || undefined;
