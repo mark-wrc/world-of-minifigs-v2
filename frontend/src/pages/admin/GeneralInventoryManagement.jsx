@@ -16,6 +16,7 @@ import {
 import {
   AdminFormInput,
   AdminFormSelect,
+  AdminFormMultiSelect,
 } from "@/components/shared/AdminFormInput";
 import AdminManagementHeader from "@/components/shared/AdminManagementHeader";
 import TableLayout from "@/components/table/TableLayout";
@@ -263,18 +264,17 @@ const InventoryItemInputs = React.memo(
       />
 
       {isMinifigsTab && (
-        <AdminFormSelect
-          name="collectionId"
-          value={item.collectionId}
-          onValueChange={getValueChangeHandler("collectionId", index)}
+        <AdminFormMultiSelect
+          name="collectionIds"
+          value={item.collectionIds}
+          onValueChange={getValueChangeHandler("collectionIds", index)}
           triggerClassName="text-[11px]"
           options={collections}
           getValue={(c) => c._id}
           getLabel={(c) => c.collectionName}
-          placeholder="Select Collection"
+          placeholder="Select Collections"
           isLoading={isLoadingCollections}
           disabled={isSubmitting}
-          required
         />
       )}
 

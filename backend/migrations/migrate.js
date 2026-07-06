@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import connectDatabase from "../config/dbConnect.js";
 import addVisibilityFields from "./scripts/20260223_add_visibility_fields.js";
+import minifigCollectionIds from "./scripts/20260706_minifig_collection_ids.js";
 
 if ((process.env.NODE_ENV || "").toLowerCase() !== "production") {
   dotenv.config({ path: "./config/config.env", quiet: true });
@@ -13,6 +14,10 @@ const migrations = [
   {
     name: "20260223_add_visibility_fields",
     run: addVisibilityFields,
+  },
+  {
+    name: "20260706_minifig_collection_ids",
+    run: minifigCollectionIds,
   },
 ];
 

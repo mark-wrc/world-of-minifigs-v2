@@ -33,7 +33,14 @@
       "Bash(node --check models/dealerAddon.model.js)",
       "Bash(node --check migrations/scripts/20260603_add_addon_channel.js)",
       "Bash(node --check migrations/migrate.js)",
-      "WebFetch(domain:developer.squareup.com)"
+      "WebFetch(domain:developer.squareup.com)",
+      "Bash(grep -v \"set-state-in-effect\\\\|cascading\\\\|external system\\\\|Update external\\\\|Subscribe for\\\\|Calling setState\\\\|Effects are intended\\\\|^\\\\s*$\\\\|^\\\\s*\\\\*\\\\|setItemSearch\\\\|setDebouncedItemSearch\\\\|itemCategory\\\\|^\\\\s*[0-9]* |^>\\\\|^\\\\s*\\\\^\")",
+      "mcp__ide__getDiagnostics",
+      "Bash(node --check app.js)",
+      "Bash(node --check controllers/generalInventoryController.js)",
+      "Bash(node --check models/generalInventory.model.js)",
+      "Bash(node --check migrations/scripts/20260706_multi_collection_inventory.js)",
+      "Bash(npx vite *)"
     ]
   }
 }

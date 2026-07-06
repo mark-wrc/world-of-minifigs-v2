@@ -56,16 +56,17 @@ const AddonPreviewModal = ({
     if (!isMinifigs) return [];
     const map = new Map();
     for (const item of items) {
-      const id = item.collectionId?._id || item.collectionId || "__none__";
-      const name = item.collectionId?.collectionName || "Uncategorized";
-      if (!map.has(id)) map.set(id, { id, name, count: 0 });
-      map.get(id).count += 1;
+      // A minifig can belong to several collections — count it under each.
+      // Items without any collection are skipped (no "Uncategorized" filter).
+      for (const col of item.collectionIds || []) {
+        const id = col?._id || col;
+        if (!id) continue;
+        const name = col?.collectionName || id;
+        if (!map.has(id)) map.set(id, { id, name, count: 0 });
+        map.get(id).count += 1;
+      }
     }
-    return [...map.values()].sort((a, b) => {
-      if (a.id === "__none__") return 1;
-      if (b.id === "__none__") return -1;
-      return a.name.localeCompare(b.name);
-    });
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [isMinifigs, items]);
 
   // For bulk-minifig-parts the "collection" is a fixed part-type string.
@@ -98,8 +99,10 @@ const AddonPreviewModal = ({
             const t = i.partType || "__none__";
             return t === selectedCollection;
           }
-          const id = i.collectionId?._id || i.collectionId || "__none__";
-          return id === selectedCollection;
+          const ids = i.collectionIds?.length
+            ? i.collectionIds.map((c) => c?._id || c)
+            : ["__none__"];
+          return ids.includes(selectedCollection);
         })
       : items;
 

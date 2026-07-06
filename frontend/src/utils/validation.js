@@ -567,9 +567,13 @@ export const validateGeneralInventory = (items, isAddMode, activeTab) => {
 
     if (
       activeTab === "minifigs" &&
-      !validateRequired(item.collectionId, `${prefix}Collection`)
-    )
+      (!Array.isArray(item.collectionIds) || item.collectionIds.length === 0)
+    ) {
+      toast.error(`${prefix}Collection is required`, {
+        description: "Please select at least one collection.",
+      });
       return false;
+    }
 
     if (
       activeTab === "bulk-minifig-parts" &&

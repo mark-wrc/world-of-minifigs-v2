@@ -77,9 +77,25 @@ export const createGeneralInventoryBulk = async (req, res) => {
         colorId,
         image,
         category,
-        collectionId,
+        collectionIds,
+        collectionId, // legacy single-value support
         partType,
       } = item;
+
+      // Normalize to an array of unique collection ids (accepts either the new
+      // `collectionIds` array or a legacy single `collectionId`).
+      const collectionIdList = [
+        ...new Set(
+          (Array.isArray(collectionIds)
+            ? collectionIds
+            : collectionId
+              ? [collectionId]
+              : []
+          )
+            .map((c) => (c ? String(c) : null))
+            .filter(Boolean),
+        ),
+      ];
 
       // Validate required fields
       if (!minifigName || !String(minifigName).trim())
@@ -108,8 +124,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
           `Category must be one of: ${INVENTORY_CATEGORIES.join(", ")}`,
         );
 
-      if (category === "minifigs" && !collectionId)
-        throw new Error("Collection is required for minifig items");
+      if (category === "minifigs" && collectionIdList.length === 0)
+        throw new Error("At least one collection is required for minifig items");
 
       if (category === "bulk-minifig-parts") {
         if (!partType)
@@ -124,10 +140,13 @@ export const createGeneralInventoryBulk = async (req, res) => {
       const color = await Color.findById(colorId);
       if (!color) throw new Error("Selected color does not exist");
 
-      // Verify collection exists when provided
-      if (collectionId) {
-        const col = await Collection.findById(collectionId);
-        if (!col) throw new Error("Selected collection does not exist");
+      // Verify every provided collection exists
+      if (collectionIdList.length > 0) {
+        const found = await Collection.countDocuments({
+          _id: { $in: collectionIdList },
+        });
+        if (found !== collectionIdList.length)
+          throw new Error("One or more selected collections do not exist");
       }
 
       // Check for duplicate name + color combo (Non-blocking warning for bulk)
@@ -156,8 +175,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
         stock: Number(stock),
         colorId,
         category,
-        collectionId:
-          category === "minifigs" && collectionId ? collectionId : null,
+        collectionIds: category === "minifigs" ? collectionIdList : [],
         partType: category === "bulk-minifig-parts" ? partType : null,
         image: uploadedImage,
         createdBy: req.user._id,
@@ -209,7 +227,8 @@ export const getAllGeneralInventory = async (req, res) => {
     }
 
     if (collectionId) {
-      baseFilter.collectionId = collectionId;
+      // Array field: matches any item that includes this collection.
+      baseFilter.collectionIds = collectionId;
     }
 
     // Stock tier filter — matches the StockCell color tiers used in the UI.
@@ -256,7 +275,7 @@ export const getAllGeneralInventory = async (req, res) => {
 
     const populate = [
       { path: "colorId", select: "colorName hexCode" },
-      { path: "collectionId", select: "collectionName" },
+      { path: "collectionIds", select: "collectionName" },
       ...AUDIT_POPULATE,
     ];
 
@@ -348,6 +367,7 @@ export const getGeneralInventoryById = async (req, res) => {
 
     const inventory = await GeneralInventory.findById(id)
       .populate("colorId", "colorName hexCode")
+      .populate("collectionIds", "collectionName")
       .populate("createdBy", "firstName lastName username")
       .populate("updatedBy", "firstName lastName username")
       .lean();
@@ -390,9 +410,28 @@ export const updateGeneralInventory = async (req, res) => {
       image,
       isActive,
       category,
-      collectionId,
+      collectionIds,
+      collectionId, // legacy single-value support
       partType,
     } = req.body;
+
+    // Normalize incoming collections (array or legacy single) when provided.
+    const hasCollectionUpdate =
+      collectionIds !== undefined || collectionId !== undefined;
+    const collectionIdList = hasCollectionUpdate
+      ? [
+          ...new Set(
+            (Array.isArray(collectionIds)
+              ? collectionIds
+              : collectionId
+                ? [collectionId]
+                : []
+            )
+              .map((c) => (c ? String(c) : null))
+              .filter(Boolean),
+          ),
+        ]
+      : null;
 
     const inventory = await GeneralInventory.findById(id);
 
@@ -544,13 +583,14 @@ export const updateGeneralInventory = async (req, res) => {
         });
       }
       // Enforce collection required for minifigs
-      const effectiveCollectionId =
-        collectionId !== undefined ? collectionId : inventory.collectionId;
-      if (category === "minifigs" && !effectiveCollectionId) {
+      const effectiveCollectionIds = hasCollectionUpdate
+        ? collectionIdList
+        : inventory.collectionIds;
+      if (category === "minifigs" && effectiveCollectionIds.length === 0) {
         return res.status(400).json({
           success: false,
           message: "Collection is required",
-          description: "A collection must be assigned to minifig items.",
+          description: "At least one collection must be assigned to minifig items.",
         });
       }
 
@@ -576,19 +616,21 @@ export const updateGeneralInventory = async (req, res) => {
       inventory.category = category;
     }
 
-    if (collectionId !== undefined) {
-      if (collectionId === null) {
-        inventory.collectionId = null;
+    if (hasCollectionUpdate) {
+      if (collectionIdList.length === 0) {
+        inventory.collectionIds = [];
       } else {
-        const col = await Collection.findById(collectionId);
-        if (!col) {
+        const found = await Collection.countDocuments({
+          _id: { $in: collectionIdList },
+        });
+        if (found !== collectionIdList.length) {
           return res.status(404).json({
             success: false,
             message: "Collection not found",
-            description: "The selected collection does not exist.",
+            description: "One or more selected collections do not exist.",
           });
         }
-        inventory.collectionId = collectionId;
+        inventory.collectionIds = collectionIdList;
       }
     }
 
@@ -612,7 +654,7 @@ export const updateGeneralInventory = async (req, res) => {
 
     await inventory.populate([
       { path: "colorId", select: "colorName hexCode" },
-      { path: "collectionId", select: "collectionName" },
+      { path: "collectionIds", select: "collectionName" },
     ]);
 
     return res.status(200).json({

@@ -25,10 +25,13 @@ const generalInventorySchema = new mongoose.Schema(
       index: true,
     },
 
-    collectionId: {
-      type: mongoose.Schema.Types.ObjectId,
+    // A minifig can belong to multiple collections (e.g. Spider-Man in both
+    // "Superheroes" and "Marvel"). Filtering by any one collection matches the
+    // item via array containment. Non-minifig items keep this empty.
+    collectionIds: {
+      type: [mongoose.Schema.Types.ObjectId],
       ref: "Collection",
-      default: null,
+      default: [],
       index: true,
     },
 

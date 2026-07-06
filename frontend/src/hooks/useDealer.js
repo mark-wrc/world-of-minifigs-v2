@@ -695,7 +695,7 @@ export const useDealer = () => {
           image: inventory.image,
           color: inventory.colorId,
           category: inventory.category,
-          collectionId: inventory.collectionId,
+          collectionIds: inventory.collectionIds || [],
           partType: inventory.partType || null,
           pricePerBag: Number(inventory.pricePerBag || 0),
           perBagLimit,

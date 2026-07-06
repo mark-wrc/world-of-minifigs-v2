@@ -223,13 +223,17 @@ const useDealerAddonManagement = () => {
     if (itemCategory !== "minifigs") return null;
     const collectionMap = new Map();
     for (const item of sortedInventoryItems) {
-      const colId = item.collectionId?._id || item.collectionId || null;
-      const colName = item.collectionId?.collectionName || "Uncategorized";
-      const key = colId || "__none__";
-      if (!collectionMap.has(key)) {
-        collectionMap.set(key, { collectionName: colName, items: [] });
+      // A minifig can belong to several collections — list it under each.
+      const cols = item.collectionIds?.length ? item.collectionIds : [null];
+      for (const col of cols) {
+        const colId = col?._id || col || null;
+        const colName = col?.collectionName || "Uncategorized";
+        const key = colId || "__none__";
+        if (!collectionMap.has(key)) {
+          collectionMap.set(key, { collectionName: colName, items: [] });
+        }
+        collectionMap.get(key).items.push(item);
       }
-      collectionMap.get(key).items.push(item);
     }
     // Sort: named collections alphabetically, then Uncategorized last
     return [...collectionMap.entries()]

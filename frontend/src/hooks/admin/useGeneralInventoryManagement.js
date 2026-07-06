@@ -49,7 +49,7 @@ const TAIL_COLUMNS = [
 // Factory for preview item
 const makeNewPreview = (
   url,
-  { category = "", collectionId = "", partType = "", file = null } = {},
+  { category = "", collectionIds = [], partType = "", file = null } = {},
 ) => ({
   url,
   minifigName: "",
@@ -59,7 +59,7 @@ const makeNewPreview = (
   stock: "",
   color: "",
   category,
-  collectionId,
+  collectionIds,
   partType,
   // `url` is a local data-URL preview; `file` is the raw File uploaded directly
   // to Cloudinary at submit. No `publicId` marks it as not-yet-uploaded.
@@ -307,7 +307,11 @@ const useGeneralInventoryManagement = () => {
         stock: item.stock,
         color: item.colorId?._id || item.colorId,
         category: item.category || activeTab,
-        collectionId: item.collectionId?._id || item.collectionId || "",
+        collectionIds: Array.isArray(item.collectionIds)
+          ? item.collectionIds.map((c) => c?._id || c)
+          : item.collectionId
+            ? [item.collectionId?._id || item.collectionId]
+            : [],
         partType: item.partType || "",
         image: item.image,
       },
@@ -333,7 +337,7 @@ const useGeneralInventoryManagement = () => {
       stock: Number(item.stock),
       colorId: item.color,
       category: activeTab,
-      collectionId: activeTab === "minifigs" ? item.collectionId : null,
+      collectionIds: activeTab === "minifigs" ? item.collectionIds || [] : [],
       partType: activeTab === "bulk-minifig-parts" ? item.partType : null,
     });
 
