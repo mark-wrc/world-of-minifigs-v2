@@ -101,8 +101,9 @@ export const ActionsColumn = ({
   exportTitle = "Export",
 }) => {
   return (
-    <td className="p-3 flex items-center justify-center gap-2">
-      <DropdownMenu>
+    <td className="p-3 text-center">
+      <div className="flex items-center justify-center gap-2">
+        <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
@@ -158,6 +159,7 @@ export const ActionsColumn = ({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </td>
   );
 };
