@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { clearCredentials } from "@/redux/slices/authSlice";
 import { API_BASE_URL } from "@/redux/apiConfig";
+import { authApi } from "@/redux/api/authApi";
 
 // Base query with auth credentials
 const baseQuery = fetchBaseQuery({
@@ -430,6 +431,24 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["DealerAddon"],
     }),
+    reorderDealerAddonItems: builder.mutation({
+      query: ({ id, itemOrder }) => ({
+        url: `/dealer/addons/${id}/reorder`,
+        method: "PATCH",
+        body: { itemOrder },
+      }),
+      invalidatesTags: ["DealerAddon"],
+      // Also refresh the dealer-facing addon list (a separate api slice) so the
+      // new order shows immediately when an admin reorders from the store page.
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(authApi.util.invalidateTags(["Addon"]));
+        } catch {
+          // Reorder failed — leave the cache untouched.
+        }
+      },
+    }),
 
     // --- Extra Bags ---
     getDealerExtraBags: builder.query({
@@ -765,6 +784,7 @@ export const {
   useCreateDealerAddonMutation,
   useUpdateDealerAddonMutation,
   useDeleteDealerAddonMutation,
+  useReorderDealerAddonItemsMutation,
   useGetDealerExtraBagsQuery,
   useCreateDealerExtraBagMutation,
   useUpdateDealerExtraBagMutation,

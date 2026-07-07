@@ -1384,6 +1384,84 @@ export const reorderTorsoBagItems = async (req, res) => {
   }
 };
 
+// Reorder a bundle add-on's items so the admin controls what dealers see first
+// in the preview modal. Driven by an ID list (not indices) so it stays correct
+// even though the dealer-facing endpoint hides inactive/out-of-stock items:
+// any item not present in `itemOrder` keeps its relative order and sinks to the
+// end.
+export const reorderDealerAddonItems = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { itemOrder } = req.body;
+
+    if (!Array.isArray(itemOrder)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid item order",
+        description: "Please provide an array of inventory item ids.",
+      });
+    }
+
+    const addon = await DealerAddon.findById(id);
+
+    if (!addon) {
+      return res.status(404).json({
+        success: false,
+        message: "Add-on not found",
+        description: "The requested add-on does not exist.",
+      });
+    }
+
+    if (addon.addonType !== "bundle") {
+      return res.status(400).json({
+        success: false,
+        message: "Not a bundle add-on",
+        description: "Only bundle add-ons have items to reorder.",
+      });
+    }
+
+    // Index the existing items by their inventory id so we can rebuild the list
+    // in the requested order.
+    const byId = new Map(
+      addon.bundleItems.map((item) => [String(item.inventoryItemId), item]),
+    );
+
+    const ordered = [];
+    for (const rawId of itemOrder) {
+      const key = String(rawId);
+      const item = byId.get(key);
+      if (item) {
+        ordered.push(item);
+        byId.delete(key);
+      }
+    }
+
+    // Append any items the client didn't include (e.g. ones hidden from dealers
+    // because they're inactive or out of stock), preserving their order.
+    for (const item of addon.bundleItems) {
+      if (byId.has(String(item.inventoryItemId))) ordered.push(item);
+    }
+
+    addon.bundleItems = ordered;
+    addon.updatedBy = req.user._id;
+    await addon.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Items reordered successfully",
+      description: "The add-on items have been rearranged.",
+      data: addon,
+    });
+  } catch (error) {
+    handleError(
+      res,
+      error,
+      "Reorder dealer addon items",
+      "Failed to reorder items",
+    );
+  }
+};
+
 // ---------------------------- Dealer Access (Public Endpoints) -----------------------------
 
 export const getDealerBundlesForUser = async (req, res) => {

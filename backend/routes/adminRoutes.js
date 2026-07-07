@@ -61,6 +61,7 @@ import {
   getAllDealerAddons,
   updateDealerAddon,
   deleteDealerAddon,
+  reorderDealerAddonItems,
   createDealerExtraBag,
   getAllDealerExtraBags,
   updateDealerExtraBag,
@@ -169,6 +170,7 @@ router.post("/dealer/addons", createDealerAddon);
 router.get("/dealer/addons", getAllDealerAddons);
 router.put("/dealer/addons/:id", updateDealerAddon);
 router.delete("/dealer/addons/:id", deleteDealerAddon);
+router.patch("/dealer/addons/:id/reorder", reorderDealerAddonItems);
 
 router.post("/dealer/extra-bags", createDealerExtraBag);
 router.get("/dealer/extra-bags", getAllDealerExtraBags);
