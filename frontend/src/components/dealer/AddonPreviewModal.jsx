@@ -333,9 +333,10 @@ const AddonPreviewModal = ({
     });
   }, [featuredItems, sortBy, selectedCollection, isBulkParts]);
 
-  // Reordering only makes sense in the unfiltered featured view — otherwise the
-  // dragged positions wouldn't map cleanly back to the stored order.
-  const canReorder = isAdmin && sortBy === "featured" && !selectedCollection;
+  // Reordering works in the featured view, including inside a collection /
+  // part-type filter. A custom sort (name/price) can't be dragged since its
+  // order is derived, not stored.
+  const canReorder = isAdmin && sortBy === "featured";
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -353,8 +354,25 @@ const AddonPreviewModal = ({
       (i) => i.inventoryItemId === over.id,
     );
     if (oldIndex === -1 || newIndex === -1) return;
-    const next = arrayMove(sortedItems, oldIndex, newIndex);
-    setOrderIds(next.map((i) => i.inventoryItemId));
+
+    const reorderedVisible = arrayMove(sortedItems, oldIndex, newIndex);
+
+    // Without a filter the visible list is the whole list — save it directly.
+    if (!selectedCollection) {
+      setOrderIds(reorderedVisible.map((i) => i.inventoryItemId));
+      setHasOrderChanges(true);
+      return;
+    }
+
+    // With a filter active, only the visible (filtered) items were rearranged.
+    // Rebuild the full order by keeping every hidden item in its slot and
+    // dropping the reordered filtered items back into the slots they occupied.
+    const visibleIds = new Set(sortedItems.map((i) => i.inventoryItemId));
+    let vi = 0;
+    const fullOrder = featuredItems.map((item) =>
+      visibleIds.has(item.inventoryItemId) ? reorderedVisible[vi++] : item,
+    );
+    setOrderIds(fullOrder.map((i) => i.inventoryItemId));
     setHasOrderChanges(true);
   };
 
@@ -391,7 +409,7 @@ const AddonPreviewModal = ({
               canReorder ? (
                 "Drag to reposition the listed items."
               ) : (
-                "Switch to “Featured” and clear filters to reorder items."
+                "Switch to “Featured” sort to reorder items."
               )
             ) : (
               `${addon.addonName} items`
