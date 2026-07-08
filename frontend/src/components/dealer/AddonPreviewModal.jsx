@@ -97,7 +97,7 @@ const AddonItemCard = ({
             <CommonImage
               src={item.image?.url}
               alt={item.itemName}
-              className="w-24"
+              className="w-28"
             />
           </div>
         </HoverCardTrigger>
@@ -206,8 +206,7 @@ const AddonPreviewModal = ({
     items.length > 0 && items.every((i) => i.category === "minifigs");
 
   const isBulkParts =
-    items.length > 0 &&
-    items.every((i) => i.category === "bulk-minifig-parts");
+    items.length > 0 && items.every((i) => i.category === "bulk-minifig-parts");
 
   // ─── Admin reorder state ────────────────────────────────────────────────────
   // `orderIds` is the admin's in-progress custom order (list of inventory ids).
@@ -401,19 +400,15 @@ const AddonPreviewModal = ({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl overflow-hidden flex flex-col gap-0">
+      <DialogContent className="sm:max-w-5xl overflow-hidden flex flex-col gap-0">
         <DialogHeader>
           <DialogTitle className="text-xl">{addon.addonName}</DialogTitle>
           <DialogDescription className={isAdmin ? "text-xs" : "sr-only"}>
-            {isAdmin ? (
-              canReorder ? (
-                "Drag to reposition the listed items."
-              ) : (
-                "Switch to “Featured” sort to reorder items."
-              )
-            ) : (
-              `${addon.addonName} items`
-            )}
+            {isAdmin
+              ? canReorder
+                ? "Drag to reposition the listed items."
+                : "Switch to “Featured” sort to reorder items."
+              : `${addon.addonName} items`}
           </DialogDescription>
         </DialogHeader>
 
@@ -550,7 +545,11 @@ const AddonPreviewModal = ({
               <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button variant="accent" disabled={!canSubmit} onClick={onConfirm}>
+              <Button
+                variant="accent"
+                disabled={!canSubmit}
+                onClick={onConfirm}
+              >
                 {isUpdate ? "Update Order" : "Add to Order"}
               </Button>
             </>
