@@ -76,6 +76,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
         stock,
         colorId,
         image,
+        isActive,
         category,
         collectionIds,
         collectionId, // legacy single-value support
@@ -177,6 +178,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
         category,
         collectionIds: category === "minifigs" ? collectionIdList : [],
         partType: category === "bulk-minifig-parts" ? partType : null,
+        // Honor the visibility toggle on create; default to active when omitted.
+        isActive: isActive === undefined ? true : Boolean(isActive),
         image: uploadedImage,
         createdBy: req.user._id,
       });

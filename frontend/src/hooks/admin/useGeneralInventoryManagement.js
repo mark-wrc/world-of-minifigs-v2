@@ -363,6 +363,7 @@ const useGeneralInventoryManagement = () => {
       const payload = {
         items: filePreview.map((item, i) => ({
           ...buildFields(item),
+          isActive: crud.formData.isActive,
           image: refs[i] || item.image,
         })),
       };
