@@ -17,7 +17,7 @@ const PreviewCard = ({
     className={`relative p-2 ${isDragging ? "ring-2 ring-accent" : ""}`}
     {...cardProps}
   >
-    <div className="aspect-4/3 relative overflow-hidden group">
+    <div className="relative overflow-hidden group">
       {dragHandleProps && Object.keys(dragHandleProps).length > 0 && (
         <div className="absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity">
           <GripVertical className="size-4 text-muted-foreground" />
@@ -34,8 +34,8 @@ const PreviewCard = ({
       </Badge>
 
       <CommonImage
-        src={item.image?.url}
-        alt={`Torso ${idx}`}
+        src={item.inventoryItemId?.image?.url || item.image?.url}
+        alt={item.inventoryItemId?.minifigName || `Torso ${idx}`}
         className="w-full h-full"
       />
     </div>

@@ -5,6 +5,7 @@ import GeneralInventory, {
 import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
+import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
 import Order from "../models/order.model.js";
 import { ORDER_STATUSES } from "../constants/orderConstants.js";
 import {
@@ -24,6 +25,40 @@ import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
 // Order statuses that count as a completed sale (excludes cancelled/failed).
 const SOLD_ORDER_STATUSES = [ORDER_STATUSES.PAID, ORDER_STATUSES.SHIPPED];
+
+// Consumers that still reference an inventory item. Deleting an item removes its
+// image and dangles these references, so deletion is blocked for BOTH. Add-ons
+// also drop an item the moment it's inactive, so deactivation is blocked for
+// add-ons — but a torso bag shows its torsos regardless of the torso's own
+// active/stock status (a bag is a curated set), so deactivation is NOT blocked
+// by torso bags.
+const findAddonsUsingInventoryItem = (id) =>
+  DealerAddon.find({ "bundleItems.inventoryItemId": id }, "addonName").lean();
+
+const findTorsoBagsUsingInventoryItem = (id) =>
+  DealerTorsoBag.find({ "items.inventoryItemId": id }, "bagName").lean();
+
+// Build a 409 "in use" response body from whichever consumers are passed
+// (empty/omitted arrays are skipped), else null. Keeps the wording in one place.
+const inUseConflict = ({ addons = [], torsoBags = [] }) => {
+  if (addons.length > 0) {
+    const names = addons.map((a) => `"${a.addonName}"`).join(", ");
+    return {
+      success: false,
+      message: "Inventory item is in use",
+      description: `This item is used in the following dealer add-on(s): ${names}. Remove it from those add-ons first.`,
+    };
+  }
+  if (torsoBags.length > 0) {
+    const names = torsoBags.map((b) => `"${b.bagName}"`).join(", ");
+    return {
+      success: false,
+      message: "Inventory item is in use",
+      description: `This item is used in the following dealer torso bag(s): ${names}. Remove it from those bags first.`,
+    };
+  }
+  return null;
+};
 
 // Sum the bags sold per inventory item from dealer/wholesale order add-ons.
 // Returns a Map keyed by inventory id (string) -> total bags sold.
@@ -126,7 +161,9 @@ export const createGeneralInventoryBulk = async (req, res) => {
         );
 
       if (category === "minifigs" && collectionIdList.length === 0)
-        throw new Error("At least one collection is required for minifig items");
+        throw new Error(
+          "At least one collection is required for minifig items",
+        );
 
       if (category === "bulk-minifig-parts") {
         if (!partType)
@@ -217,7 +254,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
 export const getAllGeneralInventory = async (req, res) => {
   try {
     const { page, limit, search } = normalizePagination(req.query);
-    const { category, stock, status, partType, collectionId, sort } = req.query;
+    const { category, stock, status, partType, partTypes, collectionId, sort } =
+      req.query;
 
     const baseFilter = {};
 
@@ -227,6 +265,15 @@ export const getAllGeneralInventory = async (req, res) => {
 
     if (partType && BULK_MINIFIG_PART_TYPES.includes(partType)) {
       baseFilter.partType = partType;
+    } else if (partTypes) {
+      // Comma-separated list — filter to any of the given valid part types.
+      const requested = String(partTypes)
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => BULK_MINIFIG_PART_TYPES.includes(p));
+      if (requested.length > 0) {
+        baseFilter.partType = { $in: requested };
+      }
     }
 
     if (collectionId) {
@@ -525,9 +572,8 @@ export const updateGeneralInventory = async (req, res) => {
 
     // Admin bin location — optional free-form text, clearable with null/"".
     if (bin !== undefined) {
-      inventory.bin = bin === null || String(bin).trim() === ""
-        ? null
-        : String(bin).trim();
+      inventory.bin =
+        bin === null || String(bin).trim() === "" ? null : String(bin).trim();
     }
 
     if (stock !== undefined) {
@@ -574,6 +620,20 @@ export const updateGeneralInventory = async (req, res) => {
     }
 
     if (isActive !== undefined) {
+      // Deactivating an item that's live in a dealer add-on would silently drop
+      // it from that add-on — block it so the admin removes it from those first.
+      // Torso bags are unaffected: a bag shows its torsos regardless of the
+      // torso's own active status, so we don't check torso bags here.
+      const turningOff =
+        Boolean(isActive) === false && inventory.isActive !== false;
+      if (turningOff) {
+        const conflict = inUseConflict({
+          addons: await findAddonsUsingInventoryItem(id),
+        });
+        if (conflict) {
+          return res.status(409).json(conflict);
+        }
+      }
       inventory.isActive = Boolean(isActive);
     }
 
@@ -593,7 +653,8 @@ export const updateGeneralInventory = async (req, res) => {
         return res.status(400).json({
           success: false,
           message: "Collection is required",
-          description: "At least one collection must be assigned to minifig items.",
+          description:
+            "At least one collection must be assigned to minifig items.",
         });
       }
 
@@ -690,21 +751,16 @@ export const deleteGeneralInventory = async (req, res) => {
       });
     }
 
-    // Block deletion when this inventory item is still referenced by dealer add-ons
-    const usedByDealerAddons = await DealerAddon.find(
-      { "bundleItems.inventoryItemId": id },
-      "addonName",
-    ).lean();
-
-    if (usedByDealerAddons.length > 0) {
-      const addonNames = usedByDealerAddons
-        .map((a) => `"${a.addonName}"`)
-        .join(", ");
-      return res.status(409).json({
-        success: false,
-        message: "Inventory item is in use",
-        description: `This item is used in the following dealer add-on(s): ${addonNames}. Remove it from those add-ons before deleting.`,
-      });
+    // Block deletion when this item is still referenced by a dealer add-on or a
+    // torso bag — deleting removes its image and dangles those references, so the
+    // admin must remove it from those first.
+    const [addons, torsoBags] = await Promise.all([
+      findAddonsUsingInventoryItem(id),
+      findTorsoBagsUsingInventoryItem(id),
+    ]);
+    const conflict = inUseConflict({ addons, torsoBags });
+    if (conflict) {
+      return res.status(409).json(conflict);
     }
 
     await GeneralInventory.findByIdAndDelete(id);

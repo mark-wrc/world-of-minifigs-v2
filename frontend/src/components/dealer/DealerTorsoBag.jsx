@@ -128,9 +128,13 @@ const DealerTorsoBag = ({ section, isAdmin, onSelectTorsoBag }) => {
     if (!lastSelectedBag || !hasReorderChanges) return;
     setIsSavingOrder(true);
     try {
+      // Match by the referenced inventory id (legacy items fall back to image url)
+      // so reordering stays correct regardless of item shape.
+      const itemKey = (it) =>
+        it?.inventoryItemId?._id || it?.inventoryItemId || it?.image?.url;
       const reorderIndices = localItems.map((newItem) =>
         lastSelectedBag.items.findIndex(
-          (origItem) => origItem.image?.url === newItem.image?.url,
+          (origItem) => itemKey(origItem) === itemKey(newItem),
         ),
       );
       await reorderTorsoBagItems({

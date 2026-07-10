@@ -26,6 +26,12 @@ const SHIPPING_INSURANCE_RATE = 0.005;
 const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
 
+// Resolve a torso item's image URL. New items reference a General Inventory torso
+// (populated as `inventoryItemId`); legacy pre-migration items embed their own
+// image. Dual-read keeps both rendering during the migration window.
+const torsoItemImageUrl = (item) =>
+  item?.inventoryItemId?.image?.url || item?.image?.url;
+
 // Per-order purchase ceiling for "unlimited" upgrade add-ons (UX cap; the
 // server enforces the same limit on checkout).
 const UNLIMITED_ADDON_CAP = 999;
@@ -394,7 +400,7 @@ export const useDealer = () => {
           ...bag,
           isSelected: (split[bag._id] || 0) > 0,
           assignedQty: split[bag._id] || 0,
-          firstImage: bag.items?.[0]?.image?.url,
+          firstImage: torsoItemImageUrl(bag.items?.[0]),
         }));
 
         const totalAssignedBags = Object.values(split).reduce(

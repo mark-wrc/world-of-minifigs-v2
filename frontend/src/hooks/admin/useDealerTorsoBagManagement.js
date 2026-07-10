@@ -1,20 +1,19 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { uploadImagesToCloudinary } from "@/utils/cloudinaryUpload";
 import {
   useGetDealerTorsoBagsQuery,
   useCreateDealerTorsoBagMutation,
   useUpdateDealerTorsoBagMutation,
   useDeleteDealerTorsoBagMutation,
+  useGetGeneralInventoryQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
-import { sanitizeString } from "@/utils/formatting";
+import { sanitizeString, sortByName } from "@/utils/formatting";
 import {
   validateDealerTorsoBag,
   validateTorsoAllocation,
-  showTorsoAllocationWarning,
 } from "@/utils/validation";
-import useMediaPreview from "@/hooks/admin/useMediaPreview";
+import { TORSO_PART_TYPES } from "@shared/inventoryData";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 
 // Misc-per-bag for each base size. Same constants as backend/services/bundleService.js.
@@ -26,6 +25,12 @@ const BASE_SIZE_OPTIONS = [
   { value: 500, label: "500" },
 ];
 
+const DEBOUNCE_MS = 300;
+
+// Each item references a torso in General Inventory. Shape while editing:
+//   { inventoryItemId, quantity, _item }        — a linked torso
+//   { inventoryItemId: null, quantity, legacyImage } — a pre-migration image
+//     that must be re-linked to inventory before the bag can be saved.
 const initialFormData = {
   bagName: "",
   baseSize: 100,
@@ -46,16 +51,6 @@ const columns = [
 ];
 
 const useDealerTorsoBagManagement = () => {
-  // ------------------------------- Media ------------------------------------
-  const {
-    filePreview,
-    setFilePreview,
-    fileInputRef,
-    resetFile,
-    handleFileChange: onFileChange,
-    handleRemoveFile: onFileRemove,
-  } = useMediaPreview({ multiple: true });
-
   // ------------------------------- Mutations ------------------------------------
   const [createBag, { isLoading: isCreating }] =
     useCreateDealerTorsoBagMutation();
@@ -71,10 +66,9 @@ const useDealerTorsoBagManagement = () => {
     updateFn: updateBag,
     deleteFn: deleteBag,
     entityName: "torso bag",
-    onReset: resetFile,
   });
 
-  // ------------------------------- Fetch ------------------------------------
+  // ------------------------------- Fetch bags ------------------------------------
   const { data: torsoBagData, isLoading: isLoadingBags } =
     useGetDealerTorsoBagsQuery({
       page: crud.page,
@@ -92,35 +86,100 @@ const useDealerTorsoBagManagement = () => {
     crud.setTotalItems(totalItems);
   }, [totalItems]);
 
-  // Tracks the direct browser→Cloudinary upload happening before the save call.
-  const [uploadProgress, setUploadProgress] = useState({
-    isUploading: false,
-    done: 0,
-    total: 0,
+  // ------------------------------- Torso inventory (debounced search) -----------
+  const [itemSearch, setItemSearch] = useState("");
+  const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
+  const debounceTimer = useRef(null);
+
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(
+      () => setDebouncedItemSearch(itemSearch),
+      DEBOUNCE_MS,
+    );
+    return () => clearTimeout(debounceTimer.current);
+  }, [itemSearch]);
+
+  const handleItemSearchChange = useCallback((e) => {
+    setItemSearch(e.target.value);
+  }, []);
+
+  const {
+    data: inventoryData,
+    isLoading: isInventoryLoading,
+    isFetching: isInventoryFetching,
+  } = useGetGeneralInventoryQuery({
+    limit: "all",
+    search: debouncedItemSearch || undefined,
+    category: "bulk-minifig-parts",
+    // Filter to torso part types server-side so all torsos come back in one page
+    // (the server caps a page at 100; fetching all bulk parts would truncate).
+    partTypes: TORSO_PART_TYPES.join(","),
   });
 
-  const isSubmitting =
-    uploadProgress.isUploading || (crud.isEditMode ? isUpdating : isCreating);
+  const isLoadingInventory = isInventoryLoading || isInventoryFetching;
 
+  // Show every torso in inventory regardless of active/stock status — a torso
+  // bag is a curated set, so the individual torso's sell-status is irrelevant.
+  const torsoInventory = useMemo(
+    () =>
+      (inventoryData?.inventory || []).filter((item) =>
+        TORSO_PART_TYPES.includes(item.partType),
+      ),
+    [inventoryData],
+  );
+
+  // Group torsos by their part type ("Printed Torso" / "Solid Color Torso").
+  const groupedTorsoItems = useMemo(() => {
+    const sorted = sortByName(torsoInventory, "minifigName");
+    return TORSO_PART_TYPES.map((partType) => ({
+      partType,
+      items: sorted.filter((item) => item.partType === partType),
+    })).filter((group) => group.items.length > 0);
+  }, [torsoInventory]);
+
+  const selectedItemIds = useMemo(
+    () => new Set(crud.formData.items.map((i) => i.inventoryItemId)),
+    [crud.formData.items],
+  );
+
+  // ------------------------------- Allocation ------------------------------------
   const baseSize = Number(crud.formData.baseSize) || 100;
   const miscQuantity = MISC_PER_BAG[baseSize] ?? 0;
   const adminTarget = getAdminTarget(baseSize);
 
   const currentTotal = crud.formData.items.reduce(
-    (acc, item) => acc + (Number(item.quantity) || 1),
+    (acc, item) => acc + (Number(item.quantity) || 0),
     0,
   );
 
-  // ------------------------------- Edit Handler ------------------------------------
+  const isSubmitting = crud.isEditMode ? isUpdating : isCreating;
+
+  // ------------------------------- Edit Handler ----------------------------------
   const handleEdit = (bag) => {
     const existingItems =
-      bag.items?.map((item) => ({
-        url: item.image?.url || "",
-        quantity: item.quantity || 1,
-        image: item.image || null,
-      })) || [];
-
-    setFilePreview(existingItems);
+      bag.items?.map((item) => {
+        const inv = item.inventoryItemId;
+        // Populated reference → a linked torso row.
+        if (inv && typeof inv === "object" && inv._id) {
+          return {
+            inventoryItemId: inv._id,
+            quantity: item.quantity || 1,
+            _item: inv,
+          };
+        }
+        // Bare id (inventory got unpopulated somehow) → keep the id.
+        if (inv) {
+          return { inventoryItemId: inv, quantity: item.quantity || 1, _item: null };
+        }
+        // Legacy embedded-image item → needs re-linking before save.
+        return {
+          inventoryItemId: null,
+          quantity: item.quantity || 1,
+          legacyImage: item.image || null,
+          _item: null,
+        };
+      }) || [];
 
     crud.openEdit(bag, {
       bagName: bag.bagName || "",
@@ -131,122 +190,103 @@ const useDealerTorsoBagManagement = () => {
     });
   };
 
-  // ------------------------------- Media Handlers ------------------------------------
-  const handleDealerTorsoBagFileChange = useCallback(
-    async (e) => {
-      let skippedCount = 0;
+  // ------------------------------- Item Handlers ---------------------------------
+  const handleToggleTorso = useCallback(
+    (inventoryItem) => {
+      const id = inventoryItem._id;
+      const already = crud.formData.items.some(
+        (i) => i.inventoryItemId === id,
+      );
 
-      const items = await onFileChange(e, {
-        mapFile: (url, file) => {
-          if (currentTotal + 1 > adminTarget) {
-            skippedCount++;
-            return null;
-          }
-          return {
-            url,
-            quantity: 1,
-            // `url` is a local data-URL used only for the preview thumbnail.
-            // `file` is the raw File we upload directly to Cloudinary at submit.
-            // No `publicId` yet marks this as a not-yet-uploaded item.
-            image: { url },
-            file,
-          };
-        },
-      });
-
-      const validItems = (items || []).filter(Boolean);
-
-      if (skippedCount > 0) {
-        showTorsoAllocationWarning(
-          skippedCount,
-          adminTarget,
-          baseSize,
-          miscQuantity,
-        );
-      }
-
-      if (validItems.length > 0) {
+      if (already) {
         crud.setFormData((prev) => ({
           ...prev,
-          items: [...prev.items, ...validItems],
+          items: prev.items.filter((i) => i.inventoryItemId !== id),
         }));
+        return;
       }
+
+      if (currentTotal >= adminTarget) {
+        toast.warning("Allocation full", {
+          description: `This bag already totals ${adminTarget} designs. Lower a quantity before adding another torso.`,
+        });
+        return;
+      }
+
+      crud.setFormData((prev) => ({
+        ...prev,
+        items: [
+          { inventoryItemId: id, quantity: 1, _item: inventoryItem },
+          ...prev.items,
+        ],
+      }));
     },
-    [onFileChange, currentTotal, adminTarget, baseSize, miscQuantity],
+    [crud, currentTotal, adminTarget],
   );
 
-  const handleDealerTorsoBagFileRemove = useCallback(
+  const handleRemoveItemAt = useCallback(
     (index) => {
-      onFileRemove(index);
       crud.setFormData((prev) => ({
         ...prev,
         items: prev.items.filter((_, i) => i !== index),
       }));
     },
-    [onFileRemove],
+    [crud],
   );
 
-  // ------------------------------- Submit Handler ------------------------------------
+  const handleUpdateItemQuantity = (index) => (e) => {
+    const value = e?.target ? e.target.value : e;
+    const strValue = value.toString();
+
+    // Allow empty string so the user can clear the input while typing.
+    if (strValue === "") {
+      crud.setFormData((prev) => {
+        const newItems = [...prev.items];
+        newItems[index] = { ...newItems[index], quantity: "" };
+        return { ...prev, items: newItems };
+      });
+      return;
+    }
+
+    const cleaned = strValue.replace(/[^0-9]/g, "");
+    if (!cleaned) return;
+
+    const newValue = parseInt(cleaned, 10);
+    if (newValue < 1) return;
+
+    const otherItemsTotal = crud.formData.items.reduce(
+      (acc, item, i) => (i === index ? acc : acc + (Number(item.quantity) || 0)),
+      0,
+    );
+
+    if (!validateTorsoAllocation(otherItemsTotal, newValue, adminTarget)) return;
+
+    crud.setFormData((prev) => {
+      const newItems = [...prev.items];
+      newItems[index] = { ...newItems[index], quantity: newValue };
+      return { ...prev, items: newItems };
+    });
+  };
+
+  // ------------------------------- Submit ----------------------------------------
   const handleSubmit = async () => {
     if (
-      !validateDealerTorsoBag(
-        crud.formData,
-        adminTarget,
-        baseSize,
-        miscQuantity,
-      )
+      !validateDealerTorsoBag(crud.formData, adminTarget, baseSize, miscQuantity)
     )
       return;
 
-    const formItems = crud.formData.items;
-
-    // Freshly-picked items still carry a raw File and no Cloudinary publicId.
-    // Upload those directly to Cloudinary; existing items are already stored.
-    const pendingUploads = formItems
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item?.file && !item?.image?.publicId);
-
-    let uploadedRefs = [];
-    if (pendingUploads.length > 0) {
-      setUploadProgress({
-        isUploading: true,
-        done: 0,
-        total: pendingUploads.length,
+    // Every row must reference an inventory torso — block on un-relinked legacy rows.
+    const unlinked = crud.formData.items.some((item) => !item.inventoryItemId);
+    if (unlinked) {
+      toast.error("Re-link required", {
+        description:
+          "Some designs still point to old uploaded images. Replace them with a torso from inventory before saving.",
       });
-      try {
-        uploadedRefs = await uploadImagesToCloudinary(
-          pendingUploads.map(({ item }) => item.file),
-          "torso",
-          {
-            onProgress: (done, total) =>
-              setUploadProgress({ isUploading: true, done, total }),
-          },
-        );
-      } catch (error) {
-        setUploadProgress({ isUploading: false, done: 0, total: 0 });
-        toast.error("Image upload failed", {
-          description:
-            error?.message || "Could not upload torso images. Please try again.",
-        });
-        return;
-      }
-      setUploadProgress({ isUploading: false, done: 0, total: 0 });
+      return;
     }
 
-    // Map each uploaded { publicId, url } back to its original item by index.
-    const refByIndex = new Map();
-    pendingUploads.forEach(({ index }, i) => {
-      refByIndex.set(index, uploadedRefs[i]);
-    });
-
-    // Only compact { publicId, url } references leave the browser now — no
-    // base64 image bytes — so the request body stays a few KB regardless of
-    // how many designs the bag contains.
-    const items = formItems.map((item, index) => ({
-      image: refByIndex.get(index) || {
-        publicId: item?.image?.publicId,
-        url: item?.image?.url,
-      },
+    const items = crud.formData.items.map((item) => ({
+      inventoryItemId: item.inventoryItemId,
       quantity:
         item.quantity === "" || item.quantity == null
           ? 1
@@ -264,7 +304,7 @@ const useDealerTorsoBagManagement = () => {
     await crud.submitForm(payload);
   };
 
-  // ------------------------------- Handlers ------------------------------------
+  // ------------------------------- Standard Handlers -----------------------------
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     crud.setFormData((prev) => ({
@@ -277,46 +317,9 @@ const useDealerTorsoBagManagement = () => {
     crud.setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleUpdateItemQuantity = (index) => (e) => {
-    const value = e?.target ? e.target.value : e;
-    const strValue = value.toString();
-
-    // Allow empty string to let users clear the input
-    if (strValue === "") {
-      crud.setFormData((prev) => {
-        const newItems = [...prev.items];
-        newItems[index] = { ...newItems[index], quantity: "" };
-        return { ...prev, items: newItems };
-      });
-      return;
-    }
-
-    const cleaned = strValue.replace(/[^0-9]/g, "");
-    if (!cleaned) return;
-
-    const newValue = parseInt(cleaned, 10);
-    if (newValue < 1) return;
-
-    const otherItemsTotal = crud.formData.items.reduce(
-      (acc, item, i) =>
-        i === index ? acc : acc + (Number(item.quantity) || 0),
-      0,
-    );
-
-    if (!validateTorsoAllocation(otherItemsTotal, newValue, adminTarget))
-      return;
-
-    crud.setFormData((prev) => {
-      const newItems = [...prev.items];
-      newItems[index] = { ...newItems[index], quantity: newValue };
-      return { ...prev, items: newItems };
-    });
-  };
-
-  // ------------------------------- Return ------------------------------------
+  // ------------------------------- Return ----------------------------------------
   return {
     ...crud,
-    filePreview,
     bags,
     totalItems,
     totalPages,
@@ -327,11 +330,17 @@ const useDealerTorsoBagManagement = () => {
     currentTotal,
     isLoadingBags,
     isSubmitting,
-    uploadProgress,
     isDeleting,
+    // Inventory picker
+    groupedTorsoItems,
+    selectedItemIds,
+    isLoadingInventory,
+    itemSearch,
+    handleItemSearchChange,
+    handleToggleTorso,
+    handleRemoveItemAt,
+    // Item + form handlers
     handleEdit,
-    handleDealerTorsoBagFileChange,
-    handleDealerTorsoBagFileRemove,
     handleUpdateItemQuantity,
     handleSubmit,
     handleChange,

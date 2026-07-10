@@ -1,5 +1,19 @@
 export const sanitizeString = (value) => (value ?? "").toString().trim();
 
+// Normalize free-typed text into a clean non-negative integer string suitable
+// for a controlled input: keep digits only (so "e", "+", "-", "." and pasted
+// junk are dropped), strip leading zeros, and cap at `max`. Returns "" for empty
+// input so a field can still be cleared while typing. This is what prevents
+// values like "05000000000000" from ever reaching a stock/quantity field.
+export const sanitizeIntegerInput = (value, { max } = {}) => {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (digits === "") return "";
+  // Drop leading zeros but keep a lone "0".
+  const normalized = digits.replace(/^0+(?=\d)/, "");
+  if (max != null && Number(normalized) > max) return String(max);
+  return normalized;
+};
+
 export const sanitizeOptional = (value) => {
   const trimmed = sanitizeString(value);
   return trimmed || undefined;

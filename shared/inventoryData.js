@@ -53,3 +53,8 @@ export const BULK_MINIFIG_PART_TYPES = [
   "Headgear",
   "Heads",
 ];
+
+// The bulk-minifig-part types that count as torsos. Dealer torso bags may only
+// reference inventory items whose partType is one of these. Single source of
+// truth for both the admin picker filter and the backend validation.
+export const TORSO_PART_TYPES = ["Printed Torso", "Solid Color Torso"];

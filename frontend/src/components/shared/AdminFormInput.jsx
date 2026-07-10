@@ -17,6 +17,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { sanitizeIntegerInput } from "@/utils/formatting";
 
 // Internal helper for consistent form field layout
 const FormContainer = ({
@@ -52,6 +53,45 @@ export const AdminFormInput = ({
     className={className}
   >
     <Input id={name} name={name} className={inputClassName} {...props} />
+  </FormContainer>
+);
+
+// Integer-only form input. Unlike a raw <input type="number">, this blocks
+// "e", "+", "-", ".", strips leading zeros, and clamps to `max` — so fields like
+// stock can never hold values such as "05000000000000". Emits a synthetic change
+// event { target: { name, value } } so it drops into existing onChange handlers
+// (e.g. the shared admin CRUD `handleChange`).
+export const AdminFormNumberInput = ({
+  label,
+  name,
+  labelRight,
+  className,
+  inputClassName,
+  value,
+  onChange,
+  max = 1_000_000,
+  ...props
+}) => (
+  <FormContainer
+    label={label}
+    name={name}
+    labelRight={labelRight}
+    className={className}
+  >
+    <Input
+      id={name}
+      name={name}
+      type="text"
+      inputMode="numeric"
+      value={value ?? ""}
+      onChange={(e) =>
+        onChange?.({
+          target: { name, value: sanitizeIntegerInput(e.target.value, { max }) },
+        })
+      }
+      className={inputClassName}
+      {...props}
+    />
   </FormContainer>
 );
 

@@ -21,6 +21,7 @@ import {
 } from "@/components/table/BaseColumn";
 import {
   AdminFormInput,
+  AdminFormNumberInput,
   AdminFormTextarea,
   AdminFormSelect,
 } from "@/components/shared/AdminFormInput";
@@ -362,22 +363,22 @@ const DealerAddonManagement = () => {
                       ))}
                     </div>
 
-                    <DropdownMenuLabel className="border-b">
-                      <div className="flex items-center gap-2">
-                        <Search className="size-4 text-muted-foreground shrink-0" />
+                    <DropdownMenuLabel className="border-b p-0">
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                         <Input
                           type="text"
                           placeholder="Search items..."
                           value={itemSearch}
                           onChange={handleItemSearchChange}
                           onKeyDown={(e) => e.stopPropagation()}
-                          className="h-8 border-0 shadow-none px-2 bg-transparent focus-visible:ring-0"
+                          className="h-9 w-full border-0 shadow-none pl-9 pr-3 bg-transparent focus-visible:ring-0"
                           disabled={isSubmitting || isLoadingInventory}
                         />
                       </div>
                     </DropdownMenuLabel>
 
-                    <div className="max-h-60 overflow-y-auto pt-2">
+                    <div className="max-h-88 overflow-y-auto pt-2">
                       {isLoadingInventory ? (
                         <div className="p-2 text-sm text-center text-muted-foreground">
                           Loading...
@@ -538,13 +539,10 @@ const DealerAddonManagement = () => {
                 onChange={handleChange}
                 disabled={isSubmitting}
               />
-              <AdminFormInput
+              <AdminFormNumberInput
                 label="Discount (%)"
                 name="discount"
-                type="number"
-                step="1"
-                min="0"
-                max="100"
+                max={100}
                 placeholder="50"
                 value={formData.discount}
                 onChange={handleChange}
@@ -580,24 +578,18 @@ const DealerAddonManagement = () => {
                 placeholder="Select limit"
               />
               {formData.quantityMode === "limited" && (
-                <AdminFormInput
+                <AdminFormNumberInput
                   label="Max per Order"
                   name="maxQuantity"
-                  type="number"
-                  step="1"
-                  min="1"
                   placeholder="e.g. 5"
                   value={formData.maxQuantity}
                   onChange={handleChange}
                   disabled={isSubmitting}
                 />
               )}
-              <AdminFormInput
+              <AdminFormNumberInput
                 label="Stock (optional)"
                 name="stock"
-                type="number"
-                step="1"
-                min="0"
                 placeholder="e.g. 50"
                 value={formData.stock}
                 onChange={handleChange}

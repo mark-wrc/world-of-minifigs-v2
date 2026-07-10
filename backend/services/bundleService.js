@@ -1,9 +1,7 @@
 import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
-import {
-  processItemsForCreate,
-  processItemsForUpdate,
-  deleteMultipleImages,
-} from "./imageService.js";
+import GeneralInventory from "../models/generalInventory.model.js";
+import { TORSO_PART_TYPES } from "../../shared/inventoryData.js";
+import { processItemsForCreate, processItemsForUpdate } from "./imageService.js";
 
 // ------------------------ Constants ------------------------------------
 
@@ -61,45 +59,85 @@ export const checkTorsoBagNameConflict = async (bagName, excludeId = null) => {
 
 // ------------------------ Torso Bag Item Processing ------------------------------
 //
-// Torso images are uploaded straight from the browser to Cloudinary (see
-// uploadController + frontend cloudinaryUpload), so every item arrives already
-// referencing a stored image: { image: { publicId, url }, quantity }. The
-// server never receives or parses image bytes — it only validates and persists
-// the references, which is what keeps the request body tiny.
+// Torso bag items reference torsos in General Inventory (bulk-minifig-parts)
+// instead of embedding their own image copies. Each incoming item is
+// { inventoryItemId, quantity }; the server validates the reference and persists
+// only the id + quantity. The torso's image/name/color live on the inventory
+// item and are populated on read — so a torso reused across bags is stored once
+// in Cloudinary, never duplicated.
 
-// Normalize + validate a single incoming item into its stored shape.
-const toStoredTorsoItem = (item) => {
-  const publicId = item?.image?.publicId;
-  const url = item?.image?.url;
-
-  if (!publicId || !url) {
-    throw new Error(
-      "Each torso design must reference an uploaded image (publicId and url).",
-    );
+// Validate incoming torso items against General Inventory and normalize them to
+// their stored shape { inventoryItemId, quantity }. Returns { isValid, items? }
+// or { isValid: false, error } for the controller to forward.
+export const validateTorsoInventoryItems = async (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Items are required",
+        description: "Please add at least one torso to this bag.",
+      },
+    };
   }
 
-  return {
-    image: { publicId, url },
-    quantity: Number(item.quantity),
-  };
-};
+  const ids = items.map((item) => item?.inventoryItemId);
 
-// Create: persist the uploaded references as-is.
-export const processTorsoBagItems = (items) => items.map(toStoredTorsoItem);
+  if (ids.some((id) => !id)) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Invalid torso item",
+        description: "Each torso must reference an inventory item.",
+      },
+    };
+  }
 
-// Update: persist the new references, and clean up any previously-stored
-// Cloudinary images the admin dropped from the bag.
-export const processTorsoBagItemsForUpdate = (items, existingItems) => {
-  const stored = items.map(toStoredTorsoItem);
+  if (new Set(ids.map(String)).size !== ids.length) {
+    return {
+      isValid: false,
+      error: {
+        status: 400,
+        message: "Duplicate torso found",
+        description: "Each torso can only appear once in a bag.",
+      },
+    };
+  }
 
-  const keptIds = new Set(stored.map((item) => item.image.publicId));
-  const removedIds = (existingItems || [])
-    .map((item) => item.image?.publicId)
-    .filter((id) => id && !keptIds.has(id));
+  const stored = [];
+  for (const item of items) {
+    const inventoryItem = await GeneralInventory.findById(
+      item.inventoryItemId,
+    ).lean();
 
-  deleteMultipleImages(removedIds);
+    if (!inventoryItem) {
+      return {
+        isValid: false,
+        error: {
+          status: 404,
+          message: "Torso not found",
+          description: `The inventory item "${item.inventoryItemId}" does not exist.`,
+        },
+      };
+    }
 
-  return stored;
+    if (!TORSO_PART_TYPES.includes(inventoryItem.partType)) {
+      return {
+        isValid: false,
+        error: {
+          status: 400,
+          message: "Not a torso",
+          description: `"${inventoryItem.minifigName}" is not a torso part type and cannot be added to a torso bag.`,
+        },
+      };
+    }
+
+    const quantity = Math.max(1, Math.floor(Number(item.quantity) || 0));
+    stored.push({ inventoryItemId: inventoryItem._id, quantity });
+  }
+
+  return { isValid: true, items: stored };
 };
 
 // ------------------------ Addon Item Processing (Create) --------------------------------

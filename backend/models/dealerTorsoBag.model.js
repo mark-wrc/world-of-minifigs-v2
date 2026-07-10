@@ -16,15 +16,19 @@ const dealerTorsoBagSchema = new mongoose.Schema(
     items: [
       {
         _id: false,
+        // Reference to the torso in General Inventory (bulk-minifig-parts). The
+        // image/name/color live on that inventory item — never copied here — so
+        // reusing a torso across bags stores one Cloudinary asset, not many.
+        inventoryItemId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "GeneralInventory",
+        },
+        // Legacy embedded image for bags created before the inventory-reference
+        // migration. New bags leave this empty and read the image from the
+        // referenced inventory item. Kept optional for dual-read during migration.
         image: {
-          publicId: {
-            type: String,
-            required: true,
-          },
-          url: {
-            type: String,
-            required: true,
-          },
+          publicId: { type: String },
+          url: { type: String },
         },
         quantity: {
           type: Number,

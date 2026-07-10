@@ -5,7 +5,6 @@ import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
 import GeneralInventory from "../models/generalInventory.model.js";
 import SubCollection from "../models/subCollection.model.js";
 import {
-  cleanupItemImages,
   normalizeImageRef,
   deleteSingleImage,
   deleteMultipleImages,
@@ -124,9 +123,18 @@ import {
   getBundleMiscQuantity,
   validateTorsoItems,
   checkTorsoBagNameConflict,
-  processTorsoBagItems,
-  processTorsoBagItemsForUpdate,
+  validateTorsoInventoryItems,
 } from "../services/bundleService.js";
+
+// Populate config for a torso bag's items — pulls the torso's image/name/color
+// from the referenced General Inventory item so no image is ever copied onto the
+// bag. Shared by the admin and dealer reads.
+const TORSO_ITEM_POPULATE = {
+  path: "items.inventoryItemId",
+  select:
+    "minifigName pricePerBag piecesPerBag stock image colorId partType isActive",
+  populate: { path: "colorId", select: "colorName hexCode" },
+};
 
 // Dealer bundles must use one of these two base torso-bag sizes.
 const VALID_BASE_SIZES = [100, 500];
@@ -1141,6 +1149,12 @@ export const createDealerTorsoBag = async (req, res) => {
       });
     }
 
+    // Validate each torso references a real inventory torso part.
+    const itemsValidation = await validateTorsoInventoryItems(items);
+    if (!itemsValidation.isValid) {
+      return res.status(itemsValidation.error.status).json(itemsValidation.error);
+    }
+
     // Check for existing bag with same name
     const existing = await checkTorsoBagNameConflict(bagName);
     if (existing) {
@@ -1151,12 +1165,9 @@ export const createDealerTorsoBag = async (req, res) => {
       });
     }
 
-    // Process and upload items
-    const uploadedItems = await processTorsoBagItems(items);
-
     const torsoBag = await DealerTorsoBag.create({
       bagName: bagName.trim(),
-      items: uploadedItems,
+      items: itemsValidation.items,
       baseSize: base,
       stock: stock !== undefined ? Math.max(0, Number(stock) || 0) : 0,
       isActive: isActive !== undefined ? isActive : true,
@@ -1190,7 +1201,7 @@ export const getAllDealerTorsoBags = async (req, res) => {
     const result = await paginateQuery(DealerTorsoBag, searchQuery, {
       page,
       limit,
-      populate: getStandardPopulateOptions(),
+      populate: [TORSO_ITEM_POPULATE, ...getStandardPopulateOptions()],
     });
 
     return res.status(200).json(createPaginationResponse(result, "bags"));
@@ -1265,12 +1276,14 @@ export const updateDealerTorsoBag = async (req, res) => {
         });
       }
 
-      const processedItems = await processTorsoBagItemsForUpdate(
-        items,
-        torsoBag.items,
-      );
+      const itemsValidation = await validateTorsoInventoryItems(items);
+      if (!itemsValidation.isValid) {
+        return res
+          .status(itemsValidation.error.status)
+          .json(itemsValidation.error);
+      }
 
-      torsoBag.items = processedItems;
+      torsoBag.items = itemsValidation.items;
     }
 
     torsoBag.updatedBy = req.user._id;
@@ -1307,16 +1320,15 @@ export const deleteDealerTorsoBag = async (req, res) => {
       });
     }
 
-    // Delete DB record first (instant response for admin)
+    // Delete the DB record. The torso images belong to General Inventory (not to
+    // this bag), so we must NOT delete them here — other bags and add-ons may
+    // still reference the same torsos.
     await DealerTorsoBag.findByIdAndDelete(id);
-
-    // Clean up images in background (fire-and-forget)
-    cleanupItemImages(torsoBag.items);
 
     return res.status(200).json({
       success: true,
       message: "Torso bag deleted successfully",
-      description: "The torso bag and its designs have been removed.",
+      description: "The torso bag has been removed.",
     });
   } catch (error) {
     handleError(
@@ -1577,6 +1589,7 @@ export const getDealerTorsoBagsForUser = async (req, res) => {
 
     const torsoBags = await DealerTorsoBag.find(query)
       .select("-createdBy -updatedBy -isActive -__v")
+      .populate(TORSO_ITEM_POPULATE)
       .sort({ createdAt: 1 });
 
     return res.status(200).json({
