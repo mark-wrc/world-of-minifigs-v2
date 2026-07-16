@@ -6,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import ColorSwatch from "@/components/shared/ColorSwatch";
 import CommonImage from "@/components/shared/CommonImage";
 import {
@@ -508,7 +509,19 @@ const GeneralInventoryManagement = () => {
             </TableCell>
 
             {/* Name */}
-            <TableCell>{display(item.minifigName)}</TableCell>
+            <TableCell>
+              <div className="flex items-center justify-center gap-1.5">
+                <span>{display(item.minifigName)}</span>
+                {item.isFeatured && (
+                  <Badge
+                    variant="warning"
+                    className="text-[10px] px-1.5 py-0 leading-4"
+                  >
+                    Featured
+                  </Badge>
+                )}
+              </div>
+            </TableCell>
 
             {/* Item ID */}
             <TableCell>{display(item.itemId)}</TableCell>
@@ -563,13 +576,13 @@ const GeneralInventoryManagement = () => {
         entityName="Inventory"
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        className={dialogMode === "add" ? "sm:max-w-5xl" : ""}
+        className="sm:max-w-lg"
       >
         <div className="space-y-4">
           {/* Media Upload with Metadata Inputs */}
           <MediaUpload
             label="General Inventory Image"
-            multiple={dialogMode === "add"}
+            multiple={false}
             previews={filePreview}
             preview={filePreview[0]?.url}
             onChange={handleInventoryFileChange}
@@ -600,6 +613,17 @@ const GeneralInventoryManagement = () => {
             onChange={handleValueChange("isActive")}
             disabled={isSubmitting}
             description="When disabled, this item will be hidden from the admin add-ons page."
+          />
+
+          {/* Featured — surfaces the item under the "Featured" sort in the
+              dealer add-on preview and shows a "Featured" badge. */}
+          <VisibilitySwitch
+            id="isFeatured"
+            label="Add to Featured"
+            checked={formData.isFeatured}
+            onChange={handleValueChange("isFeatured")}
+            disabled={isSubmitting}
+            description="When enabled, this item appears under the featured items"
           />
         </div>
       </AddUpdateItemDialog>

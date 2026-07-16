@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Crown } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -47,11 +47,14 @@ import { BULK_MINIFIG_PART_TYPES, perBagUnit } from "@shared/inventoryData";
 import { formatCurrency } from "@/utils/formatting";
 import { useReorderDealerAddonItemsMutation } from "@/redux/api/adminApi";
 
-// "Featured" is the admin-curated order stored on the add-on (the bundleItems
+// "Default" is the admin-curated order stored on the add-on (the bundleItems
 // array order). It's the default so dealers first see whatever the admin put up
 // top. The remaining name/price options are for dealers who want to re-browse.
-const ADDON_SORT_OPTIONS = [
-  { value: "featured", label: "Featured" },
+// "Featured" is an opt-in per-item flag (isFeatured) set on general inventory;
+// it's only offered when the add-on actually contains a featured item (see
+// `sortOptions` below) and narrows the list to just those items.
+const BASE_ADDON_SORT_OPTIONS = [
+  { value: "default", label: "Default" },
   ...SORT_OPTIONS.filter((o) => !o.value.startsWith("date")),
 ];
 
@@ -89,6 +92,18 @@ const AddonItemCard = ({
       </span>
     )}
 
+    {/* Featured VIP badge — a charcoal pill with a gold crown pinned to the
+        top-right corner for an understated, premium register. */}
+    {item.isFeatured && (
+      <div
+        title="Featured item"
+        className="absolute right-1.5 top-1.5 z-20 inline-flex items-center gap-1 rounded-full bg-gradient-to-b from-zinc-800 to-zinc-950 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300 shadow-md ring-1 ring-amber-300/40"
+      >
+        <Crown className="size-3 fill-current" strokeWidth={0} />
+        Featured
+      </div>
+    )}
+
     <div className="flex items-center gap-3">
       {/* Image with hover preview */}
       <HoverCard openDelay={150} closeDelay={80}>
@@ -112,8 +127,13 @@ const AddonItemCard = ({
 
       {/* Right Content */}
       <div className="flex flex-col gap-2 flex-1">
-        {/* Name + Total */}
-        <div className="flex items-start justify-between gap-2">
+        {/* Name + Total — only this top row reaches the corner, so the featured
+            badge gets its clearance here (not on the whole column). */}
+        <div
+          className={`flex items-start justify-between gap-2 ${
+            item.isFeatured ? "pr-24" : ""
+          }`}
+        >
           <h4
             className="text-sm font-semibold line-clamp-1 leading-tight min-w-0"
             title={`${item.itemName} - ${item.perBagLimit} ${perBagUnit(item.category, item.perBagLimit)}`}
@@ -199,7 +219,7 @@ const AddonPreviewModal = ({
   onConfirm,
   onValueChange,
 }) => {
-  const [sortBy, setSortBy] = useState("featured");
+  const [sortBy, setSortBy] = useState("default");
   const [selectedCollection, setSelectedCollection] = useState(null);
 
   const isMinifigs =
@@ -208,9 +228,24 @@ const AddonPreviewModal = ({
   const isBulkParts =
     items.length > 0 && items.every((i) => i.category === "bulk-minifig-parts");
 
+  // "Featured" is only a meaningful sort when this add-on actually holds a
+  // featured item, so we hide the option (and treat it as "default") otherwise.
+  const hasFeatured = useMemo(() => items.some((i) => i.isFeatured), [items]);
+
+  const sortOptions = useMemo(() => {
+    if (!hasFeatured) return BASE_ADDON_SORT_OPTIONS;
+    const [defaultOpt, ...rest] = BASE_ADDON_SORT_OPTIONS;
+    return [defaultOpt, { value: "featured", label: "Featured" }, ...rest];
+  }, [hasFeatured]);
+
+  // Guards the case where the last featured item disappears while "featured" is
+  // still selected — fall back to the curated order instead of an empty list.
+  const effectiveSortBy =
+    sortBy === "featured" && !hasFeatured ? "default" : sortBy;
+
   // ─── Admin reorder state ────────────────────────────────────────────────────
   // `orderIds` is the admin's in-progress custom order (list of inventory ids).
-  // null = untouched → fall back to the stored (featured) order. Keyed by id so
+  // null = untouched → fall back to the stored curated order. Keyed by id so
   // it survives quantity edits that recompute `items`.
   const [orderIds, setOrderIds] = useState(null);
   const [hasOrderChanges, setHasOrderChanges] = useState(false);
@@ -225,6 +260,7 @@ const AddonPreviewModal = ({
     setPrevAddonId(addon?._id);
     setOrderIds(null);
     setHasOrderChanges(false);
+    setSortBy("default");
   }
 
   const collections = useMemo(() => {
@@ -267,10 +303,10 @@ const AddonPreviewModal = ({
     return ordered;
   }, [isBulkParts, items]);
 
-  // The stored (featured) order — position of each item in the add-on's
+  // The stored curated order — position of each item in the add-on's
   // bundleItems array. Used both to render the default order and as the base
-  // the admin drags against.
-  const featuredItems = useMemo(() => {
+  // the admin drags against. (Distinct from the per-item `isFeatured` flag.)
+  const curatedItems = useMemo(() => {
     const rank = new Map();
     (addon.bundleItems || []).forEach((bi, idx) => {
       const id = String(bi.inventoryItemId?._id || bi.inventoryItemId || "");
@@ -284,7 +320,7 @@ const AddonPreviewModal = ({
     if (!orderIds) return base;
 
     // Apply the admin's in-progress custom order, appending any items not yet
-    // placed (e.g. freshly added) in their featured order.
+    // placed (e.g. freshly added) in their curated order.
     const byId = new Map(base.map((i) => [i.inventoryItemId, i]));
     const ordered = [];
     for (const id of orderIds) {
@@ -301,7 +337,7 @@ const AddonPreviewModal = ({
 
   const sortedItems = useMemo(() => {
     const filtered = selectedCollection
-      ? featuredItems.filter((i) => {
+      ? curatedItems.filter((i) => {
           if (isBulkParts) {
             const t = i.partType || "__none__";
             return t === selectedCollection;
@@ -311,13 +347,17 @@ const AddonPreviewModal = ({
             : ["__none__"];
           return ids.includes(selectedCollection);
         })
-      : featuredItems;
+      : curatedItems;
 
-    // "featured" preserves the curated order as-is.
-    if (sortBy === "featured") return filtered;
+    // "featured" narrows to just the flagged items, keeping curated order.
+    if (effectiveSortBy === "featured")
+      return filtered.filter((i) => i.isFeatured);
+
+    // "default" preserves the curated order as-is.
+    if (effectiveSortBy === "default") return filtered;
 
     return [...filtered].sort((a, b) => {
-      switch (sortBy) {
+      switch (effectiveSortBy) {
         case "name_asc":
           return a.itemName.localeCompare(b.itemName);
         case "name_desc":
@@ -330,12 +370,14 @@ const AddonPreviewModal = ({
           return 0;
       }
     });
-  }, [featuredItems, sortBy, selectedCollection, isBulkParts]);
+  }, [curatedItems, effectiveSortBy, selectedCollection, isBulkParts]);
 
-  // Reordering works in the featured view, including inside a collection /
+  // Reordering works in the curated ("default") view and the featured subset —
+  // both map back onto the stored order — including inside a collection /
   // part-type filter. A custom sort (name/price) can't be dragged since its
   // order is derived, not stored.
-  const canReorder = isAdmin && sortBy === "featured";
+  const canReorder =
+    isAdmin && (effectiveSortBy === "default" || effectiveSortBy === "featured");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -356,19 +398,14 @@ const AddonPreviewModal = ({
 
     const reorderedVisible = arrayMove(sortedItems, oldIndex, newIndex);
 
-    // Without a filter the visible list is the whole list — save it directly.
-    if (!selectedCollection) {
-      setOrderIds(reorderedVisible.map((i) => i.inventoryItemId));
-      setHasOrderChanges(true);
-      return;
-    }
-
-    // With a filter active, only the visible (filtered) items were rearranged.
-    // Rebuild the full order by keeping every hidden item in its slot and
-    // dropping the reordered filtered items back into the slots they occupied.
+    // The visible list can be a filtered subset of the curated order — a
+    // collection / part-type filter and/or the featured-only view. Rebuild the
+    // full order by keeping every hidden item in its slot and dropping the
+    // reordered visible items back into the slots they occupied. (With nothing
+    // filtered this reduces to saving the reordered list as-is.)
     const visibleIds = new Set(sortedItems.map((i) => i.inventoryItemId));
     let vi = 0;
-    const fullOrder = featuredItems.map((item) =>
+    const fullOrder = curatedItems.map((item) =>
       visibleIds.has(item.inventoryItemId) ? reorderedVisible[vi++] : item,
     );
     setOrderIds(fullOrder.map((i) => i.inventoryItemId));
@@ -380,7 +417,7 @@ const AddonPreviewModal = ({
     try {
       await reorderAddonItems({
         id: addon._id,
-        itemOrder: featuredItems.map((i) => i.inventoryItemId),
+        itemOrder: curatedItems.map((i) => i.inventoryItemId),
       }).unwrap();
       setHasOrderChanges(false);
       toast.success("Order saved", {
@@ -407,7 +444,7 @@ const AddonPreviewModal = ({
             {isAdmin
               ? canReorder
                 ? "Drag to reposition the listed items."
-                : "Switch to “Featured” sort to reorder items."
+                : "Switch to “Default” or “Featured” sort to reorder items."
               : `${addon.addonName} items`}
           </DialogDescription>
         </DialogHeader>
@@ -472,9 +509,9 @@ const AddonPreviewModal = ({
               </div>
             )}
             <ProductSort
-              sortBy={sortBy}
+              sortBy={effectiveSortBy}
               onSortChange={setSortBy}
-              options={ADDON_SORT_OPTIONS}
+              options={sortOptions}
               id="addon-sort-select"
               labelClassName="hidden sm:block"
             />

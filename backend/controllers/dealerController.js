@@ -694,7 +694,7 @@ export const getAllDealerAddons = async (req, res) => {
         {
           path: "bundleItems.inventoryItemId",
           select:
-            "minifigName pricePerBag piecesPerBag stock image colorId isActive category collectionIds partType",
+            "minifigName pricePerBag piecesPerBag stock image colorId isActive isFeatured category collectionIds partType",
           populate: [
             { path: "colorId", select: "colorName hexCode" },
             { path: "collectionIds", select: "collectionName" },
@@ -888,7 +888,7 @@ export const updateDealerAddon = async (req, res) => {
       {
         path: "bundleItems.inventoryItemId",
         select:
-          "minifigName pricePerBag piecesPerBag stock image colorId category collectionIds partType",
+          "minifigName pricePerBag piecesPerBag stock image colorId isFeatured category collectionIds partType",
         populate: [
           { path: "colorId", select: "colorName hexCode" },
           { path: "collectionIds", select: "collectionName" },
@@ -1513,7 +1513,7 @@ export const getDealerAddonsForUser = async (req, res) => {
         path: "bundleItems.inventoryItemId",
         match: { isActive: true, stock: { $gt: 0 } },
         select:
-          "minifigName pricePerBag piecesPerBag stock image colorId category collectionIds partType",
+          "minifigName pricePerBag piecesPerBag stock image colorId isFeatured category collectionIds partType",
         populate: [
           { path: "colorId", select: "colorName hexCode" },
           { path: "collectionIds", select: "collectionName" },

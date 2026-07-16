@@ -102,6 +102,11 @@ const generalInventorySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
 
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

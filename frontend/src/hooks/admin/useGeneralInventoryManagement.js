@@ -24,6 +24,7 @@ export const INVENTORY_TABS = INVENTORY_CATEGORY_OPTIONS;
 
 const initialFormData = {
   isActive: true,
+  isFeatured: false,
 };
 
 const BASE_COLUMNS = [
@@ -113,7 +114,9 @@ const useGeneralInventoryManagement = () => {
     resetFile,
     handleFileChange,
     handleRemoveFile,
-  } = useMediaPreview({ multiple: true });
+    // `multiple: true` keeps `filePreview` an array (the submit/upload flow maps
+    // over it), but `maxFiles: 1` restricts uploads to a single item at a time.
+  } = useMediaPreview({ multiple: true, maxFiles: 1 });
 
   // ------------------------------- Mutations ------------------------------------
   const [createBulk, { isLoading: isCreating }] =
@@ -319,6 +322,7 @@ const useGeneralInventoryManagement = () => {
 
     crud.openEdit(item, {
       isActive: item.isActive !== false,
+      isFeatured: item.isFeatured === true,
     });
   };
 
@@ -364,6 +368,7 @@ const useGeneralInventoryManagement = () => {
         items: filePreview.map((item, i) => ({
           ...buildFields(item),
           isActive: crud.formData.isActive,
+          isFeatured: crud.formData.isFeatured,
           image: refs[i] || item.image,
         })),
       };
@@ -394,6 +399,7 @@ const useGeneralInventoryManagement = () => {
       const payload = {
         ...buildFields(item),
         isActive: crud.formData.isActive,
+        isFeatured: crud.formData.isFeatured,
         ...(imageRef ? { image: imageRef } : {}),
       };
 

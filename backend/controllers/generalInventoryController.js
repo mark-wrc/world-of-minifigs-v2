@@ -112,9 +112,10 @@ export const createGeneralInventoryBulk = async (req, res) => {
         colorId,
         image,
         isActive,
+        isFeatured,
         category,
         collectionIds,
-        collectionId, // legacy single-value support
+        collectionId,
         partType,
       } = item;
 
@@ -217,6 +218,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
         partType: category === "bulk-minifig-parts" ? partType : null,
         // Honor the visibility toggle on create; default to active when omitted.
         isActive: isActive === undefined ? true : Boolean(isActive),
+        // Featured is opt-in; default to false when omitted.
+        isFeatured: Boolean(isFeatured),
         image: uploadedImage,
         createdBy: req.user._id,
       });
@@ -459,6 +462,7 @@ export const updateGeneralInventory = async (req, res) => {
       colorId,
       image,
       isActive,
+      isFeatured,
       category,
       collectionIds,
       collectionId, // legacy single-value support
@@ -635,6 +639,11 @@ export const updateGeneralInventory = async (req, res) => {
         }
       }
       inventory.isActive = Boolean(isActive);
+    }
+
+    // Featured is a simple curation flag — no in-use guard needed.
+    if (isFeatured !== undefined) {
+      inventory.isFeatured = Boolean(isFeatured);
     }
 
     if (category !== undefined) {
