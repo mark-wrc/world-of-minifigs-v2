@@ -131,7 +131,7 @@ const AddonItemCard = ({
             badge gets its clearance here (not on the whole column). */}
         <div
           className={`flex items-start justify-between gap-2 ${
-            item.isFeatured ? "pr-24" : ""
+            item.isFeatured ? "pr-20" : ""
           }`}
         >
           <h4
