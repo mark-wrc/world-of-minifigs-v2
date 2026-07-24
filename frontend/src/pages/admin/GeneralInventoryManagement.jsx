@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import ColorSwatch from "@/components/shared/ColorSwatch";
 import CommonImage from "@/components/shared/CommonImage";
 import {
@@ -38,6 +37,12 @@ import useGeneralInventoryManagement, {
   INVENTORY_TABS,
 } from "@/hooks/admin/useGeneralInventoryManagement";
 import { BULK_MINIFIG_PART_TYPES } from "@shared/inventoryData";
+import {
+  ITEM_BADGE_OPTIONS,
+  NO_BADGE,
+  getItemBadge,
+} from "@shared/itemBadges";
+import { ItemBadgeChip } from "@/components/shared/ItemBadge";
 
 const PART_TYPE_OPTIONS = BULK_MINIFIG_PART_TYPES.map((name) => ({
   value: name,
@@ -512,14 +517,7 @@ const GeneralInventoryManagement = () => {
             <TableCell>
               <div className="flex items-center justify-center gap-1.5">
                 <span>{display(item.minifigName)}</span>
-                {item.isFeatured && (
-                  <Badge
-                    variant="warning"
-                    className="text-[10px] px-1.5 py-0 leading-4"
-                  >
-                    Featured
-                  </Badge>
-                )}
+                <ItemBadgeChip value={item.badge} />
               </div>
             </TableCell>
 
@@ -607,23 +605,31 @@ const GeneralInventoryManagement = () => {
             )}
           />
 
+          {/* Badge — one label at a time (Featured, Latest Drop, …). The chosen
+              badge shows on the item's card and gives dealers a matching sort
+              option in the add-on preview. Options come from
+              shared/itemBadges.js — add new badges there. */}
+          <div className="space-y-1.5">
+            <AdminFormSelect
+              label="Badge"
+              name="badge"
+              value={formData.badge || NO_BADGE}
+              onValueChange={handleValueChange("badge")}
+              options={ITEM_BADGE_OPTIONS}
+              disabled={isSubmitting}
+            />
+            <p className="text-xs text-muted-foreground">
+              {getItemBadge(formData.badge)?.description ||
+                "This item shows no badge. Pick one to highlight it and give dealers a matching sort option."}
+            </p>
+          </div>
+
           {/* Visibility */}
           <VisibilitySwitch
             checked={formData.isActive}
             onChange={handleValueChange("isActive")}
             disabled={isSubmitting}
             description="When disabled, this item will be hidden from the admin add-ons page."
-          />
-
-          {/* Featured — surfaces the item under the "Featured" sort in the
-              dealer add-on preview and shows a "Featured" badge. */}
-          <VisibilitySwitch
-            id="isFeatured"
-            label="Add to Featured"
-            checked={formData.isFeatured}
-            onChange={handleValueChange("isFeatured")}
-            disabled={isSubmitting}
-            description="When enabled, this item appears under the featured items"
           />
         </div>
       </AddUpdateItemDialog>

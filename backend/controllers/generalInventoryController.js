@@ -18,6 +18,7 @@ import {
   paginateQuery,
   createPaginationResponse,
 } from "../utils/pagination.js";
+import { normalizeItemBadge } from "../../shared/itemBadges.js";
 import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
 
@@ -112,7 +113,7 @@ export const createGeneralInventoryBulk = async (req, res) => {
         colorId,
         image,
         isActive,
-        isFeatured,
+        badge,
         category,
         collectionIds,
         collectionId,
@@ -218,8 +219,8 @@ export const createGeneralInventoryBulk = async (req, res) => {
         partType: category === "bulk-minifig-parts" ? partType : null,
         // Honor the visibility toggle on create; default to active when omitted.
         isActive: isActive === undefined ? true : Boolean(isActive),
-        // Featured is opt-in; default to false when omitted.
-        isFeatured: Boolean(isFeatured),
+        // Badge is opt-in; anything unrecognised (or omitted) means "no badge".
+        badge: normalizeItemBadge(badge),
         image: uploadedImage,
         createdBy: req.user._id,
       });
@@ -462,7 +463,7 @@ export const updateGeneralInventory = async (req, res) => {
       colorId,
       image,
       isActive,
-      isFeatured,
+      badge,
       category,
       collectionIds,
       collectionId, // legacy single-value support
@@ -641,9 +642,10 @@ export const updateGeneralInventory = async (req, res) => {
       inventory.isActive = Boolean(isActive);
     }
 
-    // Featured is a simple curation flag — no in-use guard needed.
-    if (isFeatured !== undefined) {
-      inventory.isFeatured = Boolean(isFeatured);
+    // The badge is a simple curation label — no in-use guard needed. One badge
+    // at a time: assigning a new one replaces whatever was there.
+    if (badge !== undefined) {
+      inventory.badge = normalizeItemBadge(badge);
     }
 
     if (category !== undefined) {

@@ -3,6 +3,7 @@ import {
   INVENTORY_CATEGORIES,
   BULK_MINIFIG_PART_TYPES,
 } from "../../shared/inventoryData.js";
+import { ITEM_BADGE_VALUES } from "../../shared/itemBadges.js";
 
 const generalInventorySchema = new mongoose.Schema(
   {
@@ -102,9 +103,10 @@ const generalInventorySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    isFeatured: {
-      type: Boolean,
-      default: false,
+    badge: {
+      type: String,
+      enum: [...ITEM_BADGE_VALUES, null],
+      default: null,
       index: true,
     },
 

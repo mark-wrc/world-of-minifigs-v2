@@ -706,7 +706,7 @@ export const useDealer = () => {
           pricePerBag: Number(inventory.pricePerBag || 0),
           perBagLimit,
           maxBags,
-          isFeatured: inventory.isFeatured === true,
+          badge: inventory.badge || null,
         };
       })
       .filter(Boolean);

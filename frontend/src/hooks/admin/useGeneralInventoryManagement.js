@@ -18,13 +18,14 @@ import {
 import useMediaPreview from "@/hooks/admin/useMediaPreview";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import { INVENTORY_CATEGORY_OPTIONS } from "@shared/inventoryData";
+import { NO_BADGE, normalizeItemBadge } from "@shared/itemBadges";
 import { toast } from "sonner";
 
 export const INVENTORY_TABS = INVENTORY_CATEGORY_OPTIONS;
 
 const initialFormData = {
   isActive: true,
-  isFeatured: false,
+  badge: NO_BADGE,
 };
 
 const BASE_COLUMNS = [
@@ -322,7 +323,7 @@ const useGeneralInventoryManagement = () => {
 
     crud.openEdit(item, {
       isActive: item.isActive !== false,
-      isFeatured: item.isFeatured === true,
+      badge: item.badge || NO_BADGE,
     });
   };
 
@@ -368,7 +369,8 @@ const useGeneralInventoryManagement = () => {
         items: filePreview.map((item, i) => ({
           ...buildFields(item),
           isActive: crud.formData.isActive,
-          isFeatured: crud.formData.isFeatured,
+          // NO_BADGE → null; the server re-validates against the same list.
+          badge: normalizeItemBadge(crud.formData.badge),
           image: refs[i] || item.image,
         })),
       };
@@ -399,7 +401,7 @@ const useGeneralInventoryManagement = () => {
       const payload = {
         ...buildFields(item),
         isActive: crud.formData.isActive,
-        isFeatured: crud.formData.isFeatured,
+        badge: normalizeItemBadge(crud.formData.badge),
         ...(imageRef ? { image: imageRef } : {}),
       };
 

@@ -3,7 +3,24 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* The shared workspace folder (../../../../shared) lives outside Vite's project
+ * root, so Tailwind's automatic content detection never scans it. Badge pill
+ * colors are declared as class strings there (shared/itemBadges.js) — register
+ * the folder so those classes survive the purge. */
+@source "../../../../shared";
+
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Global text scaling.
+ * Tailwind sizes (text-*, p-*, etc.) are rem-based, so changing the root
+ * font-size scales ALL text and rem spacing proportionally.
+ * 100% = 16px (default). 110% = +10%, 115% = +15%, 120% = +20%.
+ * Adjust the single value below to taste.
+ */
+html {
+  font-size: 100%;
+}
 
 ::-webkit-scrollbar {
   display: none;
@@ -246,4 +263,30 @@ body {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: oklch(var(--border)) transparent;
+}
+
+/* Upload progress bar — shimmer sweep over the filled portion, plus an
+   indeterminate slide used before the total is known. */
+@keyframes upload-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.animate-upload-shimmer {
+  animation: upload-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes upload-indeterminate {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+.animate-upload-indeterminate {
+  animation: upload-indeterminate 1.1s ease-in-out infinite;
 }
