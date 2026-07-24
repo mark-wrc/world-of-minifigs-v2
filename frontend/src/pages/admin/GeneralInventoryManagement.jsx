@@ -216,7 +216,7 @@ const InventoryItemInputs = React.memo(
         disabled={isSubmitting}
         inputClassName="h-8 text-xs"
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <AdminFormInput
           name="pricePerBag"
           type="number"
@@ -240,18 +240,18 @@ const InventoryItemInputs = React.memo(
           disabled={isSubmitting}
           inputClassName="h-8 text-xs"
         />
-      </div>
 
-      <AdminFormInput
-        name="stock"
-        type="number"
-        placeholder="Stocks/bag"
-        value={item.stock}
-        onChange={onChange}
-        disabled={isSubmitting}
-        required
-        inputClassName="h-8 text-xs"
-      />
+        <AdminFormInput
+          name="stock"
+          type="number"
+          placeholder="Stocks/bag"
+          value={item.stock}
+          onChange={onChange}
+          disabled={isSubmitting}
+          required
+          inputClassName="h-8 text-xs"
+        />
+      </div>
 
       <AdminFormSelect
         name="color"
@@ -574,7 +574,7 @@ const GeneralInventoryManagement = () => {
         entityName="Inventory"
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        className="sm:max-w-lg"
+        className="sm:max-w-xl"
       >
         <div className="space-y-4">
           {/* Media Upload with Metadata Inputs */}
