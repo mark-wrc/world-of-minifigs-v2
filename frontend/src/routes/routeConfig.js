@@ -35,6 +35,7 @@ import DesignerManagement from "@/pages/admin/DesignerManagement";
 import OrderManagement from "@/pages/admin/OrderManagement";
 import UserManagement from "@/pages/admin/UserManagement";
 import GeneralInventoryManagement from "@/pages/admin/GeneralInventoryManagement";
+import FlashSaleManagement from "@/pages/admin/FlashSaleManagement";
 
 // Public routes
 export const publicRoutes = [
@@ -192,6 +193,10 @@ export const adminRoutes = [
       {
         path: "general-inventory",
         element: GeneralInventoryManagement,
+      },
+      {
+        path: "flash-sales",
+        element: FlashSaleManagement,
       },
     ],
   },

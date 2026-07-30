@@ -21,6 +21,10 @@ import {
 import { normalizeItemBadge } from "../../shared/itemBadges.js";
 import { checkNameConflict } from "../utils/commonUtils.js";
 import { AUDIT_POPULATE } from "../utils/populateHelpers.js";
+import {
+  getActiveFlashSaleMap,
+  getFlashSaleForItem,
+} from "../utils/flashSale/resolver.js";
 
 // Image uploads go browser→Cloudinary directly; folder owned by uploadController.js.
 
@@ -363,12 +367,14 @@ export const getAllGeneralInventory = async (req, res) => {
         .lean();
 
       const docMap = new Map(docs.map((d) => [String(d._id), d]));
+      const saleMap = await getActiveFlashSaleMap(pageIds);
       const data = pageIds
         .map((id) => docMap.get(String(id)))
         .filter(Boolean)
         .map((item) => ({
           ...item,
           soldBags: soldMap.get(String(item._id)) || 0,
+          flashSale: getFlashSaleForItem(item, saleMap),
         }));
 
       return res.status(200).json(
@@ -396,11 +402,16 @@ export const getAllGeneralInventory = async (req, res) => {
       populate,
     });
 
-    // Attach bags-sold (from orders) to each item on the current page.
+    // Attach bags-sold (from orders) + active flash-sale pricing to each item
+    // on the current page.
     const soldMap = await getSoldBagsMap(result.data.map((item) => item._id));
+    const saleMap = await getActiveFlashSaleMap(
+      result.data.map((item) => item._id),
+    );
     result.data = result.data.map((item) => ({
       ...item,
       soldBags: soldMap.get(String(item._id)) || 0,
+      flashSale: getFlashSaleForItem(item, saleMap),
     }));
 
     return res.status(200).json(createPaginationResponse(result, "inventory"));

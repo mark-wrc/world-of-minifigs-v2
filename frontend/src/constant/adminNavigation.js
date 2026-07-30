@@ -12,6 +12,7 @@ import {
   Handshake,
   Image,
   ChartCandlestick,
+  Zap,
 } from "lucide-react";
 
 export const adminNavigation = [
@@ -38,6 +39,12 @@ export const adminNavigation = [
     label: "General Inventory",
     path: "general-inventory",
     icon: ChartCandlestick,
+  },
+  {
+    id: "flash-sales",
+    label: "Flash Sales",
+    path: "flash-sales",
+    icon: Zap,
   },
   {
     id: "product-color",

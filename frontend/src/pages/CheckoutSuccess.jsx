@@ -8,6 +8,7 @@ import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
 import CommonImage from "@/components/shared/CommonImage";
+import DiscountBadge from "@/components/shared/DiscountBadge";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 import { perBagUnit } from "@shared/inventoryData";
@@ -216,11 +217,18 @@ const CheckoutSuccess = () => {
                                   className="flex items-center gap-3 rounded-md border p-2"
                                 >
                                   {sub.imageUrl && (
-                                    <CommonImage
-                                      src={sub.imageUrl}
-                                      alt={sub.name}
-                                      className="w-16 object-contain shrink-0"
-                                    />
+                                    <div className="relative shrink-0">
+                                      <CommonImage
+                                        src={sub.imageUrl}
+                                        alt={sub.name}
+                                        className="w-20"
+                                      />
+                                      <DiscountBadge
+                                        originalPrice={sub.originalPricePerBag}
+                                        paidPrice={sub.pricePerBag}
+                                        className="absolute top-0 right-0 z-10"
+                                      />
+                                    </div>
                                   )}
                                   <div className="flex-1 min-w-0 space-y-2">
                                     <div className="flex items-center justify-between gap-2">
@@ -251,10 +259,31 @@ const CheckoutSuccess = () => {
                                           ·
                                         </span>
                                       )}
+                                      {/* What the line would have cost at the
+                                          pre-sale price, struck through beside
+                                          the amount actually charged. */}
+                                      {sub.originalPricePerBag != null &&
+                                        sub.totalPrice > 0 && (
+                                          <span className="text-muted-foreground line-through">
+                                            {formatCurrency(
+                                              sub.originalPricePerBag * sub.qty,
+                                            )}
+                                          </span>
+                                        )}
                                       {sub.totalPrice > 0 && (
                                         <span className="font-semibold text-success dark:text-accent">
                                           {formatCurrency(sub.totalPrice)}
                                         </span>
+                                      )}
+                                      {/* No thumbnail to overlay — keep the
+                                          discount visible inline instead. */}
+                                      {!sub.imageUrl && (
+                                        <DiscountBadge
+                                          originalPrice={
+                                            sub.originalPricePerBag
+                                          }
+                                          paidPrice={sub.pricePerBag}
+                                        />
                                       )}
                                     </div>
                                   </div>

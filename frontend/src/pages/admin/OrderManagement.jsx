@@ -37,6 +37,7 @@ import {
 import { getOrderStatusConfig, STATUS_CONFIG } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
 import CommonImage from "@/components/shared/CommonImage";
+import DiscountBadge from "@/components/shared/DiscountBadge";
 import { perBagUnit } from "@shared/inventoryData";
 
 // Small inline button that copies the given text and briefly shows a check.
@@ -629,12 +630,19 @@ const OrderManagement = () => {
                                   className="flex items-center gap-3 rounded-md border p-2"
                                 >
                                   {sub.imageUrl && (
-                                    <CommonImage
-                                      src={sub.imageUrl}
-                                      alt={sub.name}
-                                      thumb={128}
-                                      className="w-14 object-contain shrink-0"
-                                    />
+                                    <div className="relative shrink-0">
+                                      <CommonImage
+                                        src={sub.imageUrl}
+                                        alt={sub.name}
+                                        thumb={128}
+                                        className="w-16"
+                                      />
+                                      <DiscountBadge
+                                        originalPrice={sub.originalPricePerBag}
+                                        paidPrice={sub.pricePerBag}
+                                        className="absolute top-0 right-0 z-10"
+                                      />
+                                    </div>
                                   )}
                                   <div className="flex-1 min-w-0 space-y-2">
                                     <div className="flex items-center justify-between gap-2">
@@ -682,10 +690,33 @@ const OrderManagement = () => {
                                             ·
                                           </span>
                                         )}
+                                      {/* Flash-sale provenance, inline with the
+                                          rest of the line: what this quantity
+                                          would have billed at pre-sale, struck
+                                          through beside what was charged. Only
+                                          set when genuinely discounted. */}
+                                      {sub.originalPricePerBag != null &&
+                                        sub.totalPrice > 0 && (
+                                          <span className="text-muted-foreground line-through">
+                                            {formatCurrency(
+                                              sub.originalPricePerBag * sub.qty,
+                                            )}
+                                          </span>
+                                        )}
                                       {sub.totalPrice > 0 && (
                                         <span className="font-semibold text-success dark:text-accent">
                                           {formatCurrency(sub.totalPrice)}
                                         </span>
+                                      )}
+                                      {/* No thumbnail to overlay — keep the
+                                          discount visible inline instead. */}
+                                      {!sub.imageUrl && (
+                                        <DiscountBadge
+                                          originalPrice={
+                                            sub.originalPricePerBag
+                                          }
+                                          paidPrice={sub.pricePerBag}
+                                        />
                                       )}
                                     </div>
                                   </div>

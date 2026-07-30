@@ -16,6 +16,7 @@ import DealerTorsoBag from "@/components/dealer/DealerTorsoBag";
 import DealerOrderSummary from "@/components/dealer/DealerOrderSummary";
 import AddonPreviewModal from "@/components/dealer/AddonPreviewModal";
 import UpgradePreviewModal from "@/components/dealer/UpgradePreviewModal";
+import FlashSaleBar from "@/components/dealer/FlashSaleBar";
 import { useDealer } from "@/hooks/useDealer";
 
 const Dealer = () => {
@@ -99,6 +100,10 @@ const Dealer = () => {
 
   return (
     <>
+      {/* Sits above the hero so a running sale is the first thing seen, and
+          collapses to nothing when there isn't one. */}
+      <FlashSaleBar channel={channel} />
+
       <PageHero
         bannerPadding="py-20"
         title={hero.title}

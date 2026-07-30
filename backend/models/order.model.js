@@ -104,6 +104,11 @@ const dealerItemSchema = new mongoose.Schema(
             bin: { type: String },
             pricePerBag: { type: Number },
             totalPrice: { type: Number },
+            // Flash-sale provenance captured at purchase (null when not on sale).
+            // pricePerBag holds the discounted price actually charged; these show
+            // what it was and which sale applied, for the admin order view.
+            originalPricePerBag: { type: Number, default: null },
+            flashSaleName: { type: String, default: null },
           },
         ],
       },

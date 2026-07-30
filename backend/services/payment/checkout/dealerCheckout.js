@@ -15,6 +15,11 @@ import {
 } from "../paymentCore.js";
 import { EXTRA_BAG_RATIO, SHIPPING_INSURANCE_RATE } from "../paymentConfig.js";
 import { ORDER_TYPES } from "../../../constants/orderConstants.js";
+import {
+  getActiveFlashSaleMap,
+  getFlashSaleForItem,
+  round2,
+} from "../../../utils/flashSale/resolver.js";
 
 // Dealers may order multiple copies of the same bundle (e.g. 3× the 1000
 // bundle = 3000 minifigs). Hard-capped — to go higher they pick a bigger bundle.
@@ -58,6 +63,11 @@ export async function buildLineItemsForDealer(
     orderType === ORDER_TYPES.WHOLESALE
       ? ORDER_TYPES.WHOLESALE
       : ORDER_TYPES.DEALER;
+
+  // One clock reading for the whole checkout — flash-sale prices are resolved
+  // against this instant so a sale that lapses mid-build can't price some items
+  // at sale and others at full.
+  const now = new Date();
 
   // 1. Validate bundles. Dealers may order several distinct bundles
   //    (e.g. 1000 + 200), each with its own copy quantity (1-4) and its own
@@ -211,6 +221,13 @@ export async function buildLineItemsForDealer(
       if (addon.addonType === "bundle" && selectedItems) {
         finalPrice = 0;
 
+        // Resolve any active flash-sale discounts for this add-on's items up
+        // front so each bag is billed at its effective (sale) price.
+        const invIds = (addon.bundleItems || [])
+          .map((bi) => bi.inventoryItemId?._id)
+          .filter(Boolean);
+        const saleMap = await getActiveFlashSaleMap(invIds, now);
+
         for (const selItem of selectedItems) {
           const bundleItem = addon.bundleItems.find(
             (bi) =>
@@ -234,11 +251,19 @@ export async function buildLineItemsForDealer(
             };
           }
 
-          const itemBagPrice = Number(inventory.pricePerBag || 0);
+          const basePrice = Number(inventory.pricePerBag || 0);
+          const flashSale = getFlashSaleForItem(inventory, saleMap);
+          const itemBagPrice = flashSale ? flashSale.salePrice : basePrice;
           finalPrice += itemBagPrice * bagsRequested;
+          // Snapshot the price actually charged (plus what it was) into the
+          // draft, so the order record built after payment matches the charge
+          // even if the sale ends between checkout and the Stripe webhook.
           finalItems.push({
             inventoryItemId: selItem.inventoryItemId,
             selectedBags: bagsRequested,
+            pricePerBag: round2(itemBagPrice),
+            originalPricePerBag: round2(basePrice),
+            flashSaleName: flashSale ? flashSale.saleName : null,
           });
         }
       }
@@ -500,7 +525,17 @@ export async function createDealerOrderFromStripeSession(session) {
             .populate("colorId", "colorName hexCode")
             .lean();
           if (inv) {
-            const pricePerBag = Number(inv.pricePerBag || 0);
+            // Prefer the price captured at checkout (the amount actually
+            // charged, sale-adjusted); fall back to the live price for older
+            // drafts that predate flash sales.
+            const pricePerBag =
+              sub.pricePerBag != null
+                ? Number(sub.pricePerBag)
+                : Number(inv.pricePerBag || 0);
+            const onSale =
+              sub.flashSaleName != null &&
+              sub.originalPricePerBag != null &&
+              Number(sub.originalPricePerBag) > pricePerBag;
             addonManifest.subItems.push({
               invId: inv._id,
               name: inv.minifigName,
@@ -513,6 +548,12 @@ export async function createDealerOrderFromStripeSession(session) {
               bin: inv.bin ?? null,
               pricePerBag,
               totalPrice: pricePerBag * (sub.selectedBags || 0),
+              // Flash-sale provenance for the admin order view (only when the
+              // item was genuinely discounted at purchase time).
+              originalPricePerBag: onSale
+                ? Number(sub.originalPricePerBag)
+                : null,
+              flashSaleName: onSale ? sub.flashSaleName : null,
             });
           }
         }

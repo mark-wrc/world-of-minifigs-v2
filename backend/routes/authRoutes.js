@@ -29,6 +29,7 @@ import {
   getDealerAddonsForUser,
   getDealerExtraBagsForUser,
   getDealerTorsoBagsForUser,
+  getDealerFlashSaleForUser,
 } from "../controllers/dealerController.js";
 import {
   getOrderConfig,
@@ -98,6 +99,12 @@ router.get(
   authenticate,
   authorizeAdminOrDealerOrWholesaler,
   getDealerTorsoBagsForUser,
+);
+router.get(
+  "/dealer/flash-sale",
+  authenticate,
+  authorizeAdminOrDealerOrWholesaler,
+  getDealerFlashSaleForUser,
 );
 
 export default router;

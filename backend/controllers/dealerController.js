@@ -2,6 +2,7 @@ import Bundle from "../models/bundle.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
 import DealerExtraBag from "../models/dealerExtraBag.model.js";
 import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
+import FlashSale from "../models/flashSale.model.js";
 import GeneralInventory from "../models/generalInventory.model.js";
 import SubCollection from "../models/subCollection.model.js";
 import {
@@ -9,6 +10,12 @@ import {
   deleteSingleImage,
   deleteMultipleImages,
 } from "../services/imageService.js";
+import {
+  getActiveFlashSaleMap,
+  getFlashSaleForItem,
+  computeSalePrice,
+  round2,
+} from "../utils/flashSale/resolver.js";
 
 // Addon images upload browser→Cloudinary directly; folders (dealer-addon,
 // dealer-addon-preview) are owned by uploadController.js.
@@ -1522,15 +1529,31 @@ export const getDealerAddonsForUser = async (req, res) => {
       .sort({ createdAt: 1 })
       .lean();
 
+    // Resolve active flash-sale pricing for every inventory item across all
+    // add-ons in one query, then tag each item with its `flashSale` (or null).
+    // On-sale and full-price items stay in the same list — nothing is separated.
+    const allInvIds = rawAddons.flatMap((addon) =>
+      (addon.bundleItems || [])
+        .map((bi) => bi.inventoryItemId?._id)
+        .filter(Boolean),
+    );
+    const saleMap = await getActiveFlashSaleMap(allInvIds);
+
     // Drop bundle items whose inventory item is inactive or out of stock
     // (populate returns null for non-matches). Also drop bundle-type add-ons
     // that end up with no remaining items.
     const addons = rawAddons
       .map((addon) => ({
         ...addon,
-        bundleItems: (addon.bundleItems || []).filter(
-          (item) => item.inventoryItemId !== null,
-        ),
+        bundleItems: (addon.bundleItems || [])
+          .filter((item) => item.inventoryItemId !== null)
+          .map((item) => ({
+            ...item,
+            inventoryItemId: {
+              ...item.inventoryItemId,
+              flashSale: getFlashSaleForItem(item.inventoryItemId, saleMap),
+            },
+          })),
       }))
       .filter((addon) => {
         // Bundle add-ons need at least one in-stock item to be orderable.
@@ -1554,6 +1577,133 @@ export const getDealerAddonsForUser = async (req, res) => {
     });
   } catch (error) {
     handleError(res, error, "Get user addons", "Failed to fetch addons");
+  }
+};
+
+// How far ahead a not-yet-started sale is teased on the storefront. A sale
+// scheduled further out than this stays invisible until it enters this window,
+// at which point the banner flips to a "starts in" countdown.
+const FLASH_SALE_TEASER_MS = 48 * 60 * 60 * 1000;
+
+// Storefront banner feed: the one flash sale worth showing a dealer right now.
+//
+// Scoped to what the channel can actually buy — a sale is only announced when at
+// least one participating item is live in a visible add-on for this channel. The
+// banner is otherwise a promise the add-ons list can't keep.
+//
+// Returns `serverTime` alongside the window so the client can render a countdown
+// against OUR clock rather than the device's (a skewed laptop clock would
+// otherwise show a sale as over, or still running, when it isn't).
+export const getDealerFlashSaleForUser = async (req, res) => {
+  try {
+    const channel = normalizeAddonChannel(req.query.channel);
+    const now = new Date();
+    const noSale = { success: true, serverTime: now, flashSale: null };
+
+    // 1. Every inventory item reachable from this channel's live add-ons.
+    const visibleAddons = await DealerAddon.find({
+      isActive: true,
+      ...buildAddonChannelFilter(channel),
+    })
+      .select("bundleItems.inventoryItemId")
+      .lean();
+
+    const channelItemIds = [
+      ...new Set(
+        visibleAddons.flatMap((addon) =>
+          (addon.bundleItems || [])
+            .map((bi) => bi.inventoryItemId)
+            .filter(Boolean)
+            .map(String),
+        ),
+      ),
+    ];
+    if (channelItemIds.length === 0) return res.status(200).json(noSale);
+
+    // 2. Candidate sales — running now, or starting within the teaser window.
+    const candidates = await FlashSale.find({
+      isEnabled: true,
+      endAt: { $gte: now },
+      startAt: { $lte: new Date(now.getTime() + FLASH_SALE_TEASER_MS) },
+      "items.inventoryItemId": { $in: channelItemIds },
+    })
+      .select("name startAt endAt items")
+      .lean();
+    if (candidates.length === 0) return res.status(200).json(noSale);
+
+    // Prefer a live sale (the most urgent one — ending soonest). With none live,
+    // tease the next one to open.
+    const running = candidates.filter((s) => new Date(s.startAt) <= now);
+    const sale = running.length
+      ? running.sort((a, b) => new Date(a.endAt) - new Date(b.endAt))[0]
+      : candidates.sort((a, b) => new Date(a.startAt) - new Date(b.startAt))[0];
+
+    // 3. Price the participants off their CURRENT price, and keep only the ones
+    // a dealer can actually put in a cart (in this channel, active, in stock).
+    const channelItemIdSet = new Set(channelItemIds);
+    const saleLines = (sale.items || []).filter((line) =>
+      channelItemIdSet.has(String(line.inventoryItemId)),
+    );
+
+    const inventories = await GeneralInventory.find({
+      _id: { $in: saleLines.map((line) => line.inventoryItemId) },
+      isActive: true,
+      stock: { $gt: 0 },
+    })
+      .select("pricePerBag")
+      .lean();
+    const inventoryById = new Map(inventories.map((i) => [String(i._id), i]));
+
+    // The banner is a headline, not a catalogue: it needs how many items are on
+    // sale and the deepest cut, nothing per-item. Kept as a count + max so the
+    // response stays flat regardless of how large the campaign is.
+    let itemCount = 0;
+    let maxPercentOff = 0;
+    for (const line of saleLines) {
+      const inventory = inventoryById.get(String(line.inventoryItemId));
+      if (!inventory) continue;
+
+      const originalPrice = round2(Number(inventory.pricePerBag) || 0);
+      const salePrice = computeSalePrice(
+        originalPrice,
+        line.discountType,
+        line.discountValue,
+      );
+      // A discount that doesn't lower the price isn't worth announcing.
+      if (originalPrice <= 0 || salePrice >= originalPrice) continue;
+
+      itemCount += 1;
+      // Normalized saving — percent and fixed discounts become comparable, so
+      // "up to X% off" is honest for a sale that mixes both.
+      maxPercentOff = Math.max(
+        maxPercentOff,
+        Math.round(((originalPrice - salePrice) / originalPrice) * 100),
+      );
+    }
+
+    // Every participant sold out or went inactive — nothing left to advertise.
+    if (itemCount === 0) return res.status(200).json(noSale);
+
+    return res.status(200).json({
+      success: true,
+      serverTime: now,
+      flashSale: {
+        _id: sale._id,
+        name: sale.name,
+        status: new Date(sale.startAt) <= now ? "active" : "scheduled",
+        startAt: sale.startAt,
+        endAt: sale.endAt,
+        itemCount,
+        maxPercentOff,
+      },
+    });
+  } catch (error) {
+    handleError(
+      res,
+      error,
+      "Get dealer flash sale",
+      "Failed to fetch flash sale",
+    );
   }
 };
 

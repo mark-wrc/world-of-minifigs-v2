@@ -42,6 +42,15 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
         const discountedVal = hasDiscount ? Number(addon.discountPrice) : null;
         const originalVal = Number(addon.price || 0);
 
+        // Bundle add-ons price per item, so a flash sale surfaces as a badge
+        // when any contained item is currently discounted (per-item sale prices
+        // show inside the preview modal).
+        const hasFlashSaleItem =
+          addon.addonType === "bundle" &&
+          (addon.bundleItems || []).some(
+            (bi) => bi.inventoryItemId?.flashSale,
+          );
+
         const isSelected = addon.isSelected;
 
         const hasBgImage = !!addon.image?.url;
@@ -99,6 +108,13 @@ const DealerAddon = ({ addons, onSelect, onPreview }) => (
                     <span className="inline-flex items-center gap-2 bg-success text-white text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-md">
                       <Sparkles className="w-2.5 h-2.5" />
                       {savingsPct}% off!
+                    </span>
+                  )}
+
+                  {hasFlashSaleItem && (
+                    <span className="inline-flex items-center gap-1 bg-destructive text-white text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-md animate-pulse">
+                      <Zap className="w-2.5 h-2.5" />
+                      Flash Sale
                     </span>
                   )}
                 </div>

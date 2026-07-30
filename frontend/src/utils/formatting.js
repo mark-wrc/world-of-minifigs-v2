@@ -14,6 +14,31 @@ export const sanitizeIntegerInput = (value, { max } = {}) => {
   return normalized;
 };
 
+// Like sanitizeIntegerInput but permits a single decimal point — for money /
+// percentage fields. Keeps digits + one ".", strips leading zeros (keeping a
+// lone "0" before a decimal, so "0.5" survives), limits to `decimals` places,
+// and caps at `max`. Prevents junk like "000", "055", or "05.5" from ever
+// reaching the field while still allowing a value to be cleared mid-type.
+export const sanitizeDecimalInput = (value, { max, decimals = 2 } = {}) => {
+  let s = String(value ?? "").replace(/[^\d.]/g, "");
+  // Collapse to a single decimal point (keep the first).
+  const firstDot = s.indexOf(".");
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+  }
+  if (s === "") return "";
+
+  let [intPart, decPart] = s.split(".");
+  // Strip leading zeros in the integer part, keeping a lone "0".
+  intPart = intPart.replace(/^0+(?=\d)/, "");
+  if (intPart === "") intPart = "0";
+  if (decPart !== undefined) decPart = decPart.slice(0, decimals);
+
+  const result = decPart !== undefined ? `${intPart}.${decPart}` : intPart;
+  if (max != null && Number(result) > max) return String(max);
+  return result;
+};
+
 export const sanitizeOptional = (value) => {
   const trimmed = sanitizeString(value);
   return trimmed || undefined;

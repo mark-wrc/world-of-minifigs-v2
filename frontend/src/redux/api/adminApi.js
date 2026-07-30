@@ -71,6 +71,7 @@ export const adminApi = createApi({
     "RewardAddon",
     "Order",
     "GeneralInventory",
+    "FlashSale",
   ],
   endpoints: (builder) => ({
     // ==================== Banner Management ====================
@@ -739,6 +740,72 @@ export const adminApi = createApi({
       }),
       invalidatesTags: ["GeneralInventory"],
     }),
+
+    // ==================== Flash Sale Management ====================
+    // A mutation to a flash sale can change live prices, so it must also refresh
+    // the admin inventory list AND the dealer-facing add-on list (authApi).
+    getFlashSales: builder.query({
+      query: (params = {}) => ({
+        url: "/flash-sales",
+        method: "GET",
+        params: buildPaginationParams(params),
+      }),
+      providesTags: ["FlashSale"],
+    }),
+    createFlashSale: builder.mutation({
+      query: (data) => ({
+        url: "/flash-sales",
+        method: "POST",
+        body: data,
+      }),
+      invalidatesTags: ["FlashSale", "GeneralInventory"],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(authApi.util.invalidateTags(["Addon"]));
+        } catch {
+          // Save failed — leave dealer cache untouched.
+        }
+      },
+    }),
+    updateFlashSale: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `/flash-sales/${id}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: ["FlashSale", "GeneralInventory"],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(authApi.util.invalidateTags(["Addon"]));
+        } catch {
+          // Save failed — leave dealer cache untouched.
+        }
+      },
+    }),
+    deleteFlashSale: builder.mutation({
+      query: (id) => ({
+        url: `/flash-sales/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["FlashSale", "GeneralInventory"],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(authApi.util.invalidateTags(["Addon"]));
+        } catch {
+          // Delete failed — leave dealer cache untouched.
+        }
+      },
+    }),
+    duplicateFlashSale: builder.mutation({
+      query: (id) => ({
+        url: `/flash-sales/${id}/duplicate`,
+        method: "POST",
+      }),
+      invalidatesTags: ["FlashSale"],
+    }),
   }),
 });
 
@@ -822,4 +889,10 @@ export const {
   useCreateGeneralInventoryBulkMutation,
   useUpdateGeneralInventoryMutation,
   useDeleteGeneralInventoryMutation,
+
+  useGetFlashSalesQuery,
+  useCreateFlashSaleMutation,
+  useUpdateFlashSaleMutation,
+  useDeleteFlashSaleMutation,
+  useDuplicateFlashSaleMutation,
 } = adminApi;

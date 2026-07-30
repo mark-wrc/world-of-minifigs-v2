@@ -52,6 +52,60 @@ const rect = (doc, x, y, w, h, color, style = "F") => {
   doc.rect(x, y, w, h, style);
 };
 
+// Flash-sale saving captured on the order line. Returns null unless the
+// snapshot describes a real markdown, so callers can drop it in unguarded.
+// Mirrors <DiscountBadge /> in the on-screen views.
+const flashSaleInfo = (sub) => {
+  const originalPrice = Number(sub?.originalPricePerBag) || 0;
+  const paidPrice = Number(sub?.pricePerBag) || 0;
+  if (originalPrice <= 0 || paidPrice <= 0 || paidPrice >= originalPrice)
+    return null;
+
+  return {
+    originalPrice,
+    percentOff: Math.round(((originalPrice - paidPrice) / originalPrice) * 100),
+  };
+};
+
+// The "20% OFF" chip, pinned to the top-right of the row's thumbnail the same
+// way the screen views overlay it. Falls back to the middle of the image cell
+// when the line has no picture.
+const drawDiscountBadge = (doc, cell, label, hasImage) => {
+  doc.setFontSize(5);
+  doc.setFont("helvetica", "bold");
+
+  const w = doc.getTextWidth(label) + 1.6;
+  const h = 3;
+  const imgX = cell.x + (cell.width - IMG_SIZE) / 2;
+  const imgY = cell.y + (cell.height - IMG_SIZE) / 2;
+  const x = hasImage ? imgX + IMG_SIZE - w : cell.x + (cell.width - w) / 2;
+  const y = hasImage ? imgY : cell.y + (cell.height - h) / 2;
+
+  rect(doc, x, y, w, h, C.red);
+  rgb(doc, C.white);
+  doc.text(label, x + w / 2, y + h - 0.9, { align: "center" });
+  resetText(doc);
+};
+
+// The pre-sale unit price, struck through beneath the price actually charged.
+// Drawn by hand rather than as a second text line so the rule can be laid over
+// it — jsPDF has no strikethrough of its own.
+const drawStruckPrice = (doc, cell, text) => {
+  doc.setFontSize(6.5);
+  doc.setFont("helvetica", "normal");
+  rgb(doc, C.gray600);
+
+  const cx = cell.x + cell.width / 2;
+  const baseline = cell.y + cell.height - 2.5;
+  doc.text(text, cx, baseline, { align: "center" });
+
+  const halfW = doc.getTextWidth(text) / 2;
+  doc.setDrawColor(...C.gray600);
+  doc.setLineWidth(0.2);
+  doc.line(cx - halfW, baseline - 0.8, cx + halfW, baseline - 0.8);
+  resetText(doc);
+};
+
 const ensureSpace = (doc, y, needed = 35) => {
   if (y + needed > 282) {
     doc.addPage();
@@ -228,6 +282,8 @@ const itemsTable = (doc, y, head, body, colStyles = {}, onParseCell) => {
 };
 
 // ── Items table WITH image column (index 0) ───────────────────────────────────
+// `badges` maps a row index to a chip drawn over its thumbnail (flash-sale
+// discounts); `onDrawCell` lets the caller decorate any other cell.
 const itemsTableWithImages = (
   doc,
   y,
@@ -236,6 +292,8 @@ const itemsTableWithImages = (
   imgs,
   colStyles = {},
   onParseCell,
+  badges = {},
+  onDrawCell,
 ) => {
   autoTable(doc, {
     startY: y,
@@ -281,16 +339,24 @@ const itemsTableWithImages = (
       onParseCell?.(data);
     },
     didDrawCell: (data) => {
-      if (data.column.index !== 0 || data.section !== "body") return;
-      const img = imgs[data.row.index];
-      if (!img) return;
-      const cx = data.cell.x + (data.cell.width - IMG_SIZE) / 2;
-      const cy = data.cell.y + (data.cell.height - IMG_SIZE) / 2;
-      try {
-        doc.addImage(img, "PNG", cx, cy, IMG_SIZE, IMG_SIZE);
-      } catch {
-        /* skip */
+      if (data.section !== "body") return;
+
+      if (data.column.index === 0) {
+        const img = imgs[data.row.index];
+        if (img) {
+          const cx = data.cell.x + (data.cell.width - IMG_SIZE) / 2;
+          const cy = data.cell.y + (data.cell.height - IMG_SIZE) / 2;
+          try {
+            doc.addImage(img, "PNG", cx, cy, IMG_SIZE, IMG_SIZE);
+          } catch {
+            /* skip */
+          }
+        }
+        const badge = badges[data.row.index];
+        if (badge) drawDiscountBadge(doc, data.cell, badge, Boolean(img));
       }
+
+      onDrawCell?.(data);
     },
   });
   return doc.lastAutoTable.finalY + 6;
@@ -635,6 +701,14 @@ const buildOrderPdf = async (order) => {
         y += 10;
 
         if (addon.subItems?.length > 0) {
+          // Flash-sale lines, keyed by row: a chip over the thumbnail plus the
+          // struck pre-sale figure under the unit price actually charged.
+          const sales = {};
+          addon.subItems.forEach((s, si) => {
+            const info = flashSaleInfo(s);
+            if (info) sales[si] = info;
+          });
+
           y = itemsTableWithImages(
             doc,
             y,
@@ -669,6 +743,24 @@ const buildOrderPdf = async (order) => {
                 left: 2,
                 right: 2,
               };
+            },
+            Object.fromEntries(
+              Object.entries(sales).map(([si, info]) => [
+                si,
+                `${info.percentOff}% OFF`,
+              ]),
+            ),
+            // Column 6 is Unit Price (column 0 is the image).
+            (data) => {
+              if (data.column.index !== 6) return;
+              const info = sales[data.row.index];
+              if (info) {
+                drawStruckPrice(
+                  doc,
+                  data.cell,
+                  formatCurrency(info.originalPrice),
+                );
+              }
             },
           );
         }

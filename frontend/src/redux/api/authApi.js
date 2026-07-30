@@ -38,6 +38,7 @@ export const authApi = createApi({
     "ExtraBag",
     "TorsoBag",
     "UserOrder",
+    "FlashSale",
   ],
   endpoints: (builder) => ({
     // ==================== Authentication ====================
@@ -282,6 +283,16 @@ export const authApi = createApi({
       }),
       providesTags: ["TorsoBag"],
     }),
+    getDealerFlashSale: builder.query({
+      // The single sale worth announcing to this channel right now (running, or
+      // about to start), or null. Carries `serverTime` for countdown accuracy.
+      query: (channel) => ({
+        url: "/dealer/flash-sale",
+        method: "GET",
+        params: channel ? { channel } : undefined,
+      }),
+      providesTags: ["FlashSale"],
+    }),
   }),
 });
 
@@ -315,4 +326,5 @@ export const {
   useGetDealerAddonsQuery,
   useGetDealerExtraBagsQuery,
   useGetDealerTorsoBagsQuery,
+  useGetDealerFlashSaleQuery,
 } = authApi;

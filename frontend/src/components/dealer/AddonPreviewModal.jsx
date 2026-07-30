@@ -46,6 +46,7 @@ import { SORT_OPTIONS } from "@/constant/productFilters";
 import { BULK_MINIFIG_PART_TYPES, perBagUnit } from "@shared/inventoryData";
 import { ITEM_BADGES } from "@shared/itemBadges";
 import ItemBadge from "@/components/shared/ItemBadge";
+import DiscountBadge from "@/components/shared/DiscountBadge";
 import { formatCurrency } from "@/utils/formatting";
 import { useReorderDealerAddonItemsMutation } from "@/redux/api/adminApi";
 
@@ -67,6 +68,11 @@ const badgeFromSort = (sort) =>
   sort?.startsWith(BADGE_SORT_PREFIX)
     ? sort.slice(BADGE_SORT_PREFIX.length)
     : null;
+
+// Like the badge sorts, but keyed off the backend-resolved flash sale rather
+// than a stored badge — narrows the list to just the discounted items. Only
+// offered while the add-on actually holds something on sale.
+const FLASH_SALE_SORT = "flash-sale";
 
 // ─── Item card (shared by the static and draggable variants) ──────────────────
 const AddonItemCard = ({
@@ -106,12 +112,21 @@ const AddonItemCard = ({
       {/* Image with hover preview */}
       <HoverCard openDelay={150} closeDelay={80}>
         <HoverCardTrigger asChild>
-          <div className="shrink-0 cursor-zoom-in">
+          <div className="relative shrink-0 cursor-zoom-in">
             <CommonImage
               src={item.image?.url}
               alt={item.itemName}
               className="w-28"
             />
+            {/* Flash-sale discount, overlaid top-right of the thumbnail — the
+                only sale marker on the card, so the info row stays clean. */}
+            {item.flashSale && (
+              <DiscountBadge
+                originalPrice={item.flashSale.originalPrice}
+                paidPrice={item.flashSale.salePrice}
+                className="absolute top-1 right-1 z-10"
+              />
+            )}
           </div>
         </HoverCardTrigger>
         <HoverCardContent>
@@ -149,10 +164,19 @@ const AddonItemCard = ({
         </div>
 
         {/* Info Row — color · price on the left, the merchandising badge (if
-            any) pushed to the end of the line. Renders nothing when unbadged. */}
+            any) pushed to the end of the line. Renders nothing when unbadged.
+            On-sale items only add the struck base price ahead of the effective
+            price, which stays green like every other item's — the discount
+            itself is announced by the badge over the thumbnail. */}
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-muted-foreground">
-            {item.color?.colorName || "—"} {" · "}
+          <span className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+            <span>{item.color?.colorName || "—"}</span>
+            <span>·</span>
+            {item.flashSale && (
+              <span className="line-through">
+                {formatCurrency(item.flashSale.originalPrice)}
+              </span>
+            )}
             <span className="font-semibold text-success dark:text-accent">
               {formatCurrency(item.bagPrice)}
             </span>
@@ -232,26 +256,37 @@ const AddonPreviewModal = ({
     return ITEM_BADGES.filter((b) => present.has(b.value));
   }, [items]);
 
+  const hasFlashSaleItems = useMemo(
+    () => items.some((i) => i.flashSale),
+    [items],
+  );
+
   const sortOptions = useMemo(() => {
-    if (presentBadges.length === 0) return BASE_ADDON_SORT_OPTIONS;
+    if (presentBadges.length === 0 && !hasFlashSaleItems)
+      return BASE_ADDON_SORT_OPTIONS;
     const [defaultOpt, ...rest] = BASE_ADDON_SORT_OPTIONS;
     return [
       defaultOpt,
+      // Sale first — it's the most time-sensitive way to browse the add-on.
+      ...(hasFlashSaleItems
+        ? [{ value: FLASH_SALE_SORT, label: "On Sale" }]
+        : []),
       ...presentBadges.map((b) => ({
         value: badgeSortValue(b.value),
         label: b.label,
       })),
       ...rest,
     ];
-  }, [presentBadges]);
+  }, [presentBadges, hasFlashSaleItems]);
 
-  // Guards the case where the last item with the selected badge disappears —
-  // fall back to the curated order instead of showing an empty list.
+  // Guards the case where the last item matching the selected filter disappears
+  // — a badge going away, or a sale ending mid-session — by falling back to the
+  // curated order instead of showing an empty list.
   const selectedBadge = badgeFromSort(sortBy);
-  const effectiveSortBy =
-    selectedBadge && !presentBadges.some((b) => b.value === selectedBadge)
-      ? "default"
-      : sortBy;
+  const isStaleFilter =
+    (selectedBadge && !presentBadges.some((b) => b.value === selectedBadge)) ||
+    (sortBy === FLASH_SALE_SORT && !hasFlashSaleItems);
+  const effectiveSortBy = isStaleFilter ? "default" : sortBy;
 
   // ─── Admin reorder state ────────────────────────────────────────────────────
   // `orderIds` is the admin's in-progress custom order (list of inventory ids).
@@ -363,6 +398,10 @@ const AddonPreviewModal = ({
     const badge = badgeFromSort(effectiveSortBy);
     if (badge) return filtered.filter((i) => i.badge === badge);
 
+    // Same idea for the sale view — curated order, discounted items only.
+    if (effectiveSortBy === FLASH_SALE_SORT)
+      return filtered.filter((i) => i.flashSale);
+
     // "default" preserves the curated order as-is.
     if (effectiveSortBy === "default") return filtered;
 
@@ -382,13 +421,15 @@ const AddonPreviewModal = ({
     });
   }, [curatedItems, effectiveSortBy, selectedCollection, isBulkParts]);
 
-  // Reordering works in the curated ("default") view and in any badge subset —
-  // both map back onto the stored order — including inside a collection /
-  // part-type filter. A custom sort (name/price) can't be dragged since its
-  // order is derived, not stored.
+  // Reordering works in the curated ("default") view and in any subset view —
+  // badge or sale — since all of them map back onto the stored order, including
+  // inside a collection / part-type filter. A custom sort (name/price) can't be
+  // dragged since its order is derived, not stored.
   const canReorder =
     isAdmin &&
-    (effectiveSortBy === "default" || Boolean(badgeFromSort(effectiveSortBy)));
+    (effectiveSortBy === "default" ||
+      effectiveSortBy === FLASH_SALE_SORT ||
+      Boolean(badgeFromSort(effectiveSortBy)));
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -455,7 +496,7 @@ const AddonPreviewModal = ({
             {isAdmin
               ? canReorder
                 ? "Drag to reposition the listed items."
-                : "Switch to “Default” or a badge sort to reorder items."
+                : "Switch to “Default” or a filtered view to reorder items."
               : `${addon.addonName} items`}
           </DialogDescription>
         </DialogHeader>

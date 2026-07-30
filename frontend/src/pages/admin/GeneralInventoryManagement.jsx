@@ -1,4 +1,5 @@
 import React from "react";
+import { Zap } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -32,7 +33,7 @@ import VisibilitySwitch from "@/components/shared/VisibilitySwitch";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import MediaUpload from "@/components/shared/MediaUpload";
 import DeleteDialog from "@/components/table/DeleteDialog";
-import { display } from "@/utils/formatting";
+import { display, formatCurrency } from "@/utils/formatting";
 import useGeneralInventoryManagement, {
   INVENTORY_TABS,
 } from "@/hooks/admin/useGeneralInventoryManagement";
@@ -539,8 +540,26 @@ const GeneralInventoryManagement = () => {
             {/* Bin — inline-editable admin location note */}
             <BinCell item={item} onSave={handleBinSave} />
 
-            {/* Price per Bag */}
-            <PriceCell amount={item.pricePerBag} />
+            {/* Price per Bag — shows the flash-sale price + badge when the item
+                is in an active sale, otherwise the plain price. */}
+            {item.flashSale ? (
+              <TableCell>
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-xs text-muted-foreground line-through">
+                    {formatCurrency(item.pricePerBag)}
+                  </span>
+                  <span className="font-bold text-destructive">
+                    {formatCurrency(item.flashSale.salePrice)}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 rounded bg-destructive px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                    <Zap className="size-2.5" />
+                    Sale
+                  </span>
+                </div>
+              </TableCell>
+            ) : (
+              <PriceCell amount={item.pricePerBag} />
+            )}
 
             {/* Pieces per Bag */}
             <TableCell>{item.piecesPerBag ?? 1}</TableCell>

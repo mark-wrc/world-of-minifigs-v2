@@ -101,6 +101,14 @@ import {
   updateGeneralInventory,
   deleteGeneralInventory,
 } from "../controllers/generalInventoryController.js";
+import {
+  createFlashSale,
+  getAllFlashSales,
+  getFlashSaleById,
+  updateFlashSale,
+  deleteFlashSale,
+  duplicateFlashSale,
+} from "../controllers/flashSaleController.js";
 import { getUploadSignature } from "../controllers/uploadController.js";
 
 const router = express.Router();
@@ -215,5 +223,13 @@ router.post("/general-inventory/bulk", createGeneralInventoryBulk);
 router.get("/general-inventory", getAllGeneralInventory);
 router.put("/general-inventory/:id", updateGeneralInventory);
 router.delete("/general-inventory/:id", deleteGeneralInventory);
+
+// Flash Sale CRUD routes
+router.post("/flash-sales", createFlashSale);
+router.get("/flash-sales", getAllFlashSales);
+router.get("/flash-sales/:id", getFlashSaleById);
+router.put("/flash-sales/:id", updateFlashSale);
+router.delete("/flash-sales/:id", deleteFlashSale);
+router.post("/flash-sales/:id/duplicate", duplicateFlashSale);
 
 export default router;

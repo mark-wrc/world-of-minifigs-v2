@@ -694,6 +694,11 @@ export const useDealer = () => {
         const perBagLimit = Number(inventory.piecesPerBag || 1);
         const maxBags = Number(inventory.stock || 0);
 
+        // Flash sale (backend-resolved). When present, its salePrice is the
+        // effective per-bag price the dealer is quoted and billed.
+        const flashSale = inventory.flashSale || null;
+        const basePrice = Number(inventory.pricePerBag || 0);
+
         return {
           key: `${inventory._id}-${index}`,
           inventoryItemId: inventory._id,
@@ -703,7 +708,8 @@ export const useDealer = () => {
           category: inventory.category,
           collectionIds: inventory.collectionIds || [],
           partType: inventory.partType || null,
-          pricePerBag: Number(inventory.pricePerBag || 0),
+          pricePerBag: basePrice,
+          flashSale,
           perBagLimit,
           maxBags,
           badge: inventory.badge || null,
@@ -744,7 +750,8 @@ export const useDealer = () => {
         const bagQty = Number(modalBagQuantities[item.inventoryItemId] || 0);
         const selectedBags = Math.max(0, Math.min(bagQty, item.maxBags));
         const selectedQuantity = selectedBags * item.perBagLimit;
-        const bagPrice = item.pricePerBag;
+        // Bill at the flash-sale price when the item is on sale, else base price.
+        const bagPrice = item.flashSale?.salePrice ?? item.pricePerBag;
         const selectedTotal = selectedBags * bagPrice;
         const isActive = selectedBags > 0;
         const usedPercent =
