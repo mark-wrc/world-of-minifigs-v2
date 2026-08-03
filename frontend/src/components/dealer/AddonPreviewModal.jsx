@@ -45,7 +45,7 @@ import ProductSort from "@/components/products/ProductSort";
 import { SORT_OPTIONS } from "@/constant/productFilters";
 import { BULK_MINIFIG_PART_TYPES, perBagUnit } from "@shared/inventoryData";
 import { ITEM_BADGES } from "@shared/itemBadges";
-import ItemBadge from "@/components/shared/ItemBadge";
+import ItemBadge, { FlashSaleBadge } from "@/components/shared/ItemBadge";
 import DiscountBadge from "@/components/shared/DiscountBadge";
 import { formatCurrency } from "@/utils/formatting";
 import { useReorderDealerAddonItemsMutation } from "@/redux/api/adminApi";
@@ -112,21 +112,12 @@ const AddonItemCard = ({
       {/* Image with hover preview */}
       <HoverCard openDelay={150} closeDelay={80}>
         <HoverCardTrigger asChild>
-          <div className="relative shrink-0 cursor-zoom-in">
+          <div className="shrink-0 cursor-zoom-in">
             <CommonImage
               src={item.image?.url}
               alt={item.itemName}
               className="w-28"
             />
-            {/* Flash-sale discount, overlaid top-right of the thumbnail — the
-                only sale marker on the card, so the info row stays clean. */}
-            {item.flashSale && (
-              <DiscountBadge
-                originalPrice={item.flashSale.originalPrice}
-                paidPrice={item.flashSale.salePrice}
-                className="absolute top-1 right-1 z-10"
-              />
-            )}
           </div>
         </HoverCardTrigger>
         <HoverCardContent>
@@ -163,11 +154,12 @@ const AddonItemCard = ({
           )}
         </div>
 
-        {/* Info Row — color · price on the left, the merchandising badge (if
-            any) pushed to the end of the line. Renders nothing when unbadged.
-            On-sale items only add the struck base price ahead of the effective
-            price, which stays green like every other item's — the discount
-            itself is announced by the badge over the thumbnail. */}
+        {/* Info Row — color · price on the left, the badge stack pushed to the
+            end of the line. While the item is on sale the flash-sale pill claims
+            that slot, hiding any Featured / Latest Drop tag until the sale ends;
+            otherwise the stored badge shows, and an unbadged item renders
+            nothing there. On-sale items also add the struck base price ahead of
+            the effective price, which stays green like every other item's. */}
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
             <span>{item.color?.colorName || "—"}</span>
@@ -181,7 +173,26 @@ const AddonItemCard = ({
               {formatCurrency(item.bagPrice)}
             </span>
           </span>
-          <ItemBadge value={item.badge} className="mr-3" />
+
+          {/* Badge stack — the pill sits on the info row and the "% OFF" chip
+              hangs directly beneath it, left edges flush. The chip is absolute
+              so it adds no height: it overlaps the gap above the quantity
+              control rather than pushing that row down. No collision there,
+              since the control starts at the far left of the same band. */}
+          <div className="relative shrink-0 mr-3">
+            {item.flashSale ? (
+              <FlashSaleBadge />
+            ) : (
+              <ItemBadge value={item.badge} />
+            )}
+            {item.flashSale && (
+              <DiscountBadge
+                originalPrice={item.flashSale.originalPrice}
+                paidPrice={item.flashSale.salePrice}
+                className="absolute left-0 top-full z-10 mt-0.5 whitespace-nowrap"
+              />
+            )}
+          </div>
         </div>
 
         {/* Quantity Control */}

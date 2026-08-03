@@ -18,7 +18,7 @@ const DiscountBadge = ({ originalPrice, paidPrice, className = "" }) => {
 
   return (
     <span
-      className={`shrink-0 rounded bg-destructive px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm ${className}`}
+      className={`shrink-0 rounded bg-destructive px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm ${className}`}
     >
       {Math.round(((original - paid) / original) * 100)}% Off
     </span>

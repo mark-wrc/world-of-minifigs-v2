@@ -15,6 +15,9 @@ const BADGE_ICONS = {
   tag: Tag,
 };
 
+const PILL_BASE =
+  "inline-flex min-w-[6rem] items-center justify-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-md ring-1";
+
 // The pill shown on an inventory item card (dealer add-on preview). Renders
 // nothing when the item carries no badge, so callers can drop it in unguarded.
 const ItemBadge = ({ value, className = "" }) => {
@@ -26,13 +29,28 @@ const ItemBadge = ({ value, className = "" }) => {
   return (
     <div
       title={`${badge.label} item`}
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shadow-md ring-1 ${badge.pillClassName} ${className}`}
+      className={`${PILL_BASE} ${badge.pillClassName} ${className}`}
     >
       <Icon className="size-3 fill-current" strokeWidth={0} />
       {badge.label}
     </div>
   );
 };
+
+// The flash-sale pill. Deliberately NOT an entry in shared/itemBadges.js: that
+// list is the stored-badge enum an admin picks from, while a sale is resolved
+// per-request from the running campaign. It shares the badge slot with
+// <ItemBadge /> and takes precedence there while the sale is live — a
+// time-boxed price beats a standing merchandising tag.
+export const FlashSaleBadge = ({ className = "" }) => (
+  <div
+    title="On flash sale"
+    className={`${PILL_BASE} bg-gradient-to-b from-red-500 to-red-700 text-white ring-red-300/50 ${className}`}
+  >
+    <Zap className="size-3 fill-current" strokeWidth={0} />
+    Flash Sale
+  </div>
+);
 
 // Compact variant for admin tables — uses the shadcn <Badge /> variant declared
 // on the badge definition instead of the gradient pill.
