@@ -13,6 +13,7 @@ const productItemSchema = new mongoose.Schema(
       ref: "Product",
     },
     productName: { type: String, required: true },
+    colorName: { type: String },
     variantIndex: { type: Number },
     quantity: { type: Number, required: true, min: 1 },
     basePrice: { type: Number, required: true, min: 0 },

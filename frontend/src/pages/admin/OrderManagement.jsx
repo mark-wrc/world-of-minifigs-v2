@@ -34,10 +34,13 @@ import {
   formatFullName,
   formatPhone,
 } from "@/utils/formatting";
-import { getOrderStatusConfig, STATUS_CONFIG } from "@/constant/orderData";
+import {
+  getOrderStatusConfig,
+  splitProductItemName,
+  STATUS_CONFIG,
+} from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
-import CommonImage from "@/components/shared/CommonImage";
-import DiscountBadge from "@/components/shared/DiscountBadge";
+import OrderItemRow from "@/components/shared/OrderItemRow";
 import { perBagUnit } from "@shared/inventoryData";
 
 // Small inline button that copies the given text and briefly shows a check.
@@ -521,29 +524,26 @@ const OrderManagement = () => {
               : "Items"}
           </Label>
 
-          {/* Standard Product View */}
+          {/* Standard Product View — same row layout as the dealer manifest */}
           {(viewOrder?.orderType === "product" || viewOrder?.productItems) && (
-            <div className="rounded-lg border divide-y text-sm">
+            <div className="rounded-lg border p-3 space-y-2">
               {(viewOrder.productItems || viewOrder.items || []).map(
-                (item, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-[1fr_auto_auto] gap-4 items-center p-3"
-                  >
-                    <span className="text-xs truncate">{item.productName}</span>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                      {item.quantity} × {formatCurrency(item.unitPrice)}
-                      {item.unitPrice < item.basePrice && (
-                        <span className="text-[10px] line-through text-muted-foreground/50 ml-1">
-                          {formatCurrency(item.basePrice)}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-xs font-semibold whitespace-nowrap">
-                      {formatCurrency(item.totalPrice)}
-                    </span>
-                  </div>
-                ),
+                (item, index) => {
+                  const { name, colorName } = splitProductItemName(item);
+                  return (
+                    <OrderItemRow
+                      key={index}
+                      imageUrl={item.imageUrl}
+                      name={name}
+                      quantity={item.quantity}
+                      meta={[colorName]}
+                      unitPrice={item.unitPrice}
+                      originalUnitPrice={item.basePrice}
+                      originalTotalPrice={item.basePrice * item.quantity}
+                      totalPrice={item.totalPrice}
+                    />
+                  );
+                },
               )}
             </div>
           )}
@@ -625,102 +625,40 @@ const OrderManagement = () => {
                           {addon.subItems?.length > 0 && (
                             <div className="space-y-2 mt-1">
                               {addon.subItems.map((sub, sIdx) => (
-                                <div
+                                <OrderItemRow
                                   key={sIdx}
-                                  className="flex items-center gap-3 rounded-md border p-2"
-                                >
-                                  {sub.imageUrl && (
-                                    <div className="relative shrink-0">
-                                      <CommonImage
-                                        src={sub.imageUrl}
-                                        alt={sub.name}
-                                        thumb={128}
-                                        className="w-16"
-                                      />
-                                      <DiscountBadge
-                                        originalPrice={sub.originalPricePerBag}
-                                        paidPrice={sub.pricePerBag}
-                                        className="absolute top-0 right-0 z-10"
-                                      />
-                                    </div>
-                                  )}
-                                  <div className="flex-1 min-w-0 space-y-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <p className="text-xs font-semibold truncate">
-                                        {sub.name}
-                                        {sub.piecesPerBag != null && (
-                                          <span className="font-normal">
-                                            {" - "}
-                                            <span className="font-bold text-red-600 dark:text-red-500">
-                                              {sub.piecesPerBag}
-                                            </span>{" "}
-                                            {perBagUnit(
-                                              sub.category,
-                                              sub.piecesPerBag,
-                                            )}
-                                          </span>
-                                        )}
-                                      </p>
-                                      <span className="text-xs text-muted-foreground shrink-0">
+                                  imageUrl={sub.imageUrl}
+                                  name={sub.name}
+                                  nameSuffix={
+                                    sub.piecesPerBag != null && (
+                                      <span className="font-normal">
+                                        {" - "}
                                         <span className="font-bold text-red-600 dark:text-red-500">
-                                          {sub.qty}
+                                          {sub.piecesPerBag}
                                         </span>{" "}
-                                        {sub.qty !== 1 ? "bags" : "bag"}
+                                        {perBagUnit(
+                                          sub.category,
+                                          sub.piecesPerBag,
+                                        )}
                                       </span>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-xs">
-                                      {sub.bin && (
-                                        <span className="text-muted-foreground">
-                                          {sub.bin}
-                                        </span>
-                                      )}
-                                      {sub.bin && sub.colorName && (
-                                        <span className="text-muted-foreground">
-                                          ·
-                                        </span>
-                                      )}
-                                      {sub.colorName && (
-                                        <span className="text-muted-foreground">
-                                          {sub.colorName}
-                                        </span>
-                                      )}
-                                      {(sub.bin || sub.colorName) &&
-                                        sub.totalPrice > 0 && (
-                                          <span className="text-muted-foreground">
-                                            ·
-                                          </span>
-                                        )}
-                                      {/* Flash-sale provenance, inline with the
-                                          rest of the line: what this quantity
-                                          would have billed at pre-sale, struck
-                                          through beside what was charged. Only
-                                          set when genuinely discounted. */}
-                                      {sub.originalPricePerBag != null &&
-                                        sub.totalPrice > 0 && (
-                                          <span className="text-muted-foreground line-through">
-                                            {formatCurrency(
-                                              sub.originalPricePerBag * sub.qty,
-                                            )}
-                                          </span>
-                                        )}
-                                      {sub.totalPrice > 0 && (
-                                        <span className="font-semibold text-success dark:text-accent">
-                                          {formatCurrency(sub.totalPrice)}
-                                        </span>
-                                      )}
-                                      {/* No thumbnail to overlay — keep the
-                                          discount visible inline instead. */}
-                                      {!sub.imageUrl && (
-                                        <DiscountBadge
-                                          originalPrice={
-                                            sub.originalPricePerBag
-                                          }
-                                          paidPrice={sub.pricePerBag}
-                                        />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                                    )
+                                  }
+                                  quantity={sub.qty}
+                                  quantityUnit="bag"
+                                  meta={[sub.bin, sub.colorName]}
+                                  unitPrice={sub.pricePerBag}
+                                  originalUnitPrice={sub.originalPricePerBag}
+                                  // Flash-sale provenance: what this quantity
+                                  // would have billed at pre-sale, struck
+                                  // through beside what was charged. Only set
+                                  // when genuinely discounted.
+                                  originalTotalPrice={
+                                    sub.originalPricePerBag != null
+                                      ? sub.originalPricePerBag * sub.qty
+                                      : undefined
+                                  }
+                                  totalPrice={sub.totalPrice}
+                                />
                               ))}
                             </div>
                           )}

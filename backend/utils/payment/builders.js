@@ -10,6 +10,7 @@ export const computeUnitPrice = (price, discount, discountPrice) => {
 
 export const buildOrderItem = ({
   productName,
+  colorName,
   quantity,
   unitPrice,
   basePrice,
@@ -20,6 +21,7 @@ export const buildOrderItem = ({
 }) => ({
   productId: productId || undefined,
   productName,
+  colorName: colorName || undefined,
   variantIndex: variantIndex ?? undefined,
   quantity,
   basePrice: basePrice ?? unitPrice,

@@ -7,7 +7,10 @@ import {
   formatFullName,
   formatPhone,
 } from "@/utils/formatting";
-import { getOrderStatusConfig } from "@/constant/orderData";
+import {
+  getOrderStatusConfig,
+  splitProductItemName,
+} from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
 import { buildCloudinaryUrl } from "@/utils/cloudinary";
 
@@ -52,12 +55,13 @@ const rect = (doc, x, y, w, h, color, style = "F") => {
   doc.rect(x, y, w, h, style);
 };
 
-// Flash-sale saving captured on the order line. Returns null unless the
-// snapshot describes a real markdown, so callers can drop it in unguarded.
+// A price drop captured on the order line, normalized into the figures both the
+// chip and the struck-through price need. Returns null unless the two prices
+// describe a real markdown, so callers can drop it in unguarded.
 // Mirrors <DiscountBadge /> in the on-screen views.
-const flashSaleInfo = (sub) => {
-  const originalPrice = Number(sub?.originalPricePerBag) || 0;
-  const paidPrice = Number(sub?.pricePerBag) || 0;
+const priceDropInfo = (original, paid) => {
+  const originalPrice = Number(original) || 0;
+  const paidPrice = Number(paid) || 0;
   if (originalPrice <= 0 || paidPrice <= 0 || paidPrice >= originalPrice)
     return null;
 
@@ -66,6 +70,10 @@ const flashSaleInfo = (sub) => {
     percentOff: Math.round(((originalPrice - paidPrice) / originalPrice) * 100),
   };
 };
+
+// Dealer add-on sub-items carry the flash-sale snapshot under its own names.
+const flashSaleInfo = (sub) =>
+  priceDropInfo(sub?.originalPricePerBag, sub?.pricePerBag);
 
 // The "20% OFF" chip, pinned to the top-right of the row's thumbnail the same
 // way the screen views overlay it. Falls back to the middle of the image cell
@@ -790,22 +798,50 @@ const buildOrderPdf = async (order) => {
       );
     }
   } else if (order.productItems?.length > 0) {
+    // Discounted lines, keyed by row: a chip over the thumbnail plus the struck
+    // pre-discount figure under the unit price actually charged — the same
+    // treatment the dealer add-on table gives a flash sale.
+    const drops = {};
+    order.productItems.forEach((item, i) => {
+      const info = priceDropInfo(item.basePrice, item.unitPrice);
+      if (info) drops[i] = info;
+    });
+
     y = itemsTableWithImages(
       doc,
       y,
-      ["Product", "Qty", "Unit Price", "Total"],
-      order.productItems.map((item) => [
-        safe(item.productName),
-        safe(item.quantity),
-        formatCurrency(item.unitPrice),
-        formatCurrency(item.totalPrice),
-      ]),
+      ["Product", "Color", "Qty", "Unit Price", "Total"],
+      order.productItems.map((item) => {
+        const { name, colorName } = splitProductItemName(item);
+        return [
+          safe(name),
+          safe(colorName),
+          safe(item.quantity),
+          formatCurrency(item.unitPrice),
+          formatCurrency(item.totalPrice),
+        ];
+      }),
       productImgs,
       {
         1: { halign: "left" },
-        2: { halign: "center", cellWidth: 22 },
-        3: { halign: "right", cellWidth: 34 },
-        4: { halign: "right", cellWidth: 34 },
+        2: { halign: "left", cellWidth: 34 },
+        3: { halign: "center", cellWidth: 18 },
+        // Centred like the dealer table so the struck pre-discount price sits
+        // directly under the amount charged.
+        4: { halign: "center", cellWidth: 26 },
+        5: { halign: "center", cellWidth: 26 },
+      },
+      undefined,
+      Object.fromEntries(
+        Object.entries(drops).map(([i, info]) => [i, `${info.percentOff}% OFF`]),
+      ),
+      // Column 4 is Unit Price (column 0 is the image).
+      (data) => {
+        if (data.column.index !== 4) return;
+        const info = drops[data.row.index];
+        if (info) {
+          drawStruckPrice(doc, data.cell, formatCurrency(info.originalPrice));
+        }
       },
     );
   }

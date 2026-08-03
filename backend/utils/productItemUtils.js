@@ -113,6 +113,7 @@ export const getCartItemInfoForOrder = (product, item) => {
     discount,
     discountPrice,
     productName: getProductDisplayName(product, productType, variantIndex),
+    colorName: getColorLabel(product, productType, variantIndex),
     imageUrl: getImageUrl(product, productType, variantIndex),
   };
 };

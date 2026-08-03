@@ -62,6 +62,24 @@ export const getOrderStatusConfig = (order) => {
   return STATUS_CONFIG[status] || STATUS_CONFIG.paid;
 };
 
+// A product item's stored name already carries the colour as a suffix
+// ("Space Blaster - Red / Blue"). Orders placed since the colour got its own
+// field can show the two apart, the way the dealer manifest lists a colour
+// under the item name; older orders simply keep the combined name.
+export const splitProductItemName = (item) => {
+  const productName = item?.productName || "";
+  const colorName = item?.colorName || null;
+  if (!colorName) return { name: productName, colorName: null };
+
+  const suffix = ` - ${colorName}`;
+  return {
+    name: productName.endsWith(suffix)
+      ? productName.slice(0, -suffix.length)
+      : productName,
+    colorName,
+  };
+};
+
 export const getDisplayItems = (order, summarize = false) => {
   if (!order) return [];
 

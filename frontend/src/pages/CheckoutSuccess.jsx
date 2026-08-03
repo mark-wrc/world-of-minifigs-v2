@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
-import CommonImage from "@/components/shared/CommonImage";
-import DiscountBadge from "@/components/shared/DiscountBadge";
+import OrderItemRow from "@/components/shared/OrderItemRow";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
+import { splitProductItemName } from "@/constant/orderData";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 import { perBagUnit } from "@shared/inventoryData";
 
@@ -212,82 +212,40 @@ const CheckoutSuccess = () => {
                           {addon.subItems?.length > 0 && (
                             <div className="space-y-2">
                               {addon.subItems.map((sub, j) => (
-                                <div
+                                <OrderItemRow
                                   key={j}
-                                  className="flex items-center gap-3 rounded-md border p-2"
-                                >
-                                  {sub.imageUrl && (
-                                    <div className="relative shrink-0">
-                                      <CommonImage
-                                        src={sub.imageUrl}
-                                        alt={sub.name}
-                                        className="w-20"
-                                      />
-                                      <DiscountBadge
-                                        originalPrice={sub.originalPricePerBag}
-                                        paidPrice={sub.pricePerBag}
-                                        className="absolute top-0 right-0 z-10"
-                                      />
-                                    </div>
-                                  )}
-                                  <div className="flex-1 min-w-0 space-y-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-sm font-semibold truncate">
-                                        {sub.name}
-                                        {sub.piecesPerBag != null && (
-                                          <span className="text-xs font-normal">
-                                            {" - "}
-                                            <span className="font-bold text-red-600 dark:text-red-500">
-                                              {sub.piecesPerBag}
-                                            </span>{" "}
-                                            {perBagUnit(sub.category, sub.piecesPerBag)}
-                                          </span>
+                                  size="md"
+                                  imageUrl={sub.imageUrl}
+                                  name={sub.name}
+                                  nameSuffix={
+                                    sub.piecesPerBag != null && (
+                                      <span className="text-xs font-normal">
+                                        {" - "}
+                                        <span className="font-bold text-red-600 dark:text-red-500">
+                                          {sub.piecesPerBag}
+                                        </span>{" "}
+                                        {perBagUnit(
+                                          sub.category,
+                                          sub.piecesPerBag,
                                         )}
                                       </span>
-                                      <span className="text-xs text-muted-foreground shrink-0">
-                                        {sub.qty} bag{sub.qty !== 1 ? "s" : ""}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 text-xs">
-                                      {sub.colorName && (
-                                        <span className="text-muted-foreground">
-                                          {sub.colorName}
-                                        </span>
-                                      )}
-                                      {sub.colorName && sub.totalPrice > 0 && (
-                                        <span className="text-muted-foreground">
-                                          ·
-                                        </span>
-                                      )}
-                                      {/* What the line would have cost at the
-                                          pre-sale price, struck through beside
-                                          the amount actually charged. */}
-                                      {sub.originalPricePerBag != null &&
-                                        sub.totalPrice > 0 && (
-                                          <span className="text-muted-foreground line-through">
-                                            {formatCurrency(
-                                              sub.originalPricePerBag * sub.qty,
-                                            )}
-                                          </span>
-                                        )}
-                                      {sub.totalPrice > 0 && (
-                                        <span className="font-semibold text-success dark:text-accent">
-                                          {formatCurrency(sub.totalPrice)}
-                                        </span>
-                                      )}
-                                      {/* No thumbnail to overlay — keep the
-                                          discount visible inline instead. */}
-                                      {!sub.imageUrl && (
-                                        <DiscountBadge
-                                          originalPrice={
-                                            sub.originalPricePerBag
-                                          }
-                                          paidPrice={sub.pricePerBag}
-                                        />
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
+                                    )
+                                  }
+                                  quantity={sub.qty}
+                                  quantityUnit="bag"
+                                  meta={[sub.colorName]}
+                                  unitPrice={sub.pricePerBag}
+                                  originalUnitPrice={sub.originalPricePerBag}
+                                  // What the line would have cost at the
+                                  // pre-sale price, struck through beside the
+                                  // amount actually charged.
+                                  originalTotalPrice={
+                                    sub.originalPricePerBag != null
+                                      ? sub.originalPricePerBag * sub.qty
+                                      : undefined
+                                  }
+                                  totalPrice={sub.totalPrice}
+                                />
                               ))}
                             </div>
                           )}
@@ -331,62 +289,34 @@ const CheckoutSuccess = () => {
               </>
             )}
 
-            {/* ── Product Order Layout ── */}
-            {!isDealer &&
-              displayItems?.map((item, index) => (
-                <Card key={index}>
-                  <CardContent className="flex gap-3 items-center">
-                    {item.imageUrl && (
-                      <CommonImage
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        className="w-28"
+            {/* ── Product Order Layout — same rows as the dealer manifest ── */}
+            {!isDealer && displayItems?.length > 0 && (
+              <Card>
+                <CardContent className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Items
+                  </p>
+                  {displayItems.map((item, index) => {
+                    const { name, colorName } = splitProductItemName(item);
+                    return (
+                      <OrderItemRow
+                        key={index}
+                        size="md"
+                        imageUrl={item.imageUrl}
+                        name={name}
+                        to={item.productId ? `/products/${item.productId}` : undefined}
+                        quantity={item.quantity}
+                        meta={[colorName, item.description]}
+                        unitPrice={item.unitPrice}
+                        originalUnitPrice={item.basePrice}
+                        originalTotalPrice={item.basePrice * item.quantity}
+                        totalPrice={item.totalPrice}
                       />
-                    )}
-                    <div className="flex-1 flex flex-col justify-between self-stretch">
-                      <div className="grid grid-cols-[1fr_auto] items-start">
-                        {item.productId ? (
-                          <Link
-                            to={`/products/${item.productId}`}
-                            className="font-bold text-md line-clamp-2 hover:text-success transition-colors"
-                          >
-                            {item.productName}
-                          </Link>
-                        ) : (
-                          <span className="font-bold text-md line-clamp-2">
-                            {item.productName}
-                          </span>
-                        )}
-                        <span className="font-bold text-lg text-success dark:text-accent whitespace-nowrap">
-                          {formatCurrency(item.totalPrice)}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {item.description && (
-                          <p className="text-xs text-muted-foreground font-medium">
-                            {item.description}
-                          </p>
-                        )}
-                        <div className="text-xs font-bold text-muted-foreground">
-                          Qty: {item.quantity}
-                        </div>
-                        {item.unitPrice > 0 && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-md font-bold text-success dark:text-accent">
-                              {formatCurrency(item.unitPrice)}
-                            </span>
-                            {item.unitPrice < item.basePrice && (
-                              <span className="text-xs text-muted-foreground line-through">
-                                {formatCurrency(item.basePrice)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Bottom Card: Shipping Details (non-cancelled only) */}

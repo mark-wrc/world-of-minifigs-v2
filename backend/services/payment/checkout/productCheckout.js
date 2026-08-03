@@ -39,7 +39,7 @@ export async function buildOrderFromCart(cart) {
     }
     if (!product) continue;
 
-    const { price, discount, discountPrice, productName, imageUrl } =
+    const { price, discount, discountPrice, productName, colorName, imageUrl } =
       getCartItemInfoForOrder(product, item);
     const unitPrice = computeUnitPrice(price, discount, discountPrice);
 
@@ -47,6 +47,7 @@ export async function buildOrderFromCart(cart) {
       buildOrderItem({
         productId: product._id,
         productName,
+        colorName,
         variantIndex: item.variantIndex,
         quantity: Number(item.quantity) || 1,
         unitPrice,
@@ -75,7 +76,7 @@ export async function buildOrderFromDirectMetadata(metadata) {
   if (!product) return null;
 
   const item = { productType: product.productType, variantIndex, quantity };
-  const { price, discount, discountPrice, productName, imageUrl } =
+  const { price, discount, discountPrice, productName, colorName, imageUrl } =
     getCartItemInfoForOrder(product, item);
   const unitPrice = computeUnitPrice(price, discount, discountPrice);
 
@@ -83,6 +84,7 @@ export async function buildOrderFromDirectMetadata(metadata) {
     buildOrderItem({
       productId: product._id,
       productName,
+      colorName,
       variantIndex,
       quantity,
       unitPrice,
