@@ -123,6 +123,32 @@ export const display = (value) =>
 export const sortByName = (items = [], key) =>
   [...items].sort((a, b) => (a[key] || "").localeCompare(b[key] || ""));
 
+export const nextIncrementedName = (name, takenNames = []) => {
+  const base = sanitizeString(name);
+  if (!base) return "";
+
+  const taken = new Set(
+    takenNames.map((n) => sanitizeString(n).toLowerCase()).filter(Boolean),
+  );
+
+  const match = base.match(/^(.*?)(\d+)(\D*)$/);
+  const prefix = match ? match[1] : `${base} `;
+  const suffix = match ? match[3] : "";
+  const digits = match ? match[2] : "1";
+  let next = parseInt(digits, 10);
+
+  // Try successive numbers until one isn't already used (cap the scan so a
+  // fully-taken range can't spin).
+  for (let attempt = 0; attempt < 1000; attempt++) {
+    next += 1;
+    const padded = String(next).padStart(digits.length, "0");
+    const candidate = `${prefix}${padded}${suffix}`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+
+  return `${base} Copy`;
+};
+
 // Formats E.164 phone numbers (e.g. +18017810705) to (801) 781-0705.
 // Falls back to the raw value for unrecognized formats.
 export const formatPhone = (phone) => {

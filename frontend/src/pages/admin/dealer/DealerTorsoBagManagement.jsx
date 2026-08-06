@@ -95,6 +95,7 @@ const DealerTorsoBagManagement = () => {
     handleDialogClose,
     handleAdd,
     handleEdit,
+    handleDuplicate,
     handleDelete,
     handleUpdateItemQuantity,
     handleSubmit,
@@ -158,6 +159,7 @@ const DealerTorsoBagManagement = () => {
             />
             <ActionsColumn
               onEdit={() => handleEdit(bag)}
+              onDuplicate={() => handleDuplicate(bag)}
               onDelete={() => handleDelete(bag)}
             />
           </>

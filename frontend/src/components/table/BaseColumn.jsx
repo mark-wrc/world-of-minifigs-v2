@@ -93,10 +93,12 @@ export const StockCell = ({ stock, healthyAt = 50, suffix }) => {
 export const ActionsColumn = ({
   onView,
   onEdit,
+  onDuplicate,
   onDelete,
   onExport,
   viewTitle = "View",
   editTitle = "Update",
+  duplicateTitle = "Duplicate",
   deleteTitle = "Delete",
   exportTitle = "Export",
 }) => {
@@ -134,6 +136,16 @@ export const ActionsColumn = ({
               }}
             >
               {editTitle}
+            </DropdownMenuItem>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem
+              onSelect={(event) => {
+                event.preventDefault();
+                onDuplicate();
+              }}
+            >
+              {duplicateTitle}
             </DropdownMenuItem>
           )}
           {onExport && (

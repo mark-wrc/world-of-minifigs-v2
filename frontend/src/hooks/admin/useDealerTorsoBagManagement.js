@@ -8,7 +8,11 @@ import {
   useGetGeneralInventoryQuery,
 } from "@/redux/api/adminApi";
 import { extractPaginatedData } from "@/utils/apiHelpers";
-import { sanitizeString, sortByName } from "@/utils/formatting";
+import {
+  nextIncrementedName,
+  sanitizeString,
+  sortByName,
+} from "@/utils/formatting";
 import {
   validateDealerTorsoBag,
   validateTorsoAllocation,
@@ -49,6 +53,32 @@ const columns = [
   { key: "updatedAt", label: "Updated At" },
   { key: "actions", label: "Actions" },
 ];
+
+// Maps a saved bag's items into the editing shape used by the form. Shared by
+// edit and duplicate so a copy carries the exact same torsos and quantities.
+const mapBagItems = (bag) =>
+  bag.items?.map((item) => {
+    const inv = item.inventoryItemId;
+    // Populated reference → a linked torso row.
+    if (inv && typeof inv === "object" && inv._id) {
+      return {
+        inventoryItemId: inv._id,
+        quantity: item.quantity || 1,
+        _item: inv,
+      };
+    }
+    // Bare id (inventory got unpopulated somehow) → keep the id.
+    if (inv) {
+      return { inventoryItemId: inv, quantity: item.quantity || 1, _item: null };
+    }
+    // Legacy embedded-image item → needs re-linking before save.
+    return {
+      inventoryItemId: null,
+      quantity: item.quantity || 1,
+      legacyImage: item.image || null,
+      _item: null,
+    };
+  }) || [];
 
 const useDealerTorsoBagManagement = () => {
   // ------------------------------- Mutations ------------------------------------
@@ -157,36 +187,36 @@ const useDealerTorsoBagManagement = () => {
 
   // ------------------------------- Edit Handler ----------------------------------
   const handleEdit = (bag) => {
-    const existingItems =
-      bag.items?.map((item) => {
-        const inv = item.inventoryItemId;
-        // Populated reference → a linked torso row.
-        if (inv && typeof inv === "object" && inv._id) {
-          return {
-            inventoryItemId: inv._id,
-            quantity: item.quantity || 1,
-            _item: inv,
-          };
-        }
-        // Bare id (inventory got unpopulated somehow) → keep the id.
-        if (inv) {
-          return { inventoryItemId: inv, quantity: item.quantity || 1, _item: null };
-        }
-        // Legacy embedded-image item → needs re-linking before save.
-        return {
-          inventoryItemId: null,
-          quantity: item.quantity || 1,
-          legacyImage: item.image || null,
-          _item: null,
-        };
-      }) || [];
-
     crud.openEdit(bag, {
       bagName: bag.bagName || "",
       baseSize: bag.baseSize || 100,
       stock: bag.stock ?? 0,
       isActive: bag.isActive !== false,
-      items: existingItems,
+      items: mapBagItems(bag),
+    });
+  };
+
+  // ------------------------------- Duplicate Handler -----------------------------
+  // Opens the Add dialog pre-filled with a copy of the bag — same base size,
+  // stock, status and torsos (with their quantities) — under the next name in
+  // the sequence ("Bag 5001" → "Bag 5002"). Nothing is saved until the admin
+  // submits, so every field stays editable, name included. Names on the current
+  // page are skipped when picking the number; the backend still rejects a
+  // collision with a bag on another page.
+  const handleDuplicate = (bag) => {
+    crud.handleAdd({
+      bagName: nextIncrementedName(
+        bag.bagName,
+        bags.map((b) => b.bagName),
+      ),
+      baseSize: bag.baseSize || 100,
+      stock: bag.stock ?? 0,
+      isActive: bag.isActive !== false,
+      items: mapBagItems(bag),
+    });
+
+    toast.info("Duplicating bag", {
+      description: `Review the copy of "${bag.bagName}" and save to create it.`,
     });
   };
 
@@ -341,6 +371,7 @@ const useDealerTorsoBagManagement = () => {
     handleRemoveItemAt,
     // Item + form handlers
     handleEdit,
+    handleDuplicate,
     handleUpdateItemQuantity,
     handleSubmit,
     handleChange,
