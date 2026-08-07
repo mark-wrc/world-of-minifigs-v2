@@ -10,6 +10,7 @@ import {
   CheckoutButton,
 } from "@/components/shared/OrderActionButton";
 import QuantityControl from "@/components/shared/QuantityControl";
+import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
 import RelatedProducts from "@/components/products/RelatedProducts";
 import { useProductDetails } from "@/hooks/useProductDetails";
 import { formatCurrency } from "@/utils/formatting";
@@ -355,6 +356,10 @@ const ProductDetails = () => {
                   className="flex-1 h-12 col-span-3"
                 />
               </div>
+              <ShippingCountrySelect
+                disabled={isCheckoutLoading}
+                className="mt-1"
+              />
               <CheckoutButton
                 label={checkoutLabel}
                 onClick={handleProductCheckout}

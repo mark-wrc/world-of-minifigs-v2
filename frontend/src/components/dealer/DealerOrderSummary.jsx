@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
+import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
 import { formatCurrency } from "@/utils/formatting";
 import { ChevronDown, ChevronUp, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -342,6 +343,13 @@ const DealerOrderSummary = ({
                 {formatCurrency(totalOrderPrice)}
               </p>
             </div>
+
+            {hasItems && (
+              <ShippingCountrySelect
+                disabled={isCheckoutLoading}
+                className="mb-4"
+              />
+            )}
 
             <CheckoutButton
               label="Proceed to Payment"

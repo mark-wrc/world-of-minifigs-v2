@@ -1,10 +1,12 @@
+import { resolveShippingCountry } from "../../../shared/shippingData.js";
+
 // ------------------------- Constants --------------------------------
 
 export const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-export const SHIPPING_RATE_AMOUNT = 1280; // $12.80 in cents
-
-export const STRIPE_SESSION_CONFIG = {
+// Options shared by every destination. Shipping and the allowed address country
+// are layered on per-destination by buildStripeSessionConfig.
+const BASE_SESSION_CONFIG = {
   mode: "payment",
   automatic_tax: { enabled: true },
   invoice_creation: { enabled: true },
@@ -13,22 +15,37 @@ export const STRIPE_SESSION_CONFIG = {
   customer_update: {
     shipping: "auto",
   },
-  shipping_address_collection: {
-    allowed_countries: ["US"],
-  },
-  shipping_options: [
-    {
-      shipping_rate_data: {
-        type: "fixed_amount",
-        fixed_amount: { amount: SHIPPING_RATE_AMOUNT, currency: "usd" },
-        display_name: "Standard Shipping",
-        delivery_estimate: {
-          minimum: { unit: "business_day", value: 7 },
-          maximum: { unit: "business_day", value: 14 },
+};
+
+// Builds the session config for one destination country.
+export const buildStripeSessionConfig = (countryCode) => {
+  const country = resolveShippingCountry(countryCode);
+
+  return {
+    ...BASE_SESSION_CONFIG,
+    shipping_address_collection: {
+      allowed_countries: [country.code],
+    },
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          type: "fixed_amount",
+          fixed_amount: { amount: country.amount, currency: "usd" },
+          display_name: country.displayName,
+          delivery_estimate: {
+            minimum: {
+              unit: "business_day",
+              value: country.deliveryEstimate.minimum,
+            },
+            maximum: {
+              unit: "business_day",
+              value: country.deliveryEstimate.maximum,
+            },
+          },
         },
       },
-    },
-  ],
+    ],
+  };
 };
 
 export const EXTRA_BAG_RATIO = 100; // 1 extra bag allowed per 100 minifigs

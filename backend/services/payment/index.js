@@ -1,7 +1,6 @@
 export {
   FRONTEND_URL,
-  SHIPPING_RATE_AMOUNT,
-  STRIPE_SESSION_CONFIG,
+  buildStripeSessionConfig,
 } from "./paymentConfig.js";
 
 export { createOrderRecord } from "./paymentCore.js";

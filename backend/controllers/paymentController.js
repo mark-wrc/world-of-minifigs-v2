@@ -9,8 +9,13 @@ import {
   buildCartLineItems,
   handleRefundUpdated,
   FRONTEND_URL,
-  STRIPE_SESSION_CONFIG,
+  buildStripeSessionConfig,
 } from "../services/payment/index.js";
+import {
+  DEFAULT_SHIPPING_COUNTRY,
+  SHIPPING_COUNTRY_CODES,
+  isSupportedShippingCountry,
+} from "../../shared/shippingData.js";
 
 // Backfills invoice number / URL onto an order if Stripe hadn't finalized the
 // invoice before the webhook fired. Mutates and returns the order.
@@ -84,6 +89,15 @@ export const createCheckoutSession = async (req, res) => {
     const body = req.body || {};
     const { productId, orderType } = body;
 
+    const shippingCountry = body.shippingCountry || DEFAULT_SHIPPING_COUNTRY;
+    if (!isSupportedShippingCountry(shippingCountry)) {
+      return res.status(400).json({
+        success: false,
+        message: "Unsupported shipping destination",
+        description: `We currently ship to: ${SHIPPING_COUNTRY_CODES.join(", ")}.`,
+      });
+    }
+
     let lineItems;
     let metadata = { orderType: "product" };
 
@@ -144,7 +158,7 @@ export const createCheckoutSession = async (req, res) => {
     }
 
     const session = await getStripe().checkout.sessions.create({
-      ...STRIPE_SESSION_CONFIG,
+      ...buildStripeSessionConfig(shippingCountry),
       line_items: lineItems,
       success_url: `${FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,

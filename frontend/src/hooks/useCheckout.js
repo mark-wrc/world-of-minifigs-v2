@@ -10,6 +10,7 @@ import { handleApiError } from "@/utils/apiHelpers";
  */
 export const useCheckout = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
+  const shippingCountry = useSelector((state) => state.shipping.country);
   const [createCheckoutSession, { isLoading: isCheckoutLoading }] =
     useCreateCheckoutSessionMutation();
 
@@ -23,7 +24,10 @@ export const useCheckout = () => {
       }
 
       try {
-        const res = await createCheckoutSession(payload).unwrap();
+        const res = await createCheckoutSession({
+          shippingCountry,
+          ...payload,
+        }).unwrap();
         if (res?.url) {
           window.location.href = res.url;
         } else {
@@ -37,7 +41,7 @@ export const useCheckout = () => {
         handleApiError(err, "Checkout failed", "Please try again");
       }
     },
-    [isAuthenticated, createCheckoutSession],
+    [isAuthenticated, shippingCountry, createCheckoutSession],
   );
 
   return { checkout, isCheckoutLoading, isAuthenticated };
