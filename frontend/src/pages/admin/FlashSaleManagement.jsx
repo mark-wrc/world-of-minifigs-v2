@@ -17,6 +17,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card";
 import AdminManagementHeader from "@/components/shared/AdminManagementHeader";
 import TableLayout from "@/components/table/TableLayout";
 import ColorSwatch from "@/components/shared/ColorSwatch";
@@ -404,12 +409,27 @@ const FlashSaleManagement = () => {
                     key={item.inventoryItemId}
                     className="flex items-center gap-3 rounded-md border p-3"
                   >
-                    <CommonImage
-                      src={item.inventory.image?.url}
-                      alt={item.inventory.minifigName}
-                      className="mx-auto w-16 aspect-4/3 shrink-0"
-                      objectFit="object-contain"
-                    />
+                    {/* Thumbnail — hover to enlarge */}
+                    <HoverCard openDelay={150} closeDelay={80}>
+                      <HoverCardTrigger asChild>
+                        <div className="shrink-0 cursor-zoom-in">
+                          <CommonImage
+                            src={item.inventory.image?.url}
+                            alt={item.inventory.minifigName}
+                            className="mx-auto w-16 aspect-4/3"
+                            objectFit="object-contain"
+                          />
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent>
+                        <CommonImage
+                          src={item.inventory.image?.url}
+                          alt={item.inventory.minifigName}
+                          className="w-80"
+                          objectFit="object-contain"
+                        />
+                      </HoverCardContent>
+                    </HoverCard>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="text-sm font-semibold line-clamp-1">
                         {item.inventory.minifigName}
