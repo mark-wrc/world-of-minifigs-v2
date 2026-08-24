@@ -29,7 +29,11 @@ import {
 // Image uploads go browser→Cloudinary directly; folder owned by uploadController.js.
 
 // Order statuses that count as a completed sale (excludes cancelled/failed).
-const SOLD_ORDER_STATUSES = [ORDER_STATUSES.PAID, ORDER_STATUSES.SHIPPED];
+const SOLD_ORDER_STATUSES = [
+  ORDER_STATUSES.PAID,
+  ORDER_STATUSES.SHIPPED,
+  ORDER_STATUSES.DELIVERED,
+];
 
 // Consumers that still reference an inventory item. Deleting an item removes its
 // image and dangles these references, so deletion is blocked for BOTH. Add-ons

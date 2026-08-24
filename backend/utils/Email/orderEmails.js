@@ -1,3 +1,8 @@
+import {
+  DELIVERY_METHODS,
+  DELIVERY_METHOD_LABELS,
+} from "../../constants/orderConstants.js";
+
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
 const supportEmail = () => process.env.SMTP_FROM_EMAIL || "";
 const frontendUrl = () => process.env.FRONTEND_URL || "";
@@ -325,6 +330,24 @@ const trackingSection = (order) => {
   );
 };
 
+const deliverySection = (order) => {
+  const d = order.delivery || {};
+  const rows = [
+    kv("Method", DELIVERY_METHOD_LABELS[d.method] || "—"),
+    d.receivedBy ? kv("Received By", d.receivedBy) : "",
+    kv("Delivered On", formatDate(d.deliveredAt || order.updatedAt), !d.notes),
+    d.notes ? kv("Notes", d.notes, true) : "",
+  ]
+    .filter(Boolean)
+    .join("");
+
+  return openSection(
+    "Delivery Details",
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>`,
+    { divider: false },
+  );
+};
+
 // ── Templates ──────────────────────────────────────────────────────────────────
 
 export const getAdminNewOrderTemplate = (order, customerName) => {
@@ -373,6 +396,35 @@ export const getShippingNotificationTemplate = (order) =>
   `,
     "#0ea5e9",
   );
+
+export const getOrderDeliveredTemplate = (order) => {
+  const isPickup = order.delivery?.method === DELIVERY_METHODS.STORE_PICKUP;
+  const intro = isPickup
+    ? "Your order has been picked up in store. Thank you for stopping by!"
+    : "Your order has been hand delivered. Thank you for your purchase!";
+
+  return wrap(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Your order has been delivered!</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;">${intro}</p>
+    </td></tr>
+    ${openSection(
+      "Order Information",
+      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${kv("Invoice Number", invoiceLink(order))}
+        ${kv("Status", `<span style="color:#16a34a;font-weight:600;">Delivered</span>`, true)}
+      </table>`,
+      { divider: false },
+    )}
+    ${deliverySection(order)}
+    ${buildItemsHtml(order)}
+    ${buildPaymentSummaryHtml(order, { totalColor: "#16a34a" })}
+    ${viewOrderBtn(order)}
+  `,
+    "#16a34a",
+  );
+};
 
 export const getOrderCancelledTemplate = (order) =>
   wrap(

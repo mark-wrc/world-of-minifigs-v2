@@ -9,7 +9,10 @@ import {
   handleApiError,
   handleApiSuccess,
 } from "@/utils/apiHelpers";
-import { buildAdminStatusOptions } from "@/constant/orderData";
+import {
+  buildAdminStatusOptions,
+  buildDeliveryMethodOptions,
+} from "@/constant/orderData";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import { sanitizeString, sanitizeOptional } from "@/utils/formatting";
 import { validateOrderStatusUpdate } from "@/utils/validation";
@@ -56,6 +59,9 @@ const useOrderManagement = () => {
   const [trackingLink, setTrackingLink] = useState("");
   const [cancelReason, setCancelReason] = useState("");
   const [cancelNotes, setCancelNotes] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState("");
+  const [receivedBy, setReceivedBy] = useState("");
+  const [deliveryNotes, setDeliveryNotes] = useState("");
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
@@ -67,6 +73,9 @@ const useOrderManagement = () => {
     setTrackingLink("");
     setCancelReason("");
     setCancelNotes("");
+    setDeliveryMethod("");
+    setReceivedBy("");
+    setDeliveryNotes("");
   }, []);
 
   // ------------------------------- Mutations ------------------------------------
@@ -87,6 +96,11 @@ const useOrderManagement = () => {
   const adminStatusOptions = useMemo(
     () => buildAdminStatusOptions(configData?.validTransitions),
     [configData?.validTransitions],
+  );
+
+  const deliveryMethodOptions = useMemo(
+    () => buildDeliveryMethodOptions(configData?.deliveryMethods),
+    [configData?.deliveryMethods],
   );
 
   const {
@@ -154,9 +168,14 @@ const useOrderManagement = () => {
         trackingNumber,
         trackingLink,
         cancelReason,
+        deliveryMethod,
       })
     )
       return;
+
+    // Cancellation and delivery each carry their own notes, but only one branch
+    // ever runs — the backend reads a single "notes" field for both.
+    const notes = newStatus === "delivered" ? deliveryNotes : cancelNotes;
 
     try {
       const result = await updateOrderStatus({
@@ -174,8 +193,12 @@ const useOrderManagement = () => {
         ...(sanitizeOptional(cancelReason) && {
           reason: sanitizeString(cancelReason),
         }),
-        ...(sanitizeOptional(cancelNotes) && {
-          notes: sanitizeString(cancelNotes),
+        ...(sanitizeOptional(notes) && {
+          notes: sanitizeString(notes),
+        }),
+        ...(deliveryMethod && { deliveryMethod }),
+        ...(sanitizeOptional(receivedBy) && {
+          receivedBy: sanitizeString(receivedBy),
         }),
       }).unwrap();
 
@@ -192,6 +215,9 @@ const useOrderManagement = () => {
     trackingLink,
     cancelReason,
     cancelNotes,
+    deliveryMethod,
+    receivedBy,
+    deliveryNotes,
     updateOrderStatus,
     closeStatusModal,
   ]);
@@ -225,6 +251,10 @@ const useOrderManagement = () => {
     trackingLink,
     cancelReason,
     cancelNotes,
+    deliveryMethod,
+    receivedBy,
+    deliveryNotes,
+    deliveryMethodOptions,
     isUpdatingStatus,
     viewModalOpen,
     viewOrder,
@@ -235,6 +265,9 @@ const useOrderManagement = () => {
     setTrackingLink,
     setCancelReason,
     setCancelNotes,
+    setDeliveryMethod,
+    setReceivedBy,
+    setDeliveryNotes,
     statusFilter,
     handleStatusFilterChange,
     handleEdit,

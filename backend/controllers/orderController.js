@@ -2,6 +2,7 @@ import Order from "../models/order.model.js";
 import {
   sendShippingNotificationEmail,
   sendOrderCancelledEmail,
+  sendOrderDeliveredEmail,
 } from "../services/orderEmailService.js";
 import {
   normalizePagination,
@@ -14,6 +15,7 @@ import {
   REFUND_STATUSES,
   VALID_STATUS_TRANSITIONS,
   CANCELLATION_REASONS,
+  DELIVERY_METHODS,
 } from "../constants/orderConstants.js";
 import {
   validateUserCancellationRequest,
@@ -52,6 +54,7 @@ export const getOrderConfig = async (_req, res) => {
       refundStatuses: REFUND_STATUSES,
       cancellationReasons: CANCELLATION_REASONS,
       validTransitions: VALID_STATUS_TRANSITIONS,
+      deliveryMethods: DELIVERY_METHODS,
     });
   } catch (error) {
     console.error("Get order config error:", error);
@@ -84,7 +87,7 @@ export const getUserOrders = async (req, res) => {
       limit,
       sort: { createdAt: -1 },
       select:
-        "-payment.stripeSessionId -payment.stripePaymentIntentId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn",
+        "-payment.stripeSessionId -payment.stripePaymentIntentId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
     });
 
     return res.status(200).json(createPaginationResponse(result, "orders"));
@@ -114,7 +117,7 @@ export const getUserOrderById = async (req, res) => {
     }
 
     const order = await Order.findOne({ _id: id, userId }).select(
-      "-payment.stripeSessionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn",
+      "-payment.stripeSessionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
     );
 
     if (!order) {
@@ -252,6 +255,10 @@ export const getAllOrders = async (req, res) => {
           path: "cancellation.cancelledById",
           select: "firstName lastName",
         },
+        {
+          path: "delivery.deliveredById",
+          select: "firstName lastName",
+        },
       ],
     });
 
@@ -289,6 +296,10 @@ export const getOrderById = async (req, res) => {
         path: "cancellation.cancelledById",
         select: "firstName lastName",
       },
+      {
+        path: "delivery.deliveredById",
+        select: "firstName lastName",
+      },
     ]);
 
     if (!order) {
@@ -321,8 +332,16 @@ export const getOrderById = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, carrier, trackingNumber, trackingLink, reason, notes } =
-      req.body;
+    const {
+      status,
+      carrier,
+      trackingNumber,
+      trackingLink,
+      reason,
+      notes,
+      deliveryMethod,
+      receivedBy,
+    } = req.body;
 
     if (!status) {
       return res.status(400).json({
@@ -440,6 +459,38 @@ export const updateOrderStatus = async (req, res) => {
           _id: order._id,
           status: order.status,
           shipping: order.shipping,
+        },
+      });
+    }
+
+    // Delivered — hand delivery or in-store pick-up only; requires the method
+    if (status === ORDER_STATUSES.DELIVERED) {
+      if (!Object.values(DELIVERY_METHODS).includes(deliveryMethod)) {
+        return res.status(400).json({
+          success: false,
+          message: "Delivery method is required",
+          description:
+            "Please select how the order was handed over — hand delivered or picked up in store.",
+        });
+      }
+
+      order.status = ORDER_STATUSES.DELIVERED;
+      order.delivery.method = deliveryMethod;
+      order.delivery.receivedBy = receivedBy?.trim() || undefined;
+      order.delivery.notes = notes?.trim() || undefined;
+      order.delivery.deliveredAt = new Date();
+      order.delivery.deliveredById = req.user._id;
+      await order.save();
+
+      sendOrderDeliveredEmail(order).catch(() => {});
+
+      return res.status(200).json({
+        success: true,
+        message: "Order marked as delivered",
+        order: {
+          _id: order._id,
+          status: order.status,
+          delivery: order.delivery,
         },
       });
     }

@@ -36,6 +36,7 @@ import {
 } from "@/utils/formatting";
 import {
   getOrderStatusConfig,
+  getDeliveryMethodLabel,
   splitProductItemName,
   STATUS_CONFIG,
 } from "@/constant/orderData";
@@ -96,6 +97,10 @@ const OrderManagement = () => {
     trackingLink,
     cancelReason,
     cancelNotes,
+    deliveryMethod,
+    receivedBy,
+    deliveryNotes,
+    deliveryMethodOptions,
     isUpdatingStatus,
     viewModalOpen,
     viewOrder,
@@ -109,6 +114,9 @@ const OrderManagement = () => {
     setTrackingLink,
     setCancelReason,
     setCancelNotes,
+    setDeliveryMethod,
+    setReceivedBy,
+    setDeliveryNotes,
     statusFilter,
     handleStatusFilterChange,
     handleEdit,
@@ -273,6 +281,42 @@ const OrderManagement = () => {
                 placeholder="https://tracking.example.com/..."
                 disabled={isUpdatingStatus}
                 required
+              />
+            </>
+          )}
+
+          {/* Delivery Fields — hand delivery / in-store pick-up only. Shipped
+              orders never reach here: they have no onward transition, so
+              "Mark as Delivered" is not offered for them. */}
+          {newStatus === "delivered" && (
+            <>
+              <AdminFormSelect
+                label="Delivery Method"
+                name="deliveryMethod"
+                value={deliveryMethod}
+                onValueChange={setDeliveryMethod}
+                options={deliveryMethodOptions}
+                placeholder="Select delivery method"
+                isLoading={isLoadingConfig}
+                disabled={isUpdatingStatus}
+              />
+
+              <AdminFormInput
+                label="Received By"
+                name="receivedBy"
+                value={receivedBy}
+                onChange={(e) => setReceivedBy(e.target.value)}
+                placeholder="Name of the person who received it"
+                disabled={isUpdatingStatus}
+              />
+
+              <AdminFormTextarea
+                label="Delivery notes"
+                name="deliveryNotes"
+                value={deliveryNotes}
+                onChange={(e) => setDeliveryNotes(e.target.value)}
+                placeholder="Optional notes..."
+                disabled={isUpdatingStatus}
               />
             </>
           )}
@@ -511,6 +555,53 @@ const OrderManagement = () => {
                   {viewOrder.shipping.trackingLink || "—"}
                 </a>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* ── Delivery Details ── */}
+        {viewOrder?.status === "delivered" && (
+          <section className="space-y-2">
+            <Label className="font-semibold text-xs uppercase">
+              Delivery Details
+            </Label>
+            <div className="rounded-lg border divide-y text-sm">
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Method</span>
+                <span className="text-xs">
+                  {getDeliveryMethodLabel(viewOrder.delivery?.method)}
+                </span>
+              </div>
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Delivered On</span>
+                <span className="text-xs">
+                  {formatDate(
+                    viewOrder.delivery?.deliveredAt || viewOrder.updatedAt,
+                  )}
+                </span>
+              </div>
+              {viewOrder.delivery?.receivedBy && (
+                <div className="grid grid-cols-[140px_1fr] p-3">
+                  <span className="font-semibold text-xs">Received By</span>
+                  <span className="text-xs">
+                    {viewOrder.delivery.receivedBy}
+                  </span>
+                </div>
+              )}
+              {viewOrder.delivery?.deliveredById && (
+                <div className="grid grid-cols-[140px_1fr] p-3">
+                  <span className="font-semibold text-xs">Handled By</span>
+                  <span className="text-xs">
+                    {formatFullName(viewOrder.delivery.deliveredById)}
+                  </span>
+                </div>
+              )}
+              {viewOrder.delivery?.notes && (
+                <div className="grid grid-cols-[140px_1fr] p-3">
+                  <span className="font-semibold text-xs">Notes</span>
+                  <span className="text-xs">{viewOrder.delivery.notes}</span>
+                </div>
+              )}
             </div>
           </section>
         )}

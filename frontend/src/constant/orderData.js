@@ -1,4 +1,11 @@
-import { Truck, XCircle, Clock, RefreshCw, Check } from "lucide-react";
+import {
+  Truck,
+  XCircle,
+  Clock,
+  RefreshCw,
+  Check,
+  PackageCheck,
+} from "lucide-react";
 
 export const STATUS_CONFIG = {
   paid: {
@@ -18,6 +25,15 @@ export const STATUS_CONFIG = {
     iconColor: "text-blue-600 bg-blue-100 ring-blue-200",
     description:
       "Your package has been dispatched and is moving through the carrier’s network. You can track its progress using the tracking details below.",
+  },
+  delivered: {
+    label: "Delivered",
+    variant: "success",
+    header: "Your order has been delivered!",
+    icon: PackageCheck,
+    iconColor: "text-emerald-600 bg-emerald-100 ring-emerald-200",
+    description:
+      "Your order has been handed over and is now complete. Thank you for your purchase!",
   },
   cancelled: {
     label: "Cancelled",
@@ -51,6 +67,17 @@ export const REFUND_STATUS_CONFIG = {
       "Your refund has been successfully processed and sent back to your original payment method. Depending on your bank’s processing times, it may take 5–10 business days for the credit to appear in your account.",
   },
 };
+
+// Hand-over methods for a delivered order. The values themselves come from the
+// backend order config; these are their display labels, the way STATUS_CONFIG
+// labels the backend statuses.
+export const DELIVERY_METHOD_LABELS = {
+  hand_delivered: "Hand Delivered",
+  store_pickup: "Pick-up in Store",
+};
+
+export const getDeliveryMethodLabel = (method) =>
+  DELIVERY_METHOD_LABELS[method] || method || "—";
 
 // Resolve the effective display config for an order (handles refundStatus within cancelled)
 export const getOrderStatusConfig = (order) => {
@@ -176,6 +203,13 @@ export const buildOrderTabs = (statuses) => {
       .map((s) => ({ value: s, label: STATUS_CONFIG[s]?.label || s })),
   ];
 };
+
+// Derive the admin delivery-method options from the fetched deliveryMethods
+export const buildDeliveryMethodOptions = (deliveryMethods) =>
+  Object.values(deliveryMethods || {}).map((value) => ({
+    value,
+    label: getDeliveryMethodLabel(value),
+  }));
 
 // Derive admin status transition options from fetched validTransitions
 export const buildAdminStatusOptions = (validTransitions) => {

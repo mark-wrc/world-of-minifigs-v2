@@ -51,12 +51,18 @@ export const validateUserCancellationRequest = (reason, notes) => {
 export const ensureOrderIsUserCancellable = (order) => {
   if (order.status === ORDER_STATUSES.PAID) return null;
 
+  const reasonByStatus = {
+    [ORDER_STATUSES.SHIPPED]:
+      "This order has already been shipped and cannot be cancelled.",
+    [ORDER_STATUSES.DELIVERED]:
+      "This order has already been delivered and cannot be cancelled.",
+  };
+
   return buildErrorResponse(
     400,
     "Order cannot be cancelled",
-    order.status === ORDER_STATUSES.SHIPPED
-      ? "This order has already been shipped and cannot be cancelled."
-      : "This order is not eligible for cancellation.",
+    reasonByStatus[order.status] ||
+      "This order is not eligible for cancellation.",
   );
 };
 

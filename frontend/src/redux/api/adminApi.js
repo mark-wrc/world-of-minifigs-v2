@@ -659,6 +659,8 @@ export const adminApi = createApi({
         trackingLink,
         reason,
         notes,
+        deliveryMethod,
+        receivedBy,
       }) => ({
         url: `/orders/${id}/status`,
         method: "PATCH",
@@ -669,6 +671,8 @@ export const adminApi = createApi({
           ...(trackingLink && { trackingLink }),
           ...(reason && { reason }),
           ...(notes && { notes }),
+          ...(deliveryMethod && { deliveryMethod }),
+          ...(receivedBy && { receivedBy }),
         },
       }),
       invalidatesTags: ["Order"],

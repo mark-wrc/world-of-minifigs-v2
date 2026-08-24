@@ -9,7 +9,10 @@ import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
 import OrderItemRow from "@/components/shared/OrderItemRow";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
-import { splitProductItemName } from "@/constant/orderData";
+import {
+  splitProductItemName,
+  getDeliveryMethodLabel,
+} from "@/constant/orderData";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 import { perBagUnit } from "@shared/inventoryData";
 
@@ -471,6 +474,45 @@ const CheckoutSuccess = () => {
                           ships.
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* DELIVERY INFORMATION — hand delivery / in-store pick-up */}
+                  {status === "delivered" && (
+                    <div className="space-y-5">
+                      <div className="border-t pt-5">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Delivery Information
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase text-muted-foreground">
+                            Method
+                          </p>
+                          <p className="text-base font-semibold">
+                            {getDeliveryMethodLabel(order?.delivery?.method)}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs uppercase text-muted-foreground">
+                            Delivered On
+                          </p>
+                          <p className="text-base font-semibold">
+                            {formatDate(order?.delivery?.deliveredAt)}
+                          </p>
+                        </div>
+                        {order?.delivery?.receivedBy && (
+                          <div className="space-y-1">
+                            <p className="text-xs uppercase text-muted-foreground">
+                              Received By
+                            </p>
+                            <p className="text-base font-semibold">
+                              {order.delivery.receivedBy}
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

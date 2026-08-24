@@ -9,6 +9,7 @@ import {
 } from "@/utils/formatting";
 import {
   getOrderStatusConfig,
+  getDeliveryMethodLabel,
   splitProductItemName,
 } from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
@@ -39,6 +40,7 @@ const STATUS_COLORS = {
   paid: C.accentText,
   processing: [37, 99, 235],
   shipped: [59, 130, 246],
+  delivered: [22, 163, 74],
   cancelled: C.red,
   refunded: C.amber,
 };
@@ -636,6 +638,23 @@ const buildOrderPdf = async (order) => {
           }
         : undefined,
     );
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // DELIVERY DETAILS (hand delivery / in-store pick-up)
+  // ════════════════════════════════════════════════════════════════
+  if (order.status === "delivered") {
+    y = ensureSpace(doc, y);
+    y = sectionHeader(doc, y, "Delivery Details");
+    const dl = order.delivery || {};
+    const deliveryRows = [
+      ["Method", getDeliveryMethodLabel(dl.method)],
+      ["Delivered On", formatDate(dl.deliveredAt || order.updatedAt)],
+    ];
+    if (dl.receivedBy) deliveryRows.push(["Received By", safe(dl.receivedBy)]);
+    if (dl.notes) deliveryRows.push(["Notes", safe(dl.notes)]);
+
+    y = kvTable(doc, y, deliveryRows);
   }
 
   // ════════════════════════════════════════════════════════════════

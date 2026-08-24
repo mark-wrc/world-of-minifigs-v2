@@ -378,6 +378,7 @@ export const validateOrderStatusUpdate = (state) => {
     trackingNumber,
     trackingLink,
     cancelReason,
+    deliveryMethod,
   } = state;
 
   if (!selectedOrder) {
@@ -405,6 +406,14 @@ export const validateOrderStatusUpdate = (state) => {
       });
       return false;
     }
+  }
+
+  if (newStatus === "delivered" && !deliveryMethod) {
+    toast.error("Delivery method required", {
+      description:
+        "Select whether the order was hand delivered or picked up in store.",
+    });
+    return false;
   }
 
   if (newStatus === "cancelled") {

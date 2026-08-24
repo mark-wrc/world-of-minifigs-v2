@@ -2,6 +2,7 @@ import sendEmail from "../utils/sendEmail.js";
 import {
   getShippingNotificationTemplate,
   getOrderCancelledTemplate,
+  getOrderDeliveredTemplate,
 } from "../utils/Email/orderEmails.js";
 
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
@@ -27,6 +28,13 @@ export const sendShippingNotificationEmail = (order) =>
     order,
     `Your Order Has Been Shipped – ${appName()}`,
     getShippingNotificationTemplate,
+  );
+
+export const sendOrderDeliveredEmail = (order) =>
+  send(
+    order,
+    `Your Order Has Been Delivered – ${appName()}`,
+    getOrderDeliveredTemplate,
   );
 
 export const sendOrderCancelledEmail = (order) =>

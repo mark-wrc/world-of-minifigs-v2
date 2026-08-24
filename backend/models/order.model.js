@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import {
   ORDER_STATUSES,
   REFUND_STATUSES,
+  DELIVERY_METHODS,
 } from "../constants/orderConstants.js";
 
 /* ------------------------------------------- Product Schema --------------------------------------- */
@@ -210,6 +211,21 @@ const orderSchema = new mongoose.Schema(
       trackingNumber: { type: String },
       trackingLink: { type: String },
       shippedAt: { type: Date },
+    },
+    // Set only when an order is handed over directly — hand delivery or an
+    // in-store pick-up. Courier orders stop at "shipped" and leave this empty.
+    delivery: {
+      method: {
+        type: String,
+        enum: Object.values(DELIVERY_METHODS),
+      },
+      receivedBy: { type: String },
+      notes: { type: String },
+      deliveredAt: { type: Date },
+      deliveredById: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
     },
     billing: {
       cardHolderName: { type: String },
