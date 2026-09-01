@@ -5,15 +5,16 @@ import {
   OctagonXIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+// Dark mode is disabled for now — toasts are pinned to the light theme.
+// import { useTheme } from "next-themes";
 import { Toaster as Sonner } from "sonner";
 
 const Toaster = ({ ...props }) => {
-  const { theme } = useTheme();
+  // const { theme } = useTheme();
 
   return (
     <Sonner
-      theme={theme}
+      theme="light"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

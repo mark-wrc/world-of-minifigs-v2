@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { Search, ShoppingCart, Sun, Moon, Menu } from "lucide-react";
+// Dark mode is disabled for now — the app is light-themed only.
+// import { Search, ShoppingCart, Sun, Moon, Menu } from "lucide-react";
+import { Search, ShoppingCart, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
 import Logo from "@/assets/media/Logo.png";
@@ -12,13 +14,13 @@ import MobileMenu from "@/components/layout/MobileMenu";
 import UserDropdown from "@/components/layout/UserDropdown";
 import Auth from "@/pages/Auth";
 import Settings from "@/pages/Settings";
-import { useThemeToggle } from "@/hooks/useToggleTheme";
+// import { useThemeToggle } from "@/hooks/useToggleTheme";
 import { useLogout, getInitials } from "@/hooks/useLogin";
 import { useBanner } from "@/hooks/useBanner";
 import { useCart } from "@/hooks/useCart";
 
 const Header = () => {
-  const { darkMode, toggleDarkMode } = useThemeToggle();
+  // const { darkMode, toggleDarkMode } = useThemeToggle();
   const [authOpen, setAuthOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -122,7 +124,7 @@ const Header = () => {
         </nav>
 
         {/* Header Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           {/* Search */}
           <Sheet open={searchOpen} onOpenChange={setSearchOpen}>
             <SheetTrigger asChild>
@@ -148,7 +150,7 @@ const Header = () => {
             aria-label="Cart"
             title="View Cart"
             onClick={openCart}
-            className="relative hover:bg-transparent hover:text-background dark:hover:text-foreground"
+            className="relative hover:bg-transparent hover:text-background dark:hover:text-foreground mr-3"
           >
             <ShoppingCart />
             {totalQuantity > 0 && (
@@ -157,8 +159,8 @@ const Header = () => {
               </span>
             )}
           </Button>
-          {/* Theme Toggle Button */}
-          <Button
+          {/* Theme Toggle Button — hidden while the app is light-theme only */}
+          {/* <Button
             variant="ghost"
             size="icon"
             onClick={toggleDarkMode}
@@ -167,7 +169,7 @@ const Header = () => {
             className="hover:bg-transparent hover:text-background dark:hover:text-foreground"
           >
             {darkMode ? <Sun /> : <Moon />}
-          </Button>
+          </Button> */}
           {/* User Dropdown or Sign In Button */}
           {isAuthenticated ? (
             <UserDropdown
