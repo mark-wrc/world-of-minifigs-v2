@@ -515,12 +515,14 @@ export const useDealer = () => {
   // Extra bags are capped by the single largest bundle — not the sum of
   // bundles, and not affected by copy quantity. e.g. a 1000 bundle caps at 10
   // whether or not 200 bundles or extra copies are also ordered.
+  // With no bundle selected the cap is 0, not unlimited — an extra bag only
+  // exists as a top-up on a bundle, so none can be held without one.
   const maxExtraBags = hasSelectedBundles
     ? bundleSections.reduce(
         (max, s) => Math.max(max, Math.floor(s.bundle.minifigQuantity / 100)),
         0,
       )
-    : Infinity;
+    : 0;
 
   const totalExtraBags = Object.values(extraBagQuantities).reduce(
     (acc, qty) => acc + qty,
@@ -544,14 +546,29 @@ export const useDealer = () => {
     [extraBags, extraBagQuantities, totalExtraBags, maxExtraBags],
   );
 
-  // ==================== Effects ====================
-
-  // Reset extra bags if the cap shrinks below the current selection.
   useEffect(() => {
-    if (totalExtraBags > maxExtraBags) {
-      setExtraBagQuantities({});
-    }
-  }, [maxExtraBags, totalExtraBags]);
+    const knownIds =
+      extraBags.length > 0 ? new Set(extraBags.map((bag) => bag._id)) : null;
+
+    setExtraBagQuantities((prev) => {
+      let remaining = maxExtraBags;
+      let changed = false;
+      const next = {};
+
+      for (const [id, qty] of Object.entries(prev)) {
+        const isSold = !knownIds || knownIds.has(id);
+        const kept = isSold && qty > 0 ? Math.min(qty, remaining) : 0;
+
+        if (kept !== qty) changed = true;
+        if (kept > 0) {
+          next[id] = kept;
+          remaining -= kept;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [maxExtraBags, extraBags]);
 
   // Persist the order draft so it survives the Stripe back/cancel round-trip.
   // Cleared on a successful checkout in useCheckoutSuccess.
