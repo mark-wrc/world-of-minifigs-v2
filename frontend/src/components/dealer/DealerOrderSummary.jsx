@@ -130,8 +130,8 @@ const DealerOrderSummary = ({
 
   return (
     <aside className="lg:sticky lg:top-24 space-y-5">
-      <Card className="border-2 border-accent overflow-hidden p-0">
-        <div className="bg-accent p-4 text-accent-foreground">
+      <Card className="border-2 border-primary overflow-hidden p-0">
+        <div className="bg-primary p-4 text-primary-foreground">
           <h3 className="text-lg font-bold uppercase tracking-tight">
             Order Summary
           </h3>
@@ -239,7 +239,7 @@ const DealerOrderSummary = ({
                     {/* Expandable Details */}
                     {addon.items?.length > 0 &&
                       (isExpanded || !addon.hasSubItems) && (
-                        <div className="space-y-2 pl-2 border-l-2 border-accent/20 mt-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 pr-1">
+                        <div className="space-y-2 pl-2 border-l-2 border-primary/20 mt-2 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 hover:scrollbar-thumb-muted-foreground/40 pr-1">
                           {addon.items.map((item) => (
                             <div
                               key={item.inventoryItemId}

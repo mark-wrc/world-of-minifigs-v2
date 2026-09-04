@@ -128,7 +128,7 @@ const Contact = () => {
 
                 <Button
                   className="w-full"
-                  variant="accent"
+                  variant="gradient"
                   disabled={isLoading || !formData.consent}
                 >
                   {isLoading ? "Sending..." : "Send Message"}

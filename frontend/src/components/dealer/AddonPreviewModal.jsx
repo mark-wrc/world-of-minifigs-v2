@@ -646,7 +646,7 @@ const AddonPreviewModal = ({
                 Cancel
               </Button>
               <Button
-                variant="accent"
+                variant="gradient"
                 disabled={!canSubmit}
                 onClick={onConfirm}
               >

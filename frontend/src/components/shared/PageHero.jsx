@@ -22,7 +22,7 @@ const PageHero = ({
 
       <div className="relative text-center flex flex-col items-center px-5">
         {badge && (
-          <Badge variant="accent" className="px-3 py-1 text-sm mb-5">
+          <Badge variant="brand" className="px-3 py-1 text-sm mb-5">
             {badge}
           </Badge>
         )}
@@ -34,7 +34,9 @@ const PageHero = ({
               {highlight && <>&nbsp;</>}
             </>
           )}
-          {highlight && <span className="text-accent">{highlight}</span>}
+          {highlight && (
+            <span className="text-gradient-brand">{highlight}</span>
+          )}
           {title2 && (
             <>
               &nbsp;

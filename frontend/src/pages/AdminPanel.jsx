@@ -62,7 +62,7 @@ const AdminPanel = () => {
       isCollapsedIcon ? "cursor-pointer" : ""
     } ${
       isActive
-        ? "bg-accent dark:text-secondary-foreground font-medium"
+        ? "bg-primary text-popover font-medium"
         : "text-foreground hover:bg-muted-foreground/10"
     }`;
 

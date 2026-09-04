@@ -20,6 +20,8 @@ const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground text-background dark:text-foreground dark:hover:text-secondary-foreground",
         link: "text-primary underline-offset-4 hover:underline",
         accent: "bg-accent dark:text-secondary-foreground hover:bg-accent/90",
+        gradient:
+          "bg-linear-to-r from-accent via-chart-2 to-primary bg-size-[200%_100%] bg-left font-semibold shadow-sm hover:bg-right hover:shadow-md",
         dark: "bg-popover-foreground dark:bg-accent text-background dark:text-secondary-foreground uppercase font-bold tracking-widest rounded-none",
         bannerDefault:
           "bg-white text-black hover:bg-transparent hover:text-white border-2 border-white duration-300 uppercase text-xs rounded-none",

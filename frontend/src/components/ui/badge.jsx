@@ -19,6 +19,8 @@ const badgeVariants = cva(
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         accent:
           "bg-accent dark:text-secondary-foreground hover:bg-accent/90 border-none",
+        brand:
+          "bg-primary text-primary-foreground hover:bg-primary/90 border-none",
         success:
           "bg-success text-success-foreground [a&]:hover:bg-success/90 border-none",
         info:

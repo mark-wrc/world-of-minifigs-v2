@@ -6,7 +6,7 @@ import { useSelector } from "react-redux";
 import { Search, ShoppingCart, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger } from "@/components/ui/sheet";
-import Logo from "@/assets/media/Logo.png";
+import WOM from "@/assets/media/WOM.png";
 import { headerNavigation, userMenu } from "@/constant/pageNavigation";
 import { APP_NAME } from "@/constant/appConfig";
 import GlobalSearch from "@/components/layout/GlobalSearch";
@@ -78,9 +78,21 @@ const Header = () => {
     "fixed top-0 left-1/2 -translate-x-1/2 z-50 w-full max-w-480 flex items-center justify-between px-5 transition-all duration-300";
   const headerTransparentClasses =
     "bg-linear-to-b from-black/60 via-black/50 to-transparent";
-  const headerSolidClasses = "bg-popover-foreground dark:bg-input";
+  const headerSolidClasses =
+    "bg-popover/70 dark:bg-input/70 backdrop-blur-xl backdrop-saturate-150 border-b border-border/60 shadow-sm";
 
   const isTransparent = isHomePage && !isScrolled && hasBanners;
+
+  // Over the hero banner the header sits on artwork, so its contents stay light.
+  // Once the frosted white bar kicks in, they flip to near-black.
+  const iconButtonClasses = isTransparent
+    ? "text-background dark:text-foreground hover:text-accent"
+    : "text-foreground hover:text-primary dark:hover:text-accent";
+
+  // Cart count: gold over the banner artwork, crimson on the frosted white bar.
+  const cartBadgeClasses = isTransparent
+    ? "bg-accent text-accent-foreground"
+    : "bg-primary text-primary-foreground";
 
   return (
     <>
@@ -90,7 +102,7 @@ const Header = () => {
         className={`${headerBaseClasses} ${isTransparent ? headerTransparentClasses : headerSolidClasses}`}
       >
         <Link to="/" className="flex items-center">
-          <img src={Logo} title={APP_NAME} className="h-20 p-1" />
+          <img src={WOM} title={APP_NAME} className="h-24 p-1" />
         </Link>
 
         {/* Desktop Navigation */}
@@ -101,13 +113,23 @@ const Header = () => {
               to={item.path}
               className={({ isActive }) => {
                 const baseNavClasses =
-                  "transition-all duration-300 font-medium";
-                const activeNavClasses =
-                  "text-accent decoration-2 underline underline-offset-8";
+                  "transition-all duration-300 font-bold uppercase tracking-wider";
+                // On the frosted bar the active link is full-strength black
+                // against the faded inactive ones; the gold -> orange -> crimson
+                // gradient moves to the underline bar, drawn as an ::after so it
+                // can carry its own colors.
+                const activeNavClasses = isTransparent
+                  ? "text-accent decoration-2 underline underline-offset-8"
+                  : "relative text-foreground dark:text-foreground " +
+                    "after:content-[''] after:absolute after:-bottom-2 after:left-0 after:h-0.5 after:w-full after:rounded-full " +
+                    "after:bg-linear-to-r after:from-accent after:via-chart-2 after:to-primary";
                 const inactiveTransparentClasses =
                   "text-background dark:text-foreground hover:text-accent dark:hover:text-accent";
+                // Inactive links stay the same near-black, just softened with
+                // opacity rather than swapped to a gray token — keeps the warm
+                // black hue and lets the active gradient carry the emphasis.
                 const inactiveSolidClasses =
-                  "text-background dark:text-foreground hover:text-accent dark:hover:text-accent";
+                  "text-foreground/65 hover:text-foreground dark:text-foreground/65 dark:hover:text-accent";
 
                 return `${baseNavClasses} ${
                   isActive
@@ -133,7 +155,7 @@ const Header = () => {
                 size="icon"
                 aria-label="Search"
                 title="Search Items"
-                className="hover:bg-transparent hover:text-background dark:hover:text-foreground"
+                className={`hover:bg-transparent ${iconButtonClasses}`}
               >
                 <Search />
               </Button>
@@ -150,11 +172,13 @@ const Header = () => {
             aria-label="Cart"
             title="View Cart"
             onClick={openCart}
-            className="relative hover:bg-transparent hover:text-background dark:hover:text-foreground mr-3"
+            className={`relative hover:bg-transparent mr-5 ${iconButtonClasses}`}
           >
             <ShoppingCart />
             {totalQuantity > 0 && (
-              <span className="absolute bottom-4 left-5 flex size-4 items-center justify-center rounded-full bg-accent text-xs font-semibold text-foreground dark:text-secondary-foreground">
+              <span
+                className={`absolute bottom-4 left-5 flex size-5 items-center justify-center rounded-full text-xs font-semibold transition-colors duration-300 ${cartBadgeClasses}`}
+              >
                 {totalQuantity}
               </span>
             )}
@@ -203,7 +227,7 @@ const Header = () => {
                 size="icon"
                 aria-label="Open menu"
                 title="Open menu"
-                className="md:hidden"
+                className={`md:hidden ${iconButtonClasses}`}
               >
                 <Menu />
               </Button>

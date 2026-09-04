@@ -59,9 +59,9 @@ const UserDropdown = ({
         <DropdownMenuItem
           onClick={handleLogout}
           disabled={isLoggingOut}
-          className="text-destructive focus:text-destructive font-medium"
+          className="text-destructive font-medium"
         >
-          <LogOut className="mr-2 size-4 text-destructive" />
+          <LogOut className="mr-2 size-4" />
           <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

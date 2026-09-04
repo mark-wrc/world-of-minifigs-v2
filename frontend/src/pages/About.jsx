@@ -32,7 +32,7 @@ const About = () => {
           />
 
           <div className="space-y-4 leading-relaxed">
-            <Badge variant="accent" className="px-3 py-1 text-sm uppercase">
+            <Badge variant="brand" className="px-3 py-1 text-sm uppercase">
               {aboutStory.badge}
             </Badge>
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold uppercase leading-tight">

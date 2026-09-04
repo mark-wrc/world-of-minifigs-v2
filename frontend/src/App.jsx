@@ -16,7 +16,7 @@ const App = () => {
       <div className="flex flex-col min-h-screen max-w-480 mx-auto">
         <CartSheet />
         <Header />
-        <main className="flex-1 pt-20">
+        <main className="flex-1 pt-24">
           <Router />
         </main>
         <Footer />

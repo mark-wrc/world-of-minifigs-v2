@@ -79,7 +79,7 @@ const UpgradePreviewModal = ({ addon, isSelected, onClose, onConfirm }) => {
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          <Button variant="accent" onClick={onConfirm}>
+          <Button variant="gradient" onClick={onConfirm}>
             {isSelected ? "Added" : "Add to Order"}
           </Button>
         </DialogFooter>

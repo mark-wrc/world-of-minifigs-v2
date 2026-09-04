@@ -40,7 +40,7 @@ const PageCTA = ({
       <div className="relative z-10 text-center max-w-4xl mx-auto flex flex-col items-center text-background dark:text-foreground space-y-5">
         <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold uppercase leading-tight">
           {title}&nbsp;
-          {highlight && <span className="text-accent">{highlight}</span>}
+          {highlight && <span className="text-gradient-brand">{highlight}</span>}
         </h2>
         {description && (
           <p className="mx-auto max-w-3xl mb-10">{description}</p>

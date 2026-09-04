@@ -22,7 +22,7 @@ const SectionWithCards = ({
     >
       <div className="text-center mb-10 space-y-3">
         {badge && (
-          <Badge variant="accent" className="px-3 py-1 text-sm uppercase">
+          <Badge variant="brand" className="px-3 py-1 text-sm uppercase">
             {badge}
           </Badge>
         )}
@@ -38,7 +38,7 @@ const SectionWithCards = ({
             <CardHeader className="flex flex-col items-center text-center">
               {item.icon && (
                 <div
-                  className={`text-foreground dark:text-secondary-foreground font-bold mb-5 bg-accent h-20 w-20 rounded-full flex items-center justify-center shadow-lg border-4 border-background`}
+                  className={`text-primary-foreground font-bold mb-5 bg-primary h-20 w-20 rounded-full flex items-center justify-center shadow-lg border-4 border-background`}
                 >
                   <item.icon size={32} strokeWidth={1.5} />
                 </div>

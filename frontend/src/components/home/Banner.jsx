@@ -64,7 +64,7 @@ const Banner = () => {
     );
 
   return (
-    <section className="relative w-full overflow-hidden -mt-20">
+    <section className="relative w-full overflow-hidden -mt-24">
       <Auth
         open={authOpen}
         onOpenChange={setAuthOpen}
