@@ -12,6 +12,7 @@ import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import {
   splitProductItemName,
   getDeliveryMethodLabel,
+  getPaymentGatewayLabel,
 } from "@/constant/orderData";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 import { perBagUnit } from "@shared/inventoryData";
@@ -561,6 +562,12 @@ const CheckoutSuccess = () => {
                   <span className="text-sm">Sales Tax</span>
                   <span className="font-bold">
                     {formatCurrency(order?.payment?.taxAmount)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm">Paid With</span>
+                  <span className="font-bold">
+                    {getPaymentGatewayLabel(order)}
                   </span>
                 </div>
                 {order?.payment?.discount?.amount > 0 && (

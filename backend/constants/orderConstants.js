@@ -50,6 +50,18 @@ export const PAYMENT_GATEWAYS = {
   SQUARE: "square",
 };
 
+// Orders placed before Square support carry no gateway — they are Stripe.
+// Mirrors PAYMENT_GATEWAY_LABELS on the frontend.
+export const PAYMENT_GATEWAY_LABELS = {
+  [PAYMENT_GATEWAYS.STRIPE]: "Stripe",
+  [PAYMENT_GATEWAYS.SQUARE]: "Square",
+};
+
+export const getPaymentGatewayLabel = (order) => {
+  const gateway = order?.payment?.gateway || PAYMENT_GATEWAYS.STRIPE;
+  return PAYMENT_GATEWAY_LABELS[gateway] || gateway;
+};
+
 export const ORDER_TYPES = {
   PRODUCT: "product",
   DEALER: "dealer",

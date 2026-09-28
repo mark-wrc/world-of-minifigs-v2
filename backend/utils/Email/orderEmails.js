@@ -1,6 +1,7 @@
 import {
   DELIVERY_METHODS,
   DELIVERY_METHOD_LABELS,
+  getPaymentGatewayLabel,
 } from "../../constants/orderConstants.js";
 
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
@@ -365,7 +366,8 @@ export const getAdminNewOrderTemplate = (order, customerName) => {
       `<table width="100%" cellpadding="0" cellspacing="0" border="0">
         ${kv("Invoice Number", invoiceLink(order))}
         ${kv("Customer", customer)}
-        ${kv("Order Type", `<span style="text-transform:capitalize;">${order.orderType || "product"}</span>`, true)}
+        ${kv("Order Type", `<span style="text-transform:capitalize;">${order.orderType || "product"}</span>`)}
+        ${kv("Paid With", getPaymentGatewayLabel(order), true)}
       </table>`,
       { divider: false },
     )}
@@ -386,7 +388,8 @@ export const getShippingNotificationTemplate = (order) =>
       "Order Information",
       `<table width="100%" cellpadding="0" cellspacing="0" border="0">
         ${kv("Invoice Number", invoiceLink(order))}
-        ${kv("Status", `<span style="color:#2563eb;font-weight:600;">Shipped</span>`, true)}
+        ${kv("Status", `<span style="color:#2563eb;font-weight:600;">Shipped</span>`)}
+        ${kv("Paid With", getPaymentGatewayLabel(order), true)}
       </table>`,
       { divider: false },
     )}
@@ -414,7 +417,8 @@ export const getOrderDeliveredTemplate = (order) => {
       "Order Information",
       `<table width="100%" cellpadding="0" cellspacing="0" border="0">
         ${kv("Invoice Number", invoiceLink(order))}
-        ${kv("Status", `<span style="color:#16a34a;font-weight:600;">Delivered</span>`, true)}
+        ${kv("Status", `<span style="color:#16a34a;font-weight:600;">Delivered</span>`)}
+        ${kv("Paid With", getPaymentGatewayLabel(order), true)}
       </table>`,
       { divider: false },
     )}
@@ -445,7 +449,8 @@ export const getOrderCancelledTemplate = (order) =>
       "Order Information",
       `<table width="100%" cellpadding="0" cellspacing="0" border="0">
         ${kv("Invoice Number", invoiceLink(order))}
-        ${kv("Status", `<span style="color:#dc2626;font-weight:600;">Cancelled</span>`, true)}
+        ${kv("Status", `<span style="color:#dc2626;font-weight:600;">Cancelled</span>`)}
+        ${kv("Paid With", getPaymentGatewayLabel(order), true)}
       </table>`,
       { divider: true },
     )}

@@ -22,6 +22,40 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 const shippingFeeName = (country) => `Shipping — ${country.label}`;
 
+// Square order discounts → the same shape Stripe orders store, so the admin
+// view and the buyer receipt render a Square discount through the existing
+// payment.discount fields.
+//
+// Square exposes no field for the code the buyer typed: OrderLineItemDiscount
+// carries name, percentage and amounts only. `name` is therefore the label we
+// persist, and promotionCode stays empty rather than guessing at one.
+export const toDiscount = (order) => {
+  const discounts = order.discounts || [];
+  const amount = toDollars(order.totalDiscountMoney);
+  if (!discounts.length || !amount) return undefined;
+
+  // Discounts can stack. With several applied, the per-coupon percentage and
+  // amount describe only one of them, so we keep the names and the order-wide
+  // total and leave the breakdown off.
+  const [primary] = discounts;
+  const names = discounts.map((d) => d.name).filter(Boolean);
+  const stacked = discounts.length > 1;
+  const percentage = Number.parseFloat(primary.percentage);
+
+  return {
+    amount,
+    couponId: primary.catalogObjectId || primary.pricingRuleId || undefined,
+    couponName: names.join(", ") || undefined,
+    promotionCodeId: stacked ? undefined : primary.pricingRuleId || undefined,
+    percentOff:
+      !stacked && Number.isFinite(percentage) ? percentage : undefined,
+    amountOff:
+      !stacked && primary.amountMoney
+        ? toDollars(primary.amountMoney)
+        : undefined,
+  };
+};
+
 const isConfigured = () =>
   !!(process.env.SQUARE_ACCESS_TOKEN && process.env.SQUARE_LOCATION_ID);
 
@@ -190,7 +224,7 @@ const fetchPaidSession = async (squareOrderId) => {
     email: payment.buyerEmailAddress || shipment?.recipient?.emailAddress,
     metadata: meta,
     totals: { subtotal, shippingFee, taxAmount, discountAmount, totalAmount },
-    discount: undefined,
+    discount: toDiscount(order),
     shippingAddress,
     billing: toBillingDetails(payment, shippingAddress),
   };

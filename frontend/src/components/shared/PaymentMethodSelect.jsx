@@ -5,7 +5,7 @@ import { usePaymentGateway } from "@/hooks/usePaymentGateway";
 
 const GATEWAY_OPTIONS = {
   stripe: { label: "Stripe", description: "Card & promo codes" },
-  square: { label: "Square", description: "Card" },
+  square: { label: "Square", description: "Card & promo codes" },
 };
 
 const PaymentMethodSelect = ({ disabled = false, className = "" }) => {
@@ -54,12 +54,6 @@ const PaymentMethodSelect = ({ disabled = false, className = "" }) => {
           );
         })}
       </RadioGroup>
-
-      {gateway === "square" && (
-        <p className="text-xs text-muted-foreground leading-snug">
-          Promo codes can only be applied when paying with Stripe.
-        </p>
-      )}
     </div>
   );
 };
