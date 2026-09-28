@@ -79,6 +79,7 @@ const wrap = (body, accentColor = "#0ea5e9") => `<!DOCTYPE html>
 // ── Shared helpers ─────────────────────────────────────────────────────────────
 
 const orderRef = (order) =>
+  order.payment?.receiptNumber ||
   order.payment?.stripeInvoiceNumber ||
   String(order._id).substring(0, 7).toUpperCase();
 

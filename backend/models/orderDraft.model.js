@@ -27,6 +27,9 @@ const orderDraftSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       required: true,
     },
+    // Square order id behind the payment link, so the success page can check
+    // the payment before the webhook arrives. Unused for Stripe.
+    gatewayRef: { type: String },
     createdAt: {
       type: Date,
       default: Date.now,

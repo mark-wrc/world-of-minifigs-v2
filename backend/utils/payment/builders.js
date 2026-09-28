@@ -31,22 +31,18 @@ export const buildOrderItem = ({
   imageUrl: imageUrl || undefined,
 });
 
-export const buildStripeLineItem = (
+// Gateway-neutral line item — each gateway translates it to its own wire
+// format at the last moment (see services/payment/gateways).
+export const buildLineItem = (
   name,
   unitAmountCents,
   quantity,
   imageUrl,
   description,
 ) => ({
-  price_data: {
-    currency: "usd",
-    product_data: {
-      name,
-      ...(description && { description }),
-      ...(imageUrl && { images: [imageUrl] }),
-    },
-    unit_amount: unitAmountCents,
-    tax_behavior: "exclusive",
-  },
+  name,
+  unitAmountCents,
   quantity,
+  imageUrl: imageUrl || undefined,
+  description: description || undefined,
 });

@@ -38,6 +38,10 @@ import {
   getOrderStatusConfig,
   getDeliveryMethodLabel,
   splitProductItemName,
+  getInvoiceNumber,
+  getInvoiceUrl,
+  getRefundId,
+  getPaymentGatewayLabel,
   STATUS_CONFIG,
 } from "@/constant/orderData";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
@@ -173,8 +177,7 @@ const OrderManagement = () => {
           </Select>
         }
         renderRow={(order) => {
-          const invoice =
-            order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7);
+          const invoice = getInvoiceNumber(order) || order._id?.substring(0, 7);
           const transitions = getAvailableTransitions(order.status);
           const statusConfig = getOrderStatusConfig(order);
 
@@ -369,19 +372,18 @@ const OrderManagement = () => {
           <div className="rounded-lg border divide-y text-sm">
             <div className="grid grid-cols-[140px_1fr] p-3">
               <span className="font-semibold text-xs">Invoice Number</span>
-              {viewOrder?.payment?.invoiceUrl &&
-              viewOrder?.payment?.stripeInvoiceNumber ? (
+              {getInvoiceUrl(viewOrder) && getInvoiceNumber(viewOrder) ? (
                 <a
-                  href={viewOrder.payment.invoiceUrl}
+                  href={getInvoiceUrl(viewOrder)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-primary underline underline-offset-2"
                 >
-                  {viewOrder.payment.stripeInvoiceNumber}
+                  {getInvoiceNumber(viewOrder)}
                 </a>
               ) : (
                 <span className="text-xs">
-                  {viewOrder?.payment?.stripeInvoiceNumber ||
+                  {getInvoiceNumber(viewOrder) ||
                     viewOrder?._id?.substring(0, 7) ||
                     "—"}
                 </span>
@@ -421,6 +423,26 @@ const OrderManagement = () => {
                 {formatDate(viewOrder?.payment?.paidAt)}
               </span>
             </div>
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Paid With</span>
+              <span className="text-xs">
+                {getPaymentGatewayLabel(viewOrder)}
+              </span>
+            </div>
+            {viewOrder?.payment?.shippingCountryMismatch && (
+              <div className="grid grid-cols-[140px_1fr] p-3 bg-destructive/5">
+                <span className="font-semibold text-xs text-destructive">
+                  Shipping Check
+                </span>
+                <span className="text-xs font-semibold text-destructive">
+                  Shipping was paid for{" "}
+                  {viewOrder.payment.shippingCountryMismatch.expected}, but the
+                  address is in{" "}
+                  {viewOrder.payment.shippingCountryMismatch.actual}. Review
+                  before shipping.
+                </span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -796,13 +818,13 @@ const OrderManagement = () => {
               Refund Details
             </Label>
             <div className="rounded-lg border divide-y text-sm">
-              {viewOrder.refund?.stripeRefundId && (
+              {getRefundId(viewOrder) && (
                 <div className="flex justify-between items-start p-3 gap-4">
                   <span className="font-semibold text-xs shrink-0">
                     Refund ID
                   </span>
                   <span className="text-xs text-right font-mono">
-                    {viewOrder.refund.stripeRefundId}
+                    {getRefundId(viewOrder)}
                   </span>
                 </div>
               )}

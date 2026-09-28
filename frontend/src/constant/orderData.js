@@ -79,6 +79,26 @@ export const DELIVERY_METHOD_LABELS = {
 export const getDeliveryMethodLabel = (method) =>
   DELIVERY_METHOD_LABELS[method] || method || "—";
 
+// Orders placed before Square support carry no gateway — they are Stripe.
+export const PAYMENT_GATEWAY_LABELS = {
+  stripe: "Stripe",
+  square: "Square",
+};
+
+export const getPaymentGatewayLabel = (order) =>
+  PAYMENT_GATEWAY_LABELS[order?.payment?.gateway || "stripe"] ||
+  order?.payment?.gateway;
+
+// Gateway-neutral fields first; older Stripe orders only carry the stripe* ones.
+export const getInvoiceNumber = (order) =>
+  order?.payment?.receiptNumber || order?.payment?.stripeInvoiceNumber;
+
+export const getInvoiceUrl = (order) =>
+  order?.payment?.receiptUrl || order?.payment?.invoiceUrl;
+
+export const getRefundId = (order) =>
+  order?.refund?.gatewayRefundId || order?.refund?.stripeRefundId;
+
 // Resolve the effective display config for an order (handles refundStatus within cancelled)
 export const getOrderStatusConfig = (order) => {
   const status = order?.status || "paid";

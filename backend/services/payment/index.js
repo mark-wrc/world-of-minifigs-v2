@@ -3,17 +3,28 @@ export {
   buildStripeSessionConfig,
 } from "./paymentConfig.js";
 
-export { createOrderRecord } from "./paymentCore.js";
+export { createOrderRecord, findOrderByCheckoutRef } from "./paymentCore.js";
 
 export {
-  createOrderFromStripeSession,
+  createOrderFromPayment,
   buildLineItemsForDirectProduct,
   buildCartLineItems,
 } from "./checkout/productCheckout.js";
 
 export {
   buildLineItemsForDealer,
-  createDealerOrderFromStripeSession,
+  createDealerOrderFromPayment,
 } from "./checkout/dealerCheckout.js";
 
-export { handleRefundUpdated } from "./refundHandler.js";
+export {
+  handleRefundUpdated,
+  applyCompletedRefund,
+} from "./refundHandler.js";
+
+export {
+  getGateway,
+  getOrderGateway,
+  getEnabledGateways,
+  getDefaultGateway,
+  isGatewayEnabled,
+} from "./gateways/index.js";

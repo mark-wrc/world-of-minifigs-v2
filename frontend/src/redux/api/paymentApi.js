@@ -23,6 +23,12 @@ export const paymentApi = createApi({
   tagTypes: ["Order"],
   endpoints: (builder) => ({
     // ==================== Checkout & Orders ====================
+    getPaymentConfig: builder.query({
+      query: () => ({
+        url: "/config",
+        method: "GET",
+      }),
+    }),
     createCheckoutSession: builder.mutation({
       query: (data) => ({
         url: "/create-checkout-session",
@@ -30,18 +36,19 @@ export const paymentApi = createApi({
         body: data,
       }),
     }),
+    // Stripe confirms by its session id; Square by our checkout reference.
     confirmOrder: builder.query({
-      query: (sessionId) => ({
+      query: ({ gateway, ref }) => ({
         url: "/confirm-order",
         method: "GET",
-        params: { session_id: sessionId },
+        params: gateway === "square" ? { gateway, ref } : { session_id: ref },
       }),
     }),
   }),
 });
 
 export const {
+  useGetPaymentConfigQuery,
   useCreateCheckoutSessionMutation,
   useConfirmOrderQuery,
 } = paymentApi;
-

@@ -3,6 +3,7 @@ import {
   ORDER_STATUSES,
   REFUND_STATUSES,
   DELIVERY_METHODS,
+  PAYMENT_GATEWAYS,
 } from "../constants/orderConstants.js";
 
 /* ------------------------------------------- Product Schema --------------------------------------- */
@@ -178,10 +179,35 @@ const orderSchema = new mongoose.Schema(
         default: undefined,
       },
       totalAmount: { type: Number, required: true, min: 0 },
+      // Orders from before Square support have none stored and read as Stripe.
+      gateway: {
+        type: String,
+        enum: Object.values(PAYMENT_GATEWAYS),
+        default: PAYMENT_GATEWAYS.STRIPE,
+      },
+      // Gateway-neutral references, written for every gateway. Stripe orders
+      // also keep the stripe* fields below for older readers.
+      checkoutSessionId: { type: String }, // Stripe session id / Square: our draft id
+      gatewayOrderId: { type: String }, // Square order id
+      transactionId: { type: String }, // Stripe PaymentIntent id / Square payment id
+      receiptNumber: { type: String }, // Stripe invoice number / Square receipt number
+      receiptUrl: { type: String }, // Stripe hosted invoice / Square receipt
       stripeSessionId: { type: String },
       stripePaymentIntentId: { type: String },
       stripeInvoiceNumber: { type: String },
       invoiceUrl: { type: String },
+      // Square can't lock the address country at checkout — set when the buyer
+      // entered an address outside the destination they paid shipping for.
+      shippingCountryMismatch: {
+        type: new mongoose.Schema(
+          {
+            expected: { type: String },
+            actual: { type: String },
+          },
+          { _id: false },
+        ),
+        default: undefined,
+      },
       paidAt: { type: Date },
     },
     refund: {
@@ -191,6 +217,7 @@ const orderSchema = new mongoose.Schema(
         default: REFUND_STATUSES.NONE,
       },
       amount: { type: Number, min: 0 },
+      gatewayRefundId: { type: String },
       stripeRefundId: { type: String },
       arn: { type: String }, // Acquirer Reference Number (admin-only)
       initiatedAt: { type: Date },
@@ -258,6 +285,9 @@ orderSchema.index({ orderType: 1 });
 orderSchema.index({ "refund.status": 1 });
 orderSchema.index({ "payment.stripePaymentIntentId": 1 });
 orderSchema.index({ "payment.stripeSessionId": 1 });
+orderSchema.index({ "payment.checkoutSessionId": 1 });
+orderSchema.index({ "payment.transactionId": 1 });
+orderSchema.index({ "payment.gatewayOrderId": 1 }, { sparse: true });
 
 const Order = mongoose.model("Order", orderSchema);
 

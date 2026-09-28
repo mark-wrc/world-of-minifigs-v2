@@ -42,6 +42,27 @@ const validateEnv = () => {
     process.exit(1);
   }
 
+  // Square is optional: missing credentials only hide it from buyers, they
+  // never stop the server from booting.
+  const enabledGateways = (process.env.ENABLED_PAYMENT_GATEWAYS || "")
+    .toLowerCase()
+    .split(",")
+    .map((name) => name.trim());
+  if (enabledGateways.includes("square")) {
+    const missingSquare = [
+      "SQUARE_ACCESS_TOKEN",
+      "SQUARE_LOCATION_ID",
+      "SQUARE_WEBHOOK_SIGNATURE_KEY",
+      "SQUARE_WEBHOOK_NOTIFICATION_URL",
+    ].filter((name) => !process.env[name]);
+    if (missingSquare.length > 0) {
+      console.warn(
+        "Square is enabled but not fully configured. Missing:",
+        missingSquare.join(", "),
+      );
+    }
+  }
+
   // Optional numeric validations – only if set
   const numericEnv = [
     "JWT_ACCESS_TOKEN_EXPIRY",

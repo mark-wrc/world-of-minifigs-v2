@@ -12,6 +12,7 @@ import {
 import {
   buildAdminStatusOptions,
   buildDeliveryMethodOptions,
+  getInvoiceNumber,
 } from "@/constant/orderData";
 import useAdminCrud from "@/hooks/admin/useAdminCrud";
 import { sanitizeString, sanitizeOptional } from "@/utils/formatting";
@@ -117,7 +118,7 @@ const useOrderManagement = () => {
   const orderReference = useMemo(() => {
     if (!selectedOrder) return "";
     return (
-      selectedOrder.payment?.stripeInvoiceNumber ||
+      getInvoiceNumber(selectedOrder) ||
       selectedOrder._id?.substring(0, 7) ||
       ""
     );

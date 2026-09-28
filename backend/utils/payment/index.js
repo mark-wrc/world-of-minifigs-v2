@@ -9,7 +9,7 @@ export {
 export {
   computeUnitPrice,
   buildOrderItem,
-  buildStripeLineItem,
+  buildLineItem,
 } from "./builders.js";
 
 export {

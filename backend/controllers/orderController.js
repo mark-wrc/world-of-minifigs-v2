@@ -22,7 +22,7 @@ import {
   ensureOrderIsUserCancellable,
   acquireCancellationLock,
   releaseCancellationLock,
-  createStripeRefundForOrder,
+  createRefundForOrder,
   applyCancellationMetadata,
   restockOrderItemsSafely,
   buildCancellationSuccessResponse,
@@ -40,6 +40,7 @@ const buildOrderSearchQuery = (search) => {
     "shipping.address.name",
     "status",
     "payment.stripeInvoiceNumber",
+    "payment.receiptNumber",
     "items.productName",
   ]);
 };
@@ -87,7 +88,7 @@ export const getUserOrders = async (req, res) => {
       limit,
       sort: { createdAt: -1 },
       select:
-        "-payment.stripeSessionId -payment.stripePaymentIntentId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
     });
 
     return res.status(200).json(createPaginationResponse(result, "orders"));
@@ -117,7 +118,7 @@ export const getUserOrderById = async (req, res) => {
     }
 
     const order = await Order.findOne({ _id: id, userId }).select(
-      "-payment.stripeSessionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+      "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
     );
 
     if (!order) {
@@ -128,7 +129,7 @@ export const getUserOrderById = async (req, res) => {
       });
     }
 
-    // Sync refund status from Stripe if still pending
+    // Sync refund status from the payment gateway if still pending
     await syncRefundStatus(order);
 
     return res.status(200).json({ success: true, order });
@@ -175,16 +176,16 @@ export const cancelOrder = async (req, res) => {
       return res.status(lockError.status).json(lockError.body);
     }
 
-    // Initiate Stripe refund
-    let stripeRefund;
+    // Initiate gateway refund
+    let refund;
     try {
-      stripeRefund = await createStripeRefundForOrder(order);
-    } catch (stripeErr) {
+      refund = await createRefundForOrder(order);
+    } catch (refundErr) {
       await releaseCancellationLock(order);
 
       console.error(
-        `Stripe refund failed for order ${order._id}:`,
-        stripeErr.message,
+        `Refund failed for order ${order._id}:`,
+        refundErr.message,
       );
       return res.status(502).json({
         success: false,
@@ -200,7 +201,7 @@ export const cancelOrder = async (req, res) => {
       cancelledById: userId,
       reason,
       notes,
-      stripeRefundId: stripeRefund.id,
+      refundId: refund.id,
     });
 
     await restockOrderItemsSafely(order);
@@ -245,7 +246,8 @@ export const getAllOrders = async (req, res) => {
       page,
       limit,
       sort: { createdAt: -1 },
-      select: "-payment.stripeSessionId -payment.stripePaymentIntentId -__v",
+      select:
+        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.transactionId -__v",
       populate: [
         {
           path: "userId",
@@ -310,7 +312,7 @@ export const getOrderById = async (req, res) => {
       });
     }
 
-    // Sync refund status from Stripe if still pending
+    // Sync refund status from the payment gateway if still pending
     await syncRefundStatus(order);
 
     return res.status(200).json({
@@ -381,16 +383,16 @@ export const updateOrderStatus = async (req, res) => {
         return res.status(lockError.status).json(lockError.body);
       }
 
-      // Initiate Stripe refund
-      let stripeRefund;
+      // Initiate gateway refund
+      let refund;
       try {
-        stripeRefund = await createStripeRefundForOrder(order);
-      } catch (stripeErr) {
+        refund = await createRefundForOrder(order);
+      } catch (refundErr) {
         await releaseCancellationLock(order);
 
         console.error(
-          `Stripe refund failed for order ${order._id}:`,
-          stripeErr.message,
+          `Refund failed for order ${order._id}:`,
+          refundErr.message,
         );
         return res.status(502).json({
           success: false,
@@ -405,7 +407,7 @@ export const updateOrderStatus = async (req, res) => {
         cancelledById: req.user._id,
         reason,
         notes,
-        stripeRefundId: stripeRefund.id,
+        refundId: refund.id,
       });
 
       await restockOrderItemsSafely(order);

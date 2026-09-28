@@ -7,12 +7,14 @@ import { paymentApi } from "@/redux/api/paymentApi";
 import authReducer from "@/redux/slices/authSlice";
 import cartReducer from "@/redux/slices/cartSlice";
 import shippingReducer from "@/redux/slices/shippingSlice";
+import paymentReducer from "@/redux/slices/paymentSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     cart: cartReducer,
     shipping: shippingReducer,
+    payment: paymentReducer,
     [authApi.reducerPath]: authApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
     [publicApi.reducerPath]: publicApi.reducer,

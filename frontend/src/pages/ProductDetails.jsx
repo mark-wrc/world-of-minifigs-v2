@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/OrderActionButton";
 import QuantityControl from "@/components/shared/QuantityControl";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
+import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
 import RelatedProducts from "@/components/products/RelatedProducts";
 import { useProductDetails } from "@/hooks/useProductDetails";
 import { formatCurrency } from "@/utils/formatting";
@@ -360,6 +361,7 @@ const ProductDetails = () => {
                 disabled={isCheckoutLoading}
                 className="mt-1"
               />
+              <PaymentMethodSelect disabled={isCheckoutLoading} />
               <CheckoutButton
                 label={checkoutLabel}
                 onClick={handleProductCheckout}

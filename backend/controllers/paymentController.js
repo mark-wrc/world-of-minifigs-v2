@@ -1,85 +1,54 @@
-import { getStripe } from "../utils/stripe.js";
-import Order from "../models/order.model.js";
+import mongoose from "mongoose";
 import User from "../models/user.model.js";
+import OrderDraft from "../models/orderDraft.model.js";
 import {
-  createOrderFromStripeSession,
-  createDealerOrderFromStripeSession,
+  createOrderFromPayment,
+  createDealerOrderFromPayment,
   buildLineItemsForDirectProduct,
   buildLineItemsForDealer,
   buildCartLineItems,
   handleRefundUpdated,
+  findOrderByCheckoutRef,
   FRONTEND_URL,
-  buildStripeSessionConfig,
+  getGateway,
+  getEnabledGateways,
+  getDefaultGateway,
+  isGatewayEnabled,
 } from "../services/payment/index.js";
+import { PAYMENT_GATEWAYS } from "../constants/orderConstants.js";
+import Order from "../models/order.model.js";
 import {
   DEFAULT_SHIPPING_COUNTRY,
   SHIPPING_COUNTRY_CODES,
   isSupportedShippingCountry,
 } from "../../shared/shippingData.js";
 
-// Backfills invoice number / URL onto an order if Stripe hadn't finalized the
-// invoice before the webhook fired. Mutates and returns the order.
-const patchInvoiceFields = async (order, sessionId) => {
-  if (order.payment.stripeInvoiceNumber || order.payment.invoiceUrl) return order;
-  const stripe = getStripe();
-  const session = await stripe.checkout.sessions.retrieve(sessionId, {
-    expand: [
-        "invoice",
-        "total_details.breakdown.discounts",
-        "discounts.coupon",
-        "discounts.promotion_code",
-        "discounts.promotion_code.promotion.coupon",
-      ],
-  });
-  const invoiceNumber = session.invoice?.number;
-  const invoiceUrl = session.invoice?.hosted_invoice_url;
-  if (invoiceNumber || invoiceUrl) {
-    await Order.findByIdAndUpdate(order._id, {
-      "payment.stripeInvoiceNumber": invoiceNumber,
-      "payment.invoiceUrl": invoiceUrl || undefined,
-    });
-    order.payment.stripeInvoiceNumber = invoiceNumber;
-    order.payment.invoiceUrl = invoiceUrl;
-  }
-  return order;
+// Routes a normalized payment result to the checkout that owns its order type.
+const createOrderForPayment = (payment) => {
+  const orderType = payment.metadata?.orderType;
+  return orderType === "dealer" || orderType === "wholesale"
+    ? createDealerOrderFromPayment(payment)
+    : createOrderFromPayment(payment);
 };
 
-// Find existing Stripe customer or create one, caching the ID on the user
-// Returns null if Stripe is unavailable (checkout falls back to customer_email)
-const findOrCreateStripeCustomer = async (userId) => {
-  const user = await User.findById(userId);
-  if (!user) throw new Error("User not found");
-
-  const stripe = getStripe();
-
-  // 1 — Try existing cached customer
-  if (user.stripeCustomerId) {
-    try {
-      await stripe.customers.retrieve(user.stripeCustomerId);
-      return user.stripeCustomerId;
-    } catch {
-      // Customer was deleted in Stripe — fall through to recreate
-    }
+// The draft was already consumed by the other path (webhook vs success page),
+// which is creating the order right now. Poll briefly (up to 6 s).
+const waitForOrder = async (checkoutRef) => {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const order = await findOrderByCheckoutRef(checkoutRef);
+    if (order) return order;
   }
+  return null;
+};
 
-  // 2 — Search by email to avoid duplicates if DB save previously failed
-  const existing = await stripe.customers.list({ email: user.email, limit: 1 });
-  if (existing.data.length > 0) {
-    const existingId = existing.data[0].id;
-    await User.findByIdAndUpdate(userId, { stripeCustomerId: existingId });
-    return existingId;
-  }
-
-  // 3 — Create new customer
-  const customer = await stripe.customers.create({
-    email: user.email,
-    name: `${user.firstName} ${user.lastName}`.trim(),
-    metadata: { userId: userId.toString() },
-    tax_exempt: user.isTaxExempt ? "exempt" : "none",
+//----------------------------------- Payment Config ------------------------------------------
+export const getPaymentConfig = (_req, res) => {
+  res.status(200).json({
+    success: true,
+    gateways: getEnabledGateways(),
+    defaultGateway: getDefaultGateway(),
   });
-
-  await User.findByIdAndUpdate(userId, { stripeCustomerId: customer.id });
-  return customer.id;
 };
 
 //----------------------------------- Create Checkout Session ------------------------------------------
@@ -95,6 +64,15 @@ export const createCheckoutSession = async (req, res) => {
         success: false,
         message: "Unsupported shipping destination",
         description: `We currently ship to: ${SHIPPING_COUNTRY_CODES.join(", ")}.`,
+      });
+    }
+
+    const gatewayName = body.gateway || getDefaultGateway();
+    if (!isGatewayEnabled(gatewayName)) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment method unavailable",
+        description: "Please choose a different payment method.",
       });
     }
 
@@ -146,34 +124,31 @@ export const createCheckoutSession = async (req, res) => {
           ? `${FRONTEND_URL}/dealers`
           : FRONTEND_URL;
 
-    // Try to get/create a linked Stripe customer for tax exemption support
-    // Falls back to customer_email if Stripe customer API is unavailable
-    let customerParam = {};
-    try {
-      const stripeCustomerId = await findOrCreateStripeCustomer(userId);
-      customerParam = { customer: stripeCustomerId };
-    } catch (customerErr) {
-      console.error("Stripe customer lookup failed, falling back to customer_email:", customerErr.message);
-      customerParam = { customer_email: req.user.email };
-    }
-
-    const session = await getStripe().checkout.sessions.create({
-      ...buildStripeSessionConfig(shippingCountry),
-      line_items: lineItems,
-      success_url: `${FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-      client_reference_id: userId.toString(),
-      ...customerParam,
-      payment_intent_data: {
-        receipt_email: req.user.email,
-      },
-      metadata,
+    const { url, sessionRef, gatewayOrderId } = await getGateway(
+      gatewayName,
+    ).createCheckout({
+      lineItems,
+      shippingCountry,
+      // The destination the buyer paid shipping for, checked against the
+      // address they enter on the gateway's page.
+      metadata: { ...metadata, shippingCountry },
+      userId,
+      email: req.user.email,
+      cancelUrl,
     });
+
+    // Square: remember its order so the success page can check the payment
+    // before the webhook lands.
+    if (gatewayOrderId) {
+      await OrderDraft.findByIdAndUpdate(metadata.draftId, {
+        gatewayRef: gatewayOrderId,
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      url: session.url,
-      sessionId: session.id,
+      url,
+      sessionId: sessionRef,
     });
   } catch (error) {
     console.error("Create checkout session error:", error);
@@ -187,63 +162,77 @@ export const createCheckoutSession = async (req, res) => {
 };
 
 //----------------------------------- Confirm Order (Success Page) -------------------------------------------
+// Stripe returns `?session_id=`; Square returns `?gateway=square&ref=<draftId>`.
 export const confirmOrder = async (req, res) => {
   try {
-    const sessionId = req.query.session_id;
+    const gatewayName = req.query.gateway || PAYMENT_GATEWAYS.STRIPE;
+    const isSquare = gatewayName === PAYMENT_GATEWAYS.SQUARE;
+    const checkoutRef = isSquare ? req.query.ref : req.query.session_id;
+    const gateway = getGateway(gatewayName);
 
-    if (!sessionId) {
+    if (!gateway || !checkoutRef || (isSquare && !mongoose.isValidObjectId(checkoutRef))) {
       return res.status(400).json({
         success: false,
         message: "Session ID is required",
       });
     }
 
+    // Square refs are guessable draft ids, so only the buyer may read the order.
+    const notFound = () =>
+      res.status(404).json({ success: false, message: "Order not found" });
+    const isOwner = (doc) => doc.userId.equals(req.user._id);
+
     // 1. Check if the order already exists (webhook may have beaten us here)
-    let order = await Order.findOne({ "payment.stripeSessionId": sessionId });
+    let order = await findOrderByCheckoutRef(checkoutRef);
 
     if (order) {
-      order = await patchInvoiceFields(order, sessionId);
+      if (isSquare && !isOwner(order)) return notFound();
+      if (!isSquare) order = await gateway.patchReceiptFields(order);
       return res.status(200).json({ success: true, order });
     }
 
-    // 2. Verify payment status with Stripe
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: [
-        "invoice",
-        "total_details.breakdown.discounts",
-        "discounts.coupon",
-        "discounts.promotion_code",
-        "discounts.promotion_code.promotion.coupon",
-      ],
-    });
-
-    if (session.payment_status !== "paid") {
-      return res.status(402).json({
-        success: false,
-        message: "Payment not confirmed yet. Please wait or refresh.",
-      });
+    // 2. Verify payment status with the gateway
+    let payment = null;
+    if (isSquare) {
+      // No draft means the webhook already claimed it — skip to polling.
+      const draft = await OrderDraft.findById(checkoutRef).lean();
+      if (draft) {
+        if (!isOwner(draft)) return notFound();
+        if (draft.gatewayRef) {
+          payment = await gateway.fetchPaidSession(draft.gatewayRef);
+        }
+        if (!payment) {
+          return res.status(402).json({
+            success: false,
+            message: "Payment not confirmed yet. Please wait or refresh.",
+          });
+        }
+      }
+    } else {
+      payment = await gateway.fetchPaidSession(checkoutRef);
+      if (!payment) {
+        return res.status(402).json({
+          success: false,
+          message: "Payment not confirmed yet. Please wait or refresh.",
+        });
+      }
     }
 
     // 3. Atomically claim the draft and create the order.
     //    getDraftAndClean uses findByIdAndDelete so only one caller (this request
     //    or the webhook) will get the draft — the other gets null.
-    const orderType = session.metadata?.orderType;
-    const isChannelOrder = orderType === "dealer" || orderType === "wholesale";
-    const result = isChannelOrder
-      ? await createDealerOrderFromStripeSession(session)
-      : await createOrderFromStripeSession(session);
-
-    if (result?.order) {
-      return res.status(200).json({ success: true, order: result.order });
+    if (payment) {
+      const result = await createOrderForPayment(payment);
+      if (result?.order) {
+        return res.status(200).json({ success: true, order: result.order });
+      }
     }
 
-    // 4. Draft was already consumed by the webhook — it is currently creating the
-    //    order. Poll briefly (up to 6 s) rather than failing immediately.
-    for (let attempt = 0; attempt < 6; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      order = await Order.findOne({ "payment.stripeSessionId": sessionId });
-      if (order) return res.status(200).json({ success: true, order });
+    // 4. Draft was already consumed by the webhook — wait for its order.
+    order = await waitForOrder(checkoutRef);
+    if (order) {
+      if (isSquare && !isOwner(order)) return notFound();
+      return res.status(200).json({ success: true, order });
     }
 
     return res.status(500).json({
@@ -261,7 +250,6 @@ export const confirmOrder = async (req, res) => {
 
 //------------------------------------------------ Stripe Webhook ------------------------------------------
 export const stripeWebhook = async (req, res) => {
-  const sig = req.headers["stripe-signature"];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   try {
@@ -269,29 +257,19 @@ export const stripeWebhook = async (req, res) => {
       console.error("STRIPE_WEBHOOK_SECRET is not set");
       return res.status(500).json({ received: false });
     }
-    const stripe = getStripe();
-    const event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    const stripeGateway = getGateway(PAYMENT_GATEWAYS.STRIPE);
+    const event = stripeGateway.verifyWebhook(req.body, req.headers);
 
     switch (event.type) {
       case "checkout.session.completed": {
-        const rawSession = event.data.object;
-        const session = await stripe.checkout.sessions.retrieve(rawSession.id, {
-          expand: [
-        "invoice",
-        "total_details.breakdown.discounts",
-        "discounts.coupon",
-        "discounts.promotion_code",
-        "discounts.promotion_code.promotion.coupon",
-      ],
-        });
+        const session = await stripeGateway.retrieveSession(
+          event.data.object.id,
+        );
 
         try {
-          const orderType = session.metadata?.orderType;
-          if (orderType === "dealer" || orderType === "wholesale") {
-            await createDealerOrderFromStripeSession(session);
-          } else {
-            await createOrderFromStripeSession(session);
-          }
+          await createOrderForPayment(
+            await stripeGateway.normalizeSession(session),
+          );
         } catch (err) {
           console.error("Webhook: error creating order:", err);
           return res.status(500).json({ received: false });
@@ -300,7 +278,9 @@ export const stripeWebhook = async (req, res) => {
       }
       case "refund.updated": {
         try {
-          await handleRefundUpdated(event.data.object);
+          await handleRefundUpdated(
+            stripeGateway.normalizeRefund(event.data.object),
+          );
         } catch (err) {
           console.error("Webhook: error processing refund:", err);
           return res.status(500).json({ received: false });
@@ -337,4 +317,62 @@ export const stripeWebhook = async (req, res) => {
     console.error("Webhook signature verification failed:", err.message);
     res.status(400).json({ received: false });
   }
+};
+
+//------------------------------------------------ Square Webhook ------------------------------------------
+export const squareWebhook = async (req, res) => {
+  const squareGateway = getGateway(PAYMENT_GATEWAYS.SQUARE);
+
+  if (!squareGateway.isWebhookConfigured()) {
+    console.error(
+      "SQUARE_WEBHOOK_SIGNATURE_KEY / SQUARE_WEBHOOK_NOTIFICATION_URL is not set",
+    );
+    return res.status(500).json({ received: false });
+  }
+
+  let event;
+  try {
+    event = await squareGateway.verifyWebhook(req.body, req.headers);
+  } catch (err) {
+    console.error("Square webhook verification failed:", err.message);
+    return res.status(400).json({ received: false });
+  }
+
+  try {
+    switch (event.type) {
+      case "payment.created":
+      case "payment.updated": {
+        // Fires on every change to a payment — only a completed one matters.
+        const payment = event.data?.object?.payment;
+        if (payment?.status !== "COMPLETED" || !payment.order_id) break;
+
+        // Repeat deliveries for an order we already have: skip the API calls.
+        const exists = await Order.exists({
+          "payment.gatewayOrderId": payment.order_id,
+        });
+        if (exists) break;
+
+        const result = await squareGateway.fetchPaidSession(payment.order_id);
+        if (result) await createOrderForPayment(result);
+        break;
+      }
+
+      case "refund.created":
+      case "refund.updated": {
+        const refund = event.data?.object?.refund;
+        if (refund) {
+          await handleRefundUpdated(squareGateway.normalizeWebhookRefund(refund));
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+  } catch (err) {
+    console.error(`Square webhook: error handling ${event.type}:`, err);
+    return res.status(500).json({ received: false });
+  }
+
+  res.status(200).json({ received: true });
 };

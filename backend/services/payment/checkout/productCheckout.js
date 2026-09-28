@@ -7,7 +7,7 @@ import {
 } from "../../../utils/populateHelpers.js";
 import {
   computeUnitPrice,
-  buildStripeLineItem,
+  buildLineItem,
   buildOrderItem,
   decrementProductStock,
   decrementProductStockForItems,
@@ -95,23 +95,21 @@ export async function buildOrderFromDirectMetadata(metadata) {
   ];
 }
 
-// ------------ Create Order from Stripe Session ------------
+// ------------ Create Order from a Completed Payment ------------
+// `payment` is the normalized result from any gateway.
 
-export async function createOrderFromStripeSession(session) {
-  const meta = session.metadata || {};
+export async function createOrderFromPayment(payment) {
+  const meta = payment.metadata || {};
   const orderType = meta.orderType || ORDER_TYPES.PRODUCT;
   if (orderType !== ORDER_TYPES.PRODUCT) return null;
 
   const draft = await getDraftAndClean(meta.draftId);
   if (!draft) {
-    console.error(
-      "createOrderFromStripeSession: draft not found",
-      meta.draftId,
-    );
+    console.error("createOrderFromPayment: draft not found", meta.draftId);
     return null;
   }
 
-  const userId = session.client_reference_id;
+  const userId = payment.userId;
   const { source, payload } = draft.payload || {};
   const isDirect = source === "direct";
 
@@ -128,13 +126,13 @@ export async function createOrderFromStripeSession(session) {
 
   if (!orderItems?.length) {
     console.error(
-      "createOrderFromStripeSession: no valid items in draft",
+      "createOrderFromPayment: no valid items in draft",
       draft._id,
     );
     return null;
   }
 
-  const result = await createOrderRecord(session, {
+  const result = await createOrderRecord(payment, {
     orderType: ORDER_TYPES.PRODUCT,
     items: orderItems,
   });
@@ -157,7 +155,7 @@ export async function createOrderFromStripeSession(session) {
   return result;
 }
 
-// ------------ Build Stripe Line Items for Direct Checkout ------------
+// ------------ Build Line Items for Direct Checkout ------------
 
 export async function buildLineItemsForDirectProduct(body, userId) {
   const { productId, variantIndex: rawVariantIndex, quantity } = body;
@@ -244,7 +242,7 @@ export async function buildLineItemsForDirectProduct(body, userId) {
 
   return {
     lineItems: [
-      buildStripeLineItem(
+      buildLineItem(
         productName,
         Math.round(unitPrice * 100),
         qty,
@@ -258,7 +256,7 @@ export async function buildLineItemsForDirectProduct(body, userId) {
   };
 }
 
-// ------------ Build Stripe Line Items from Cart ------------
+// ------------ Build Line Items from Cart ------------
 
 export async function buildCartLineItems(userId) {
   const cart = await Cart.findOne({ userId }).populate(CART_POPULATE_CHECKOUT);
@@ -283,7 +281,7 @@ export async function buildCartLineItems(userId) {
     const unitPrice = computeUnitPrice(price, discount, discountPrice);
 
     lineItems.push(
-      buildStripeLineItem(
+      buildLineItem(
         productName,
         Math.round(unitPrice * 100),
         Number(item.quantity) || 1,

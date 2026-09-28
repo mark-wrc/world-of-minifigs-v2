@@ -11,6 +11,10 @@ import {
   getOrderStatusConfig,
   getDeliveryMethodLabel,
   splitProductItemName,
+  getInvoiceNumber,
+  getInvoiceUrl,
+  getRefundId,
+  getPaymentGatewayLabel,
 } from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
 import { buildCloudinaryUrl } from "@/utils/cloudinary";
@@ -432,7 +436,7 @@ const buildOrderPdf = async (order) => {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
   const invoice =
-    order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7) || "—";
+    getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
   const statusLabel = getOrderStatusConfig(order).label;
   const statusColor = STATUS_COLORS[order.status] ?? C.gray600;
 
@@ -481,10 +485,10 @@ const buildOrderPdf = async (order) => {
   // ORDER INFORMATION
   // ════════════════════════════════════════════════════════════════
   y = sectionHeader(doc, y, "Order Information");
-  const invoiceUrl = order.payment?.invoiceUrl;
+  const invoiceUrl = getInvoiceUrl(order);
   const invoiceNumber =
-    order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7) || "—";
-  const hasInvoiceLink = !!(invoiceUrl && order.payment?.stripeInvoiceNumber);
+    getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
+  const hasInvoiceLink = !!(invoiceUrl && getInvoiceNumber(order));
   const orderRows = [
     ["Invoice No.", invoiceNumber],
     ["Status", statusLabel],
@@ -495,7 +499,15 @@ const buildOrderPdf = async (order) => {
         : "—",
     ],
     ["Paid At", order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—"],
+    ["Paid With", getPaymentGatewayLabel(order)],
   ];
+  const mismatch = order.payment?.shippingCountryMismatch;
+  if (mismatch) {
+    orderRows.push([
+      "Shipping Check",
+      `Shipping paid for ${mismatch.expected}, address is in ${mismatch.actual}`,
+    ]);
+  }
 
   y = kvTable(
     doc,
@@ -874,8 +886,8 @@ const buildOrderPdf = async (order) => {
     y = sectionHeader(doc, y, "Refund Details");
 
     const refundRows = [];
-    if (order.refund?.stripeRefundId) {
-      refundRows.push(["Refund ID", safe(order.refund.stripeRefundId)]);
+    if (getRefundId(order)) {
+      refundRows.push(["Refund ID", safe(getRefundId(order))]);
     }
     if (order.refund?.status === "completed" && order.refund?.arn) {
       refundRows.push(["ARN", safe(order.refund.arn)]);

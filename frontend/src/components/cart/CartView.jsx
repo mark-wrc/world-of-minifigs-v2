@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/sheet";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
+import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyCartView from "@/components/cart/EmptyCartView";
 import CartItem from "@/components/cart/CartItem";
@@ -60,6 +61,7 @@ const CartView = ({
           </span>
         </div>
         <ShippingCountrySelect disabled={isCheckoutLoading} />
+        <PaymentMethodSelect disabled={isCheckoutLoading} />
         <CheckoutButton
           onClick={onCheckout}
           disabled={isCheckoutLoading}

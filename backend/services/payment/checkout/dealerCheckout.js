@@ -4,7 +4,7 @@ import DealerExtraBag from "../../../models/dealerExtraBag.model.js";
 import DealerTorsoBag from "../../../models/dealerTorsoBag.model.js";
 import GeneralInventory from "../../../models/generalInventory.model.js";
 import {
-  buildStripeLineItem,
+  buildLineItem,
   decrementDealerAddonStock,
   decrementTorsoBagStock,
 } from "../../../utils/payment/index.js";
@@ -49,7 +49,7 @@ const clampAddonQuantity = (addon, requested) => {
   return 1; // single (default)
 };
 
-// ------------ Build Stripe Line Items for Dealer Checkout ------------
+// ------------ Build Line Items for Dealer Checkout ------------
 // `orderType` lets the same flow tag the resulting order as dealer or
 // wholesale — the data, prices and stock are identical either way.
 
@@ -345,7 +345,7 @@ export async function buildLineItemsForDealer(
     };
   }
 
-  // 5. Build Stripe line items — one per ordered bundle.
+  // 5. Build line items — one per ordered bundle.
   const lineItems = [];
   let bundlesTotal = 0;
 
@@ -360,7 +360,7 @@ export async function buildLineItemsForDealer(
     }${bagSummary ? ` [${bagSummary}]` : ""}`;
     bundlesTotal += vb.bundle.totalPrice * vb.quantity;
     lineItems.push(
-      buildStripeLineItem(
+      buildLineItem(
         bundleName,
         Math.round(vb.bundle.totalPrice * vb.quantity * 100),
         1,
@@ -384,7 +384,7 @@ export async function buildLineItemsForDealer(
       // receipt shows the real count. Everything else is a single line.
       if (addon.addonType === "upgrade" && addon.quantity > 1) {
         lineItems.push(
-          buildStripeLineItem(
+          buildLineItem(
             addonName,
             Math.round(addon.unitPrice * 100),
             addon.quantity,
@@ -392,7 +392,7 @@ export async function buildLineItemsForDealer(
         );
       } else {
         lineItems.push(
-          buildStripeLineItem(addonName, Math.round(addon.totalPrice * 100), 1),
+          buildLineItem(addonName, Math.round(addon.totalPrice * 100), 1),
         );
       }
     });
@@ -402,7 +402,7 @@ export async function buildLineItemsForDealer(
   if (validatedExtraBags.length > 0) {
     validatedExtraBags.forEach((bag) => {
       lineItems.push(
-        buildStripeLineItem(
+        buildLineItem(
           bag.bagName,
           Math.round(bag.price * 100),
           bag.quantity,
@@ -420,7 +420,7 @@ export async function buildLineItemsForDealer(
 
   if (shippingInsurance > 0) {
     lineItems.push(
-      buildStripeLineItem(
+      buildLineItem(
         "Shipping Insurance (0.5%)",
         Math.round(shippingInsurance * 100),
         1,
@@ -449,10 +449,11 @@ export async function buildLineItemsForDealer(
   };
 }
 
-// ------------ Create Order from Dealer Stripe Session ------------
+// ------------ Create Dealer Order from a Completed Payment ------------
+// `payment` is the normalized result from any gateway.
 
-export async function createDealerOrderFromStripeSession(session) {
-  const meta = session.metadata || {};
+export async function createDealerOrderFromPayment(payment) {
+  const meta = payment.metadata || {};
   const draft = await getDraftAndClean(meta.draftId);
 
   if (!draft) {
@@ -460,7 +461,7 @@ export async function createDealerOrderFromStripeSession(session) {
     return null;
   }
 
-  // Tag the resulting order as dealer or wholesale — the session metadata is
+  // Tag the resulting order as dealer or wholesale — the payment metadata is
   // the source of truth; fall back to the draft's stored type for older drafts.
   const channelOrderType =
     meta.orderType === ORDER_TYPES.WHOLESALE
@@ -572,7 +573,7 @@ export async function createDealerOrderFromStripeSession(session) {
     }));
   }
 
-  const result = await createOrderRecord(session, {
+  const result = await createOrderRecord(payment, {
     orderType: channelOrderType,
     items: manifest,
     shippingInsurance,

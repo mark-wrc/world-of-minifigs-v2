@@ -4,8 +4,9 @@ import {
   VALID_STATUS_TRANSITIONS,
   CANCELLATION_REASONS,
 } from "../constants/orderConstants.js";
-import { getStripe } from "../utils/stripe.js";
 import { restockOrder } from "../utils/payment/index.js";
+import { getOrderGateway } from "./payment/gateways/index.js";
+import { applyCompletedRefund } from "./payment/refundHandler.js";
 
 // ------------------------ Constants --------------------------------
 
@@ -95,21 +96,17 @@ export const releaseCancellationLock = async (order) => {
   await order.save();
 };
 
-// ------------------------ Stripe Refund --------------------------------
+// ------------------------ Gateway Refund --------------------------------
 
-export const createStripeRefundForOrder = async (order) => {
-  const stripe = getStripe();
-  return stripe.refunds.create(
-    { payment_intent: order.payment.stripePaymentIntentId },
-    { idempotencyKey: `refund_${order._id}` },
-  );
-};
+// Refunds the full order through whichever gateway took the payment.
+export const createRefundForOrder = async (order) =>
+  getOrderGateway(order).createRefund(order);
 
 // ------------------------ Cancellation Metadata --------------------------------
 
 export const applyCancellationMetadata = (
   order,
-  { role, cancelledById, reason, notes, stripeRefundId },
+  { role, cancelledById, reason, notes, refundId },
 ) => {
   order.status = ORDER_STATUSES.CANCELLED;
   order.refund.status = REFUND_STATUSES.PENDING;
@@ -119,7 +116,10 @@ export const applyCancellationMetadata = (
   order.refund.initiatedAt = new Date();
   order.cancellation.reason = reason?.trim();
   order.cancellation.notes = notes?.trim() || undefined;
-  order.refund.stripeRefundId = stripeRefundId;
+  order.refund.gatewayRefundId = refundId;
+  if (order.payment.gateway !== "square") {
+    order.refund.stripeRefundId = refundId;
+  }
   order.refund.amount = order.payment.totalAmount;
 };
 
@@ -139,34 +139,16 @@ export const restockOrderItemsSafely = async (order) => {
 // ------------------------ Refund Status Sync (Fallback) --------------------------------
 
 export const syncRefundStatus = async (order) => {
-  // Only sync if refund is pending and we have a Stripe refund ID
-  if (
-    order.refund?.status !== REFUND_STATUSES.PENDING ||
-    !order.refund?.stripeRefundId
-  ) {
+  // Only sync if refund is pending and we have a gateway refund ID
+  const refundId = order.refund?.gatewayRefundId || order.refund?.stripeRefundId;
+  if (order.refund?.status !== REFUND_STATUSES.PENDING || !refundId) {
     return order;
   }
 
   try {
-    const stripe = getStripe();
-    const refund = await stripe.refunds.retrieve(order.refund.stripeRefundId);
+    const refund = await getOrderGateway(order).fetchRefund(refundId);
 
-    if (refund.status === "succeeded") {
-      order.refund.status = REFUND_STATUSES.COMPLETED;
-      order.refund.completedAt = new Date();
-      order.refund.amount = refund.amount / 100;
-      order.cancellation.isLocked = false;
-
-      // Store ARN if available
-      const cardDetails = refund.destination_details?.card;
-      if (
-        cardDetails?.reference_status === "available" &&
-        cardDetails?.reference &&
-        !order.refund.arn
-      ) {
-        order.refund.arn = cardDetails.reference;
-      }
-
+    if (applyCompletedRefund(order, refund)) {
       await order.save();
     }
   } catch (err) {

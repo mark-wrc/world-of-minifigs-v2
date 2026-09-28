@@ -18,7 +18,7 @@ import { perBagUnit } from "@shared/inventoryData";
 
 const CheckoutSuccess = () => {
   const {
-    sessionId,
+    checkoutRef,
     orderId,
     order,
     displayItems,
@@ -27,6 +27,7 @@ const CheckoutSuccess = () => {
     copied,
     invoiceLabel,
     invoiceValue,
+    invoiceUrl,
     copyToClipboard,
     status,
     statusConfig,
@@ -43,7 +44,7 @@ const CheckoutSuccess = () => {
     handleCancelOrder,
   } = useCheckoutSuccess();
 
-  if (!sessionId && !orderId) {
+  if (!checkoutRef && !orderId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
@@ -649,10 +650,10 @@ const CheckoutSuccess = () => {
 
               {status !== "cancelled" && (
                 <div className="space-y-2 pt-5">
-                  {order?.payment?.invoiceUrl && (
+                  {invoiceUrl && (
                     <Button variant="outline" className="w-full h-14" asChild>
                       <a
-                        href={order.payment.invoiceUrl}
+                        href={invoiceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

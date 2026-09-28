@@ -2,15 +2,17 @@ import { useCallback } from "react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useCreateCheckoutSessionMutation } from "@/redux/api/paymentApi";
+import { usePaymentGateway } from "@/hooks/usePaymentGateway";
 import { handleApiError } from "@/utils/apiHelpers";
 
 /**
- * Shared hook for triggering a Stripe Checkout redirect.
+ * Shared hook for triggering a hosted checkout redirect (Stripe or Square).
  * Used by product (cart + Buy Now) and dealer flows.
  */
 export const useCheckout = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const shippingCountry = useSelector((state) => state.shipping.country);
+  const { gateway } = usePaymentGateway();
   const [createCheckoutSession, { isLoading: isCheckoutLoading }] =
     useCreateCheckoutSessionMutation();
 
@@ -26,6 +28,7 @@ export const useCheckout = () => {
       try {
         const res = await createCheckoutSession({
           shippingCountry,
+          gateway,
           ...payload,
         }).unwrap();
         if (res?.url) {
@@ -41,7 +44,7 @@ export const useCheckout = () => {
         handleApiError(err, "Checkout failed", "Please try again");
       }
     },
-    [isAuthenticated, shippingCountry, createCheckoutSession],
+    [isAuthenticated, shippingCountry, gateway, createCheckoutSession],
   );
 
   return { checkout, isCheckoutLoading, isAuthenticated };

@@ -8,6 +8,7 @@ import {
   getOrderStatusConfig,
   buildOrderTabs,
   getDisplayItems,
+  getInvoiceNumber,
 } from "@/constant/orderData";
 import { formatDate, formatCurrency } from "@/utils/formatting";
 
@@ -45,7 +46,7 @@ const usePurchase = () => {
       orders.map((order) => {
         const statusConfig = getOrderStatusConfig(order);
         const invoiceLabel =
-          order.payment?.stripeInvoiceNumber || order._id?.substring(0, 7);
+          getInvoiceNumber(order) || order._id?.substring(0, 7);
         const createdAt = formatDate(order.createdAt);
         const refundedAt = formatDate(order.refund?.completedAt);
         const refundAmount = formatCurrency(

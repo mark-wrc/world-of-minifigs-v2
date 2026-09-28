@@ -12,14 +12,28 @@ import { publicApi } from "@/redux/api/publicApi";
 import { clearCartLocal } from "@/redux/slices/cartSlice";
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
 import { clearDealerDraft } from "@/utils/dealerDraft";
-import { getOrderStatusConfig, getDisplayItems } from "@/constant/orderData";
+import {
+  getOrderStatusConfig,
+  getDisplayItems,
+  getInvoiceNumber,
+  getInvoiceUrl,
+} from "@/constant/orderData";
 
 const useCheckoutSuccess = () => {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  // Returning from checkout: Stripe sends `session_id`, Square sends
+  // `gateway=square&ref=<checkout reference>`.
   const sessionId = searchParams.get("session_id");
+  const isSquareReturn = searchParams.get("gateway") === "square";
+  const checkoutRef = sessionId || (isSquareReturn ? searchParams.get("ref") : null);
+  const confirmArgs = {
+    gateway: sessionId ? "stripe" : "square",
+    ref: checkoutRef,
+  };
+
   const orderId = searchParams.get("order_id");
   const [copied, setCopied] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -31,28 +45,28 @@ const useCheckoutSuccess = () => {
     data: sessionData,
     isLoading: isSessionLoading,
     isError: isSessionError,
-  } = useConfirmOrderQuery(sessionId ?? "", { skip: !sessionId });
+  } = useConfirmOrderQuery(confirmArgs, { skip: !checkoutRef });
 
   const {
     data: orderData,
     isLoading: isOrderLoading,
     isError: isOrderError,
-  } = useGetUserOrderByIdQuery(orderId, { skip: !orderId || !!sessionId });
+  } = useGetUserOrderByIdQuery(orderId, { skip: !orderId || !!checkoutRef });
 
   const { data: configData } = useGetOrderConfigQuery();
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
 
   const cancellationReasons = configData?.cancellationReasons || [];
 
-  const data = sessionId ? sessionData : orderData;
-  const isLoading = sessionId ? isSessionLoading : isOrderLoading;
-  const isError = sessionId ? isSessionError : isOrderError;
+  const data = checkoutRef ? sessionData : orderData;
+  const isLoading = checkoutRef ? isSessionLoading : isOrderLoading;
+  const isError = checkoutRef ? isSessionError : isOrderError;
 
   const order = data?.order;
   const displayItems = getDisplayItems(order);
-  const invoiceLabel =
-    order?.payment?.stripeInvoiceNumber || order?._id?.substring(0, 7);
-  const invoiceValue = order?.payment?.stripeInvoiceNumber || order?._id;
+  const invoiceLabel = getInvoiceNumber(order) || order?._id?.substring(0, 7);
+  const invoiceValue = getInvoiceNumber(order) || order?._id;
+  const invoiceUrl = getInvoiceUrl(order);
 
   const status = order?.status || "paid";
   const statusConfig = getOrderStatusConfig(order);
@@ -64,14 +78,14 @@ const useCheckoutSuccess = () => {
     (cancelReason !== "Other" || cancelNotes.trim());
 
   useEffect(() => {
-    if (!sessionId && !orderId) {
+    if (!checkoutRef && !orderId) {
       navigate("/", { replace: true });
     }
-  }, [sessionId, orderId, navigate]);
+  }, [checkoutRef, orderId, navigate]);
 
-  // Clear cart and invalidate caches on successful checkout (session flow only)
+  // Clear cart and invalidate caches on successful checkout (checkout return only)
   useEffect(() => {
-    if (sessionId && data?.success && data?.order) {
+    if (checkoutRef && data?.success && data?.order) {
       dispatch(authApi.util.invalidateTags(["Cart", "Order"]));
       dispatch(clearCartLocal());
 
@@ -109,7 +123,7 @@ const useCheckoutSuccess = () => {
         dispatch(publicApi.util.invalidateTags([...tags, "Product"]));
       }
     }
-  }, [sessionId, data, dispatch]);
+  }, [checkoutRef, data, dispatch]);
 
   // ==================== Handlers ====================
 
@@ -155,12 +169,13 @@ const useCheckoutSuccess = () => {
 
   return {
     // Data
-    sessionId,
+    checkoutRef,
     orderId,
     order,
     displayItems,
     invoiceLabel,
     invoiceValue,
+    invoiceUrl,
     status,
     statusConfig,
     canCancel,

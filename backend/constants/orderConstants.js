@@ -45,6 +45,11 @@ export const VALID_STATUS_TRANSITIONS = {
   ],
 };
 
+export const PAYMENT_GATEWAYS = {
+  STRIPE: "stripe",
+  SQUARE: "square",
+};
+
 export const ORDER_TYPES = {
   PRODUCT: "product",
   DEALER: "dealer",

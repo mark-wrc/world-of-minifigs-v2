@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
+import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
 import { formatCurrency } from "@/utils/formatting";
 import { ChevronDown, ChevronUp, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -345,10 +346,16 @@ const DealerOrderSummary = ({
             </div>
 
             {hasItems && (
-              <ShippingCountrySelect
-                disabled={isCheckoutLoading}
-                className="mb-4"
-              />
+              <>
+                <ShippingCountrySelect
+                  disabled={isCheckoutLoading}
+                  className="mb-4"
+                />
+                <PaymentMethodSelect
+                  disabled={isCheckoutLoading}
+                  className="mb-4"
+                />
+              </>
             )}
 
             <CheckoutButton
