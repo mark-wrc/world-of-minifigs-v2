@@ -719,6 +719,15 @@ export const adminApi = createApi({
       providesTags: ["GeneralInventory"],
     }),
 
+    // Dry run of the bulk create, called before images upload to Cloudinary.
+    validateGeneralInventoryBulk: builder.mutation({
+      query: (data) => ({
+        url: "/general-inventory/bulk/validate",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
     createGeneralInventoryBulk: builder.mutation({
       query: (data) => ({
         url: "/general-inventory/bulk",
@@ -890,6 +899,7 @@ export const {
   useUpdateUserTaxExemptMutation,
 
   useGetGeneralInventoryQuery,
+  useValidateGeneralInventoryBulkMutation,
   useCreateGeneralInventoryBulkMutation,
   useUpdateGeneralInventoryMutation,
   useDeleteGeneralInventoryMutation,

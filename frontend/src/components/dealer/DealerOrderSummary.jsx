@@ -336,15 +336,6 @@ const DealerOrderSummary = ({
               </div>
             )}
 
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-bold uppercase text-muted-foreground">
-                Total Amount
-              </span>
-              <p className="text-3xl font-black text-success dark:text-accent">
-                {formatCurrency(totalOrderPrice)}
-              </p>
-            </div>
-
             {hasItems && (
               <>
                 <ShippingCountrySelect
@@ -357,6 +348,15 @@ const DealerOrderSummary = ({
                 />
               </>
             )}
+
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-bold uppercase text-muted-foreground">
+                Total Amount
+              </span>
+              <p className="text-3xl font-black text-success dark:text-accent">
+                {formatCurrency(totalOrderPrice)}
+              </p>
+            </div>
 
             <CheckoutButton
               label="Proceed to Payment"

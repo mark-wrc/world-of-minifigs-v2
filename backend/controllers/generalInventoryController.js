@@ -2,6 +2,8 @@ import GeneralInventory, {
   INVENTORY_CATEGORIES,
   BULK_MINIFIG_PART_TYPES,
 } from "../models/generalInventory.model.js";
+import { categoryLabel } from "../../shared/inventoryData.js";
+import { UPLOAD_FOLDERS } from "./uploadController.js";
 import Collection from "../models/collection.model.js";
 import Color from "../models/color.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
@@ -90,27 +92,221 @@ const getSoldBagsMap = async (inventoryIds) => {
   return new Map(sales.map((s) => [String(s._id), s.soldBags]));
 };
 
+// Name + color is unique across ALL tabs, so point the admin at the tab where
+// the clashing item lives — usually not the one they're adding from.
+const duplicateItemMessage = (existing, colorName) => {
+  const where = existing?.category
+    ? `the ${categoryLabel(existing.category)} tab`
+    : "general inventory";
+  return `"${existing.minifigName}" in ${colorName} already exists in ${where}. Use a different name or color, or edit the existing item there.`;
+};
+
+// Turns a Mongo/Mongoose error into a reason the admin can act on.
+const describeCreateError = (error) => {
+  if (error?.code === 11000) {
+    return "An item with this name and color already exists in general inventory. Use a different name or color.";
+  }
+  if (error?.name === "CastError") {
+    return `Invalid value for "${error.path}".`;
+  }
+  if (error?.name === "ValidationError") {
+    return Object.values(error.errors)
+      .map((e) => e.message)
+      .join("; ");
+  }
+  return error?.message || "Unknown error";
+};
+
+// Checks one row and throws with an admin-facing reason. The image isn't
+// checked here: the pre-upload check runs before the image exists.
+const validateInventoryRow = async (item) => {
+  const {
+    minifigName,
+    pricePerBag,
+    piecesPerBag,
+    stock,
+    colorId,
+    category,
+    collectionIds,
+    collectionId,
+    partType,
+  } = item;
+
+  // Normalize to an array of unique collection ids (accepts either the new
+  // `collectionIds` array or a legacy single `collectionId`).
+  const collectionIdList = [
+    ...new Set(
+      (Array.isArray(collectionIds)
+        ? collectionIds
+        : collectionId
+          ? [collectionId]
+          : []
+      )
+        .map((c) => (c ? String(c) : null))
+        .filter(Boolean),
+    ),
+  ];
+
+  // Validate required fields
+  if (!minifigName || !String(minifigName).trim())
+    throw new Error("Minifig name is required");
+  if (!pricePerBag || Number(pricePerBag) <= 0)
+    throw new Error("Price per bag must be greater than zero");
+  if (
+    piecesPerBag !== undefined &&
+    piecesPerBag !== null &&
+    (!Number.isInteger(Number(piecesPerBag)) || Number(piecesPerBag) < 1)
+  ) {
+    throw new Error("Pieces per bag must be a positive integer");
+  }
+  if (
+    stock === undefined ||
+    stock === null ||
+    !Number.isInteger(Number(stock)) ||
+    Number(stock) < 0
+  ) {
+    throw new Error("Stock (bags) must be a non-negative integer");
+  }
+  if (!colorId) throw new Error("Color is required");
+  if (category && !INVENTORY_CATEGORIES.includes(category))
+    throw new Error(
+      `Category must be one of: ${INVENTORY_CATEGORIES.join(", ")}`,
+    );
+
+  if (category === "minifigs" && collectionIdList.length === 0)
+    throw new Error("At least one collection is required for minifig items");
+
+  if (category === "bulk-minifig-parts") {
+    if (!partType)
+      throw new Error("Part type is required for bulk minifig parts");
+    if (!BULK_MINIFIG_PART_TYPES.includes(partType))
+      throw new Error(
+        `Part type must be one of: ${BULK_MINIFIG_PART_TYPES.join(", ")}`,
+      );
+  }
+
+  // Verify color exists
+  const color = await Color.findById(colorId);
+  if (!color) throw new Error("Selected color does not exist");
+
+  // Verify every provided collection exists
+  if (collectionIdList.length > 0) {
+    const found = await Collection.countDocuments({
+      _id: { $in: collectionIdList },
+    });
+    if (found !== collectionIdList.length)
+      throw new Error("One or more selected collections do not exist");
+  }
+
+  // Name + color is a unique index (case-insensitive), so a match here
+  // would only fail later at insert with a raw E11000 — reject it now.
+  const existing = await checkNameConflict(
+    GeneralInventory,
+    "minifigName",
+    String(minifigName).trim(),
+    null,
+    { colorId },
+  );
+  if (existing) {
+    throw new Error(duplicateItemMessage(existing, color.colorName));
+  }
+
+  return { collectionIdList };
+};
+
+// Runs `handleRow` over every item, collecting per-row failures.
+const runRows = async (items, handleRow) => {
+  const failed = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    try {
+      await handleRow(item, i);
+    } catch (error) {
+      failed.push({
+        rowId: item?.rowId || i,
+        name: item?.minifigName || item?.name || `Row ${i + 1}`,
+        reason: describeCreateError(error),
+      });
+    }
+  }
+  return failed;
+};
+
+// 400 body listing why rows were rejected. The form stays open on it.
+const rowFailureBody = (failed, extra = {}) => ({
+  success: false,
+  message:
+    failed.length === 1
+      ? "Item could not be saved"
+      : `${failed.length} items could not be saved`,
+  description: formatRowFailures(failed),
+  ...extra,
+});
+
+const formatRowFailures = (failed) =>
+  failed.map((f) => `${f.name}: ${f.reason}`).join("\n");
+
+const GENERAL_INVENTORY_FOLDER = `${UPLOAD_FOLDERS["general-inventory"]}/`;
+
+// A row that failed to save already had its image uploaded by the browser.
+// Delete it — but only if it's in our folder and no item uses it, since the
+// public id comes from the request.
+const discardUnusedUpload = async (image) => {
+  const publicId = image?.publicId;
+  if (
+    typeof publicId !== "string" ||
+    !publicId.startsWith(GENERAL_INVENTORY_FOLDER)
+  ) {
+    return;
+  }
+  const inUse = await GeneralInventory.exists({ "image.publicId": publicId });
+  if (!inUse) deleteSingleImage(publicId);
+};
+
+const ensureItemsArray = (items, res) => {
+  if (Array.isArray(items) && items.length > 0) return true;
+  res.status(400).json({
+    success: false,
+    message: "No items provided",
+    description: "Please provide an array of inventory items to upload.",
+  });
+  return false;
+};
+
+//------------------------------------------------ Validate General Inventory (Bulk) ------------------------------------------
+// Called before the browser uploads images, so a row that would be rejected
+// never leaves an image behind in Cloudinary.
+export const validateGeneralInventoryBulk = async (req, res) => {
+  const { items } = req.body;
+  if (!ensureItemsArray(items, res)) return;
+
+  try {
+    const failed = await runRows(items, validateInventoryRow);
+    if (failed.length > 0) {
+      return res.status(400).json(rowFailureBody(failed, { results: { failed } }));
+    }
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Validate inventory error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to check inventory items",
+      description: "An unexpected error occurred. Please try again.",
+    });
+  }
+};
+
 //------------------------------------------------ Create General Inventory (Bulk) ------------------------------------------
 export const createGeneralInventoryBulk = async (req, res) => {
   const { items } = req.body;
-
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: "No items provided",
-      description: "Please provide an array of inventory items to upload.",
-    });
-  }
+  if (!ensureItemsArray(items, res)) return;
 
   const results = {
     saved: [],
     failed: [],
   };
 
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    const rowId = item.rowId || i;
-
+  results.failed = await runRows(items, async (item, i) => {
     try {
       const {
         minifigName,
@@ -123,91 +319,11 @@ export const createGeneralInventoryBulk = async (req, res) => {
         isActive,
         badge,
         category,
-        collectionIds,
-        collectionId,
         partType,
       } = item;
 
-      // Normalize to an array of unique collection ids (accepts either the new
-      // `collectionIds` array or a legacy single `collectionId`).
-      const collectionIdList = [
-        ...new Set(
-          (Array.isArray(collectionIds)
-            ? collectionIds
-            : collectionId
-              ? [collectionId]
-              : []
-          )
-            .map((c) => (c ? String(c) : null))
-            .filter(Boolean),
-        ),
-      ];
-
-      // Validate required fields
-      if (!minifigName || !String(minifigName).trim())
-        throw new Error("Minifig name is required");
-      if (!pricePerBag || Number(pricePerBag) <= 0)
-        throw new Error("Price per bag must be greater than zero");
-      if (
-        piecesPerBag !== undefined &&
-        piecesPerBag !== null &&
-        (!Number.isInteger(Number(piecesPerBag)) || Number(piecesPerBag) < 1)
-      ) {
-        throw new Error("Pieces per bag must be a positive integer");
-      }
-      if (
-        stock === undefined ||
-        stock === null ||
-        !Number.isInteger(Number(stock)) ||
-        Number(stock) < 0
-      ) {
-        throw new Error("Stock (bags) must be a non-negative integer");
-      }
-      if (!colorId) throw new Error("Color is required");
       if (!image) throw new Error("Image is required");
-      if (category && !INVENTORY_CATEGORIES.includes(category))
-        throw new Error(
-          `Category must be one of: ${INVENTORY_CATEGORIES.join(", ")}`,
-        );
-
-      if (category === "minifigs" && collectionIdList.length === 0)
-        throw new Error(
-          "At least one collection is required for minifig items",
-        );
-
-      if (category === "bulk-minifig-parts") {
-        if (!partType)
-          throw new Error("Part type is required for bulk minifig parts");
-        if (!BULK_MINIFIG_PART_TYPES.includes(partType))
-          throw new Error(
-            `Part type must be one of: ${BULK_MINIFIG_PART_TYPES.join(", ")}`,
-          );
-      }
-
-      // Verify color exists
-      const color = await Color.findById(colorId);
-      if (!color) throw new Error("Selected color does not exist");
-
-      // Verify every provided collection exists
-      if (collectionIdList.length > 0) {
-        const found = await Collection.countDocuments({
-          _id: { $in: collectionIdList },
-        });
-        if (found !== collectionIdList.length)
-          throw new Error("One or more selected collections do not exist");
-      }
-
-      // Check for duplicate name + color combo (Non-blocking warning for bulk)
-      const existing = await checkNameConflict(
-        GeneralInventory,
-        "minifigName",
-        String(minifigName).trim(),
-        null,
-        { colorId },
-      );
-      const warning = existing
-        ? `Item with name "${minifigName}" and color "${color.colorName}" already exists.`
-        : null;
+      const { collectionIdList } = await validateInventoryRow(item);
 
       // Image was uploaded directly to Cloudinary by the browser; store its ref.
       const uploadedImage = normalizeImageRef(image);
@@ -234,26 +350,35 @@ export const createGeneralInventoryBulk = async (req, res) => {
       });
 
       results.saved.push({
-        rowId,
+        rowId: item.rowId || i,
         id: newInventory._id,
         minifigName: newInventory.minifigName,
-        warning,
       });
     } catch (error) {
-      results.failed.push({
-        rowId,
-        name: item.minifigName || item.name || `Row ${i + 1}`,
-        reason: error.message,
-      });
+      await discardUnusedUpload(item?.image);
+      throw error;
     }
-  }
+  });
 
   const totalSaved = results.saved.length;
   const totalFailed = results.failed.length;
 
+  // Nothing saved: answer as an error so the form stays open with the reason.
+  if (totalSaved === 0) {
+    return res.status(400).json(
+      rowFailureBody(results.failed, {
+        summary: { totalSaved, totalFailed },
+        results,
+      }),
+    );
+  }
+
   return res.status(200).json({
     success: true,
     message: `Inventory completed: ${totalSaved} saved, ${totalFailed} failed.`,
+    ...(totalFailed > 0 && {
+      description: formatRowFailures(results.failed),
+    }),
     summary: {
       totalSaved,
       totalFailed,
@@ -489,6 +614,18 @@ export const updateGeneralInventory = async (req, res) => {
       partType,
     } = req.body;
 
+    // A replacement image is uploaded before this call. If the update is
+    // rejected on any path below, don't leave that image in Cloudinary.
+    if (image?.publicId) {
+      res.on("finish", () => {
+        if (res.statusCode >= 400) {
+          discardUnusedUpload(image).catch((err) =>
+            console.error("Discard unused inventory image failed:", err),
+          );
+        }
+      });
+    }
+
     // Normalize incoming collections (array or legacy single) when provided.
     const hasCollectionUpdate =
       collectionIds !== undefined || collectionId !== undefined;
@@ -543,10 +680,14 @@ export const updateGeneralInventory = async (req, res) => {
         );
 
         if (existing) {
+          const color = await Color.findById(checkColorId, "colorName").lean();
           return res.status(409).json({
             success: false,
             message: "Duplicate item",
-            description: "An item with this name and color already exists.",
+            description: duplicateItemMessage(
+              existing,
+              color?.colorName || "this color",
+            ),
           });
         }
       }

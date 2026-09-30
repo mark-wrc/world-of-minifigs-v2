@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useGetGeneralInventoryQuery,
+  useValidateGeneralInventoryBulkMutation,
   useCreateGeneralInventoryBulkMutation,
   useUpdateGeneralInventoryMutation,
   useDeleteGeneralInventoryMutation,
   useGetColorsQuery,
   useGetCollectionsQuery,
 } from "@/redux/api/adminApi";
-import { extractPaginatedData } from "@/utils/apiHelpers";
+import { extractPaginatedData, handleApiError } from "@/utils/apiHelpers";
 import { sanitizeString, sortByName } from "@/utils/formatting";
 import { validateGeneralInventory } from "@/utils/validation";
 import { validateFile, readFileAsDataURL } from "@/utils/fileHelpers";
@@ -120,6 +121,8 @@ const useGeneralInventoryManagement = () => {
   } = useMediaPreview({ multiple: true, maxFiles: 1 });
 
   // ------------------------------- Mutations ------------------------------------
+  const [validateBulk, { isLoading: isValidating }] =
+    useValidateGeneralInventoryBulkMutation();
   const [createBulk, { isLoading: isCreating }] =
     useCreateGeneralInventoryBulkMutation();
   const [updateItem, { isLoading: isUpdating }] =
@@ -207,7 +210,7 @@ const useGeneralInventoryManagement = () => {
 
   const isSubmitting =
     uploadProgress.isUploading ||
-    (crud.dialogMode === "edit" ? isUpdating : isCreating);
+    (crud.dialogMode === "edit" ? isUpdating : isValidating || isCreating);
 
   // ------------------------------- File Handlers ------------------------------------
   const handleInventoryFileChange = async (e) => {
@@ -347,6 +350,22 @@ const useGeneralInventoryManagement = () => {
     });
 
     if (crud.dialogMode === "add") {
+      const rowFields = filePreview.map((item) => ({
+        ...buildFields(item),
+        isActive: crud.formData.isActive,
+        // NO_BADGE → null; the server re-validates against the same list.
+        badge: normalizeItemBadge(crud.formData.badge),
+      }));
+
+      // Let the server reject bad rows (e.g. a duplicate name) before any
+      // image is uploaded, so nothing is left behind in Cloudinary.
+      try {
+        await validateBulk({ items: rowFields }).unwrap();
+      } catch (error) {
+        handleApiError(error, "Item could not be saved");
+        return;
+      }
+
       // Every new row carries a raw File; upload them all directly to Cloudinary.
       const files = filePreview.map((item) => item.file);
       let refs = [];
@@ -366,12 +385,9 @@ const useGeneralInventoryManagement = () => {
       setUploadProgress({ isUploading: false, done: 0, total: 0 });
 
       const payload = {
-        items: filePreview.map((item, i) => ({
-          ...buildFields(item),
-          isActive: crud.formData.isActive,
-          // NO_BADGE → null; the server re-validates against the same list.
-          badge: normalizeItemBadge(crud.formData.badge),
-          image: refs[i] || item.image,
+        items: rowFields.map((fields, i) => ({
+          ...fields,
+          image: refs[i] || filePreview[i].image,
         })),
       };
 

@@ -3,7 +3,7 @@ import { handleError } from "../utils/commonUtils.js";
 
 // Whitelist of upload targets. The client asks for a `type`, never a raw
 // folder path, so signed uploads can only ever land in these known locations.
-const UPLOAD_FOLDERS = {
+export const UPLOAD_FOLDERS = {
   torso: "world-of-minifigs-v2/dealers/torsos",
   "general-inventory": "world-of-minifigs-v2/general-inventory",
   product: "world-of-minifigs-v2/products",

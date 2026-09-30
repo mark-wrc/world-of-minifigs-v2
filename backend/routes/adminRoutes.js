@@ -97,6 +97,7 @@ import {
 import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
   createGeneralInventoryBulk,
+  validateGeneralInventoryBulk,
   getAllGeneralInventory,
   updateGeneralInventory,
   deleteGeneralInventory,
@@ -219,6 +220,7 @@ router.put("/users/:id/role", updateUserRole);
 router.put("/users/:id/tax-exempt", updateUserTaxExempt);
 
 // General Inventory CRUD routes
+router.post("/general-inventory/bulk/validate", validateGeneralInventoryBulk);
 router.post("/general-inventory/bulk", createGeneralInventoryBulk);
 router.get("/general-inventory", getAllGeneralInventory);
 router.put("/general-inventory/:id", updateGeneralInventory);
