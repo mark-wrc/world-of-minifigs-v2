@@ -2,7 +2,7 @@ export const SHIPPING_COUNTRIES = [
   {
     code: "US",
     label: "United States",
-    amount: 1280, // $12.80
+    amount: 1680, // $16.80
     displayName: "Standard Shipping",
     // Business days shown to the buyer on the Stripe Checkout page.
     deliveryEstimate: { minimum: 7, maximum: 14 },
