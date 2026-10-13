@@ -93,6 +93,13 @@ const viewOrderBtn = (order) =>
     <a href="${frontendUrl()}/checkout/success?order_id=${order._id}" style="display:inline-block;padding:14px 36px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14.5px;letter-spacing:0.01em;">View My Order &rarr;</a>
   </td></tr>`;
 
+// A shipment has no page of its own — it lives on My Orders as one card, so
+// the button opens My Orders with that shipment expanded.
+const viewShipmentBtn = (shipment) =>
+  `<tr><td align="center" style="padding:8px 32px 28px;">
+    <a href="${frontendUrl()}/purchase?shipment=${shipment._id}" style="display:inline-block;padding:14px 36px;background-color:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:14.5px;letter-spacing:0.01em;">View My Shipment &rarr;</a>
+  </td></tr>`;
+
 // Two-column label/value row — table cells so Gmail renders correctly
 const kv = (label, value, isLast = false, valueStyle = "") =>
   `<tr>
@@ -266,13 +273,18 @@ const buildPaymentSummaryHtml = (order, { totalColor = "#0f172a" } = {}) => {
   const hasBreakdown =
     p.subtotal != null || p.shippingFee != null || p.taxAmount != null;
 
+  // A held order pays its shipping later, when the parcel ships.
+  const isHeld = order.status === "on_hold";
+
   let rows = "";
   if (hasBreakdown) {
     rows += kv("Subtotal", fmt(p.subtotal));
-    rows += kv(
-      "Shipping Fee",
-      p.shippingFee != null ? fmt(p.shippingFee) : "—",
-    );
+    if (!isHeld) {
+      rows += kv(
+        "Shipping Fee",
+        p.shippingFee != null ? fmt(p.shippingFee) : "—",
+      );
+    }
     if (p.shippingInsurance > 0) {
       rows += kv("Shipping Insurance (0.5%)", fmt(p.shippingInsurance));
     }
@@ -367,6 +379,7 @@ export const getAdminNewOrderTemplate = (order, customerName) => {
         ${kv("Invoice Number", invoiceLink(order))}
         ${kv("Customer", customer)}
         ${kv("Order Type", `<span style="text-transform:capitalize;">${order.orderType || "product"}</span>`)}
+        ${kv("Shipping", shippingPlanLabel(order))}
         ${kv("Paid With", getPaymentGatewayLabel(order), true)}
       </table>`,
       { divider: false },
@@ -376,6 +389,109 @@ export const getAdminNewOrderTemplate = (order, customerName) => {
   `,
   );
 };
+
+// ── Pay Now, Ship Later ───────────────────────────────────────────────────────
+
+const shippingPlanLabel = (order) => {
+  if (order.status === "on_hold") {
+    return `<span style="color:#d97706;font-weight:600;">Held &mdash; ship later</span>`;
+  }
+  if (order.shipmentId) {
+    return `<span style="color:#2563eb;font-weight:600;">Ships with held orders</span>`;
+  }
+  return "Ship now";
+};
+
+const shipmentOrdersHtml = (orders) => {
+  const rows = orders
+    .map((order, i) =>
+      kv(
+        `${orderRef(order)} <span style="color:#94a3b8;text-transform:capitalize;">&middot; ${order.orderType || "product"}</span>`,
+        fmt(order.payment?.totalAmount),
+        i === orders.length - 1,
+      ),
+    )
+    .join("");
+  return openSection(
+    `Orders in this Shipment (${orders.length})`,
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table>`,
+    { divider: false },
+  );
+};
+
+const shipmentAddressHtml = (address) => {
+  if (!address?.line1) return "";
+  // One-line address, the way the admin order view shows it.
+  const fullAddress = [
+    address.line1,
+    address.line2,
+    address.city,
+    address.state,
+    address.postalCode,
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return openSection(
+    "Ship To",
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+      ${kv("Recipient", address.name || "—")}
+      ${kv("Address", fullAddress, !address.phone)}
+      ${address.phone ? kv("Contact No.", address.phone, true) : ""}
+    </table>`,
+    { divider: false },
+  );
+};
+
+export const getAdminShipmentReadyTemplate = (
+  shipment,
+  orders,
+  customerName,
+) => {
+  const customer = customerName || shipment.email || "a customer";
+  const reviewHtml = shipment.reviewNote
+    ? `<tr><td style="padding:0 32px 10px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fef2f2;border:1px solid #fecaca;border-left:4px solid #dc2626;border-radius:10px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:#7f1d1d;line-height:1.6;">${shipment.reviewNote}</td></tr>
+      </table>
+    </td></tr>`
+    : "";
+
+  return wrapAdmin(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Consolidated Shipment Ready to Pack</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;"><strong style="color:#0f172a;">${customer}</strong> paid to ship ${orders.length} orders together in one parcel.</p>
+    </td></tr>
+    ${reviewHtml}
+    ${openSection(
+      "Shipping Payment",
+      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${kv("Paid With", getPaymentGatewayLabel(shipment))}
+        ${kv("Flat Rate", fmt(shipment.payment?.shippingFee), !(shipment.payment?.shippingInsurance > 0))}
+        ${shipment.payment?.shippingInsurance > 0 ? kv("Shipping Insurance (0.5%)", fmt(shipment.payment.shippingInsurance), true) : ""}
+      </table>`,
+      { divider: false },
+    )}
+    ${shipmentOrdersHtml(orders)}
+    ${shipmentAddressHtml(shipment.shipping?.address)}
+  `,
+  );
+};
+
+export const getShipmentShippedTemplate = (shipment, orders) =>
+  wrap(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">Your orders are on their way!</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;">Your ${orders.length} order${orders.length === 1 ? " has" : "s have"} been packed together and handed off to the carrier.</p>
+    </td></tr>
+    ${trackingSection(shipment)}
+    ${shipmentOrdersHtml(orders)}
+    ${viewShipmentBtn(shipment)}
+  `,
+    "#0ea5e9",
+  );
 
 export const getShippingNotificationTemplate = (order) =>
   wrap(

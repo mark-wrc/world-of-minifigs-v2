@@ -35,7 +35,7 @@ html {
 :root {
   /* Warm off-white page background, near-black text — mirrors the logo's
    * black wordmark on a light field. */
-  --background: oklch(0.9703 0.0070 88.6424); /* #F7F5F0 */
+  --background: oklch(1 0 89.8756); /* #F7F5F0 */
   --foreground: oklch(0.1776 0 89.8756); /* #111111 */
   --card: oklch(1 0 89.8756); /* #FFFFFF */
   --card-foreground: oklch(0.1776 0 89.8756); /* #111111 */

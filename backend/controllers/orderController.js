@@ -7,8 +7,6 @@ import {
 import {
   normalizePagination,
   buildSearchQuery,
-  paginateQuery,
-  createPaginationResponse,
 } from "../utils/pagination.js";
 import {
   ORDER_STATUSES,
@@ -16,8 +14,16 @@ import {
   VALID_STATUS_TRANSITIONS,
   CANCELLATION_REASONS,
   DELIVERY_METHODS,
+  SHIPMENT_STATUSES,
 } from "../constants/orderConstants.js";
+import Shipment from "../models/shipment.model.js";
 import {
+  getHeldSummary,
+  shipShipment,
+  SHIPMENT_ORDER_SUMMARY_FIELDS,
+} from "../services/shipmentService.js";
+import {
+  releaseOrderShipmentSafely,
   validateUserCancellationRequest,
   ensureOrderIsUserCancellable,
   acquireCancellationLock,
@@ -43,6 +49,175 @@ const buildOrderSearchQuery = (search) => {
     "payment.receiptNumber",
     "items.productName",
   ]);
+};
+
+// Grouped lists also find a shipment by its shipping invoice number — the
+// match pulls in every order in that parcel.
+const buildGroupedSearchQuery = async (search, scope = {}) => {
+  const orderQuery = buildOrderSearchQuery(search);
+  if (!search) return orderQuery;
+
+  const shipments = await Shipment.find({
+    ...scope,
+    "payment.receiptNumber": new RegExp(search, "i"),
+  })
+    .select("_id")
+    .lean();
+  if (!shipments.length) return orderQuery;
+
+  return {
+    $or: [
+      ...orderQuery.$or,
+      { shipmentId: { $in: shipments.map((s) => s._id) } },
+    ],
+  };
+};
+
+// The consolidated shipment an order belongs to, with a brief line per order.
+const shipmentPopulate = (select) => ({
+  path: "shipmentId",
+  select,
+  populate: { path: "orders", select: SHIPMENT_ORDER_SUMMARY_FIELDS },
+});
+
+const USER_SHIPMENT_FIELDS =
+  "orders status paymentSource shipping.carrier shipping.trackingNumber shipping.trackingLink shipping.shippedAt payment.shippingFee payment.shippingInsurance payment.totalAmount payment.gateway payment.receiptUrl payment.receiptNumber";
+
+// Admin status filter value for paid orders that belong to a consolidated
+// shipment — the "ready to pack (consolidated)" queue.
+const CONSOLIDATED_FILTER = "consolidated";
+
+const applyPopulate = (query, populate = []) =>
+  populate.reduce((q, pop) => q.populate(pop), query);
+
+/**
+ * Paginated order list where every consolidated shipment is one row.
+ *
+ * Filters and search match individual orders; a shipment is listed when any
+ * of its orders match and then carries all of its orders. Orders outside a
+ * shipment (including held ones) stay a row each. Paging counts rows, and a
+ * shipment sorts by when its shipping was paid, not by its oldest order.
+ *
+ * Each row is `{ _id, type: "shipment", shipment, orders }` or
+ * `{ _id, type: "order", order }`.
+ */
+const paginateOrderGroups = async (
+  match,
+  {
+    page,
+    limit,
+    oldestFirst = false,
+    scope = {},
+    orderSelect,
+    orderPopulate,
+    shipmentSelect,
+  },
+) => {
+  const dir = oldestFirst ? 1 : -1;
+  const [facet] = await Order.aggregate([
+    { $match: match },
+    {
+      $group: {
+        _id: { $ifNull: ["$shipmentId", "$_id"] },
+        isShipment: { $max: { $gt: ["$shipmentId", null] } },
+        latest: { $max: "$createdAt" },
+        earliest: { $min: "$createdAt" },
+      },
+    },
+    {
+      $lookup: {
+        from: Shipment.collection.name,
+        localField: "_id",
+        foreignField: "_id",
+        as: "shipmentDoc",
+      },
+    },
+    {
+      $addFields: {
+        sortDate: {
+          $ifNull: [
+            { $arrayElemAt: ["$shipmentDoc.createdAt", 0] },
+            oldestFirst ? "$earliest" : "$latest",
+          ],
+        },
+      },
+    },
+    { $project: { shipmentDoc: 0 } },
+    { $sort: { sortDate: dir, _id: dir } },
+    {
+      $facet: {
+        rows: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+        total: [{ $count: "count" }],
+      },
+    },
+  ]);
+
+  const rows = facet?.rows || [];
+  const totalItems = facet?.total?.[0]?.count || 0;
+  const shipmentIds = rows.filter((r) => r.isShipment).map((r) => r._id);
+  const orderIds = rows.filter((r) => !r.isShipment).map((r) => r._id);
+
+  const [shipments, orders] = await Promise.all([
+    shipmentIds.length
+      ? Shipment.find({ _id: { $in: shipmentIds } })
+          .select(shipmentSelect)
+          .lean()
+      : [],
+    rows.length
+      ? applyPopulate(
+          Order.find({
+            ...scope,
+            $or: [
+              { _id: { $in: orderIds } },
+              { shipmentId: { $in: shipmentIds } },
+            ],
+          })
+            .select(orderSelect)
+            .sort({ createdAt: 1 }),
+          orderPopulate,
+        ).lean()
+      : [],
+  ]);
+
+  const shipmentById = new Map(shipments.map((s) => [String(s._id), s]));
+  const orderById = new Map(orders.map((o) => [String(o._id), o]));
+  const ordersByShipment = new Map();
+  for (const order of orders) {
+    const key = String(order.shipmentId?._id || order.shipmentId || "");
+    if (!shipmentIds.some((id) => String(id) === key)) continue;
+    if (!ordersByShipment.has(key)) ordersByShipment.set(key, []);
+    ordersByShipment.get(key).push(order);
+  }
+
+  const groups = rows
+    .map((row) => {
+      const key = String(row._id);
+      if (row.isShipment) {
+        return {
+          _id: row._id,
+          type: "shipment",
+          shipment: shipmentById.get(key) || { _id: row._id },
+          orders: ordersByShipment.get(key) || [],
+        };
+      }
+      const order = orderById.get(key);
+      return order ? { _id: row._id, type: "order", order } : null;
+    })
+    .filter(Boolean);
+
+  const totalPages = Math.ceil(totalItems / limit);
+  return {
+    success: true,
+    groups,
+    pagination: {
+      page,
+      limit,
+      totalItems,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  };
 };
 
 //--------------------------------------------- Get Order Status, Reason, and Valid Status Flow ------------------------------------------
@@ -75,7 +250,10 @@ export const getUserOrders = async (req, res) => {
     const { page, limit, search } = normalizePagination(req.query);
     const { status } = req.query;
 
-    const query = { userId, ...buildOrderSearchQuery(search) };
+    const query = {
+      userId,
+      ...(await buildGroupedSearchQuery(search, { userId })),
+    };
 
     // Filter by status tab (supports comma-separated for "Cancelled" tab)
     if (status) {
@@ -83,20 +261,39 @@ export const getUserOrders = async (req, res) => {
       query.status = { $in: statuses };
     }
 
-    const result = await paginateQuery(Order, query, {
+    // Orders that ship together are one row: the shipment, with its orders.
+    const result = await paginateOrderGroups(query, {
       page,
       limit,
-      sort: { createdAt: -1 },
-      select:
+      scope: { userId },
+      orderSelect:
         "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+      orderPopulate: [shipmentPopulate(USER_SHIPMENT_FIELDS)],
+      shipmentSelect: `${USER_SHIPMENT_FIELDS} createdAt payment.paidAt`,
     });
 
-    return res.status(200).json(createPaginationResponse(result, "orders"));
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Get user orders error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch orders",
+      description: "An unexpected error occurred. Please try again.",
+    });
+  }
+};
+
+//------------------------------------------------ Get Held Orders (Pay Now, Ship Later) ------------------------------------------
+
+export const getHeldOrders = async (req, res) => {
+  try {
+    const summary = await getHeldSummary(req.user._id);
+    return res.status(200).json({ success: true, ...summary });
+  } catch (error) {
+    console.error("Get held orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch held orders",
       description: "An unexpected error occurred. Please try again.",
     });
   }
@@ -117,9 +314,11 @@ export const getUserOrderById = async (req, res) => {
       });
     }
 
-    const order = await Order.findOne({ _id: id, userId }).select(
-      "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
-    );
+    const order = await Order.findOne({ _id: id, userId })
+      .select(
+        "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+      )
+      .populate(shipmentPopulate(USER_SHIPMENT_FIELDS));
 
     if (!order) {
       return res.status(404).json({
@@ -202,11 +401,14 @@ export const cancelOrder = async (req, res) => {
       reason,
       notes,
       refundId: refund.id,
+      refundAmount: refund.amount,
     });
 
     await restockOrderItemsSafely(order);
 
     await order.save();
+
+    await releaseOrderShipmentSafely(order);
 
     sendOrderCancelledEmail(order).catch(() => {});
 
@@ -236,19 +438,34 @@ export const getAllOrders = async (req, res) => {
     const { page, limit, search } = normalizePagination(req.query);
     const { status } = req.query;
 
-    const query = buildOrderSearchQuery(search);
-    if (status) {
+    const query = await buildGroupedSearchQuery(search);
+    // Held orders read oldest first (what's been in storage longest), and so
+    // does the consolidated packing queue.
+    let oldestFirst = false;
+    if (status === CONSOLIDATED_FILTER) {
+      query.status = ORDER_STATUSES.PAID;
+      query.shipmentId = { $ne: null };
+      oldestFirst = true;
+    } else if (status) {
       const statuses = status.split(",").map((s) => s.trim());
       query.status = { $in: statuses };
+      if (statuses.length === 1 && statuses[0] === ORDER_STATUSES.ON_HOLD) {
+        oldestFirst = true;
+      }
     }
 
-    const result = await paginateQuery(Order, query, {
+    // Orders that ship together are one row: the shipment, with its orders.
+    const result = await paginateOrderGroups(query, {
       page,
       limit,
-      sort: { createdAt: -1 },
-      select:
+      oldestFirst,
+      shipmentSelect: "-payment.checkoutSessionId -payment.transactionId -__v",
+      orderSelect:
         "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.transactionId -__v",
-      populate: [
+      orderPopulate: [
+        shipmentPopulate(
+          "orders status paymentSource reviewNote shipping payment.shippingFee payment.shippingInsurance payment.taxAmount payment.totalAmount payment.gateway payment.receiptUrl payment.receiptNumber payment.paidAt",
+        ),
         {
           path: "userId",
           select: "firstName lastName",
@@ -264,7 +481,7 @@ export const getAllOrders = async (req, res) => {
       ],
     });
 
-    return res.status(200).json(createPaginationResponse(result, "orders"));
+    return res.status(200).json(result);
   } catch (error) {
     console.error("Get all orders error:", error);
     res.status(500).json({
@@ -302,6 +519,7 @@ export const getOrderById = async (req, res) => {
         path: "delivery.deliveredById",
         select: "firstName lastName",
       },
+      shipmentPopulate("-__v"),
     ]);
 
     if (!order) {
@@ -368,6 +586,21 @@ export const updateOrderStatus = async (req, res) => {
       return res.status(transitionError.status).json(transitionError.body);
     }
 
+    // An order in a paid consolidated shipment ships with its parcel — its
+    // shipping is paid, so it can't be handed over on its own. It can still
+    // be cancelled; "shipped" ships the whole parcel (below).
+    if (status === ORDER_STATUSES.DELIVERED && order.shipmentId) {
+      const parcel = await Shipment.findById(order.shipmentId).select("status");
+      if (parcel?.status === SHIPMENT_STATUSES.PAID) {
+        return res.status(400).json({
+          success: false,
+          message: "Order ships with its shipment",
+          description:
+            "This order is part of a paid consolidated shipment. Mark the shipment as shipped, or cancel this order.",
+        });
+      }
+    }
+
     // Cancelled — require reason, initiate refund + restock
     if (status === ORDER_STATUSES.CANCELLED) {
       if (!reason || !reason.trim()) {
@@ -408,11 +641,14 @@ export const updateOrderStatus = async (req, res) => {
         reason,
         notes,
         refundId: refund.id,
+        refundAmount: refund.amount,
       });
 
       await restockOrderItemsSafely(order);
 
       await order.save();
+
+      await releaseOrderShipmentSafely(order);
 
       sendOrderCancelledEmail(order).catch(() => {});
 
@@ -442,6 +678,29 @@ export const updateOrderStatus = async (req, res) => {
           message: `${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`,
           description:
             "Please provide carrier, tracking number, and tracking link when marking an order as shipped.",
+        });
+      }
+
+      // Part of a consolidated shipment — the whole parcel ships together
+      // under one tracking number.
+      const shipment = order.shipmentId
+        ? await Shipment.findById(order.shipmentId)
+        : null;
+      if (shipment?.status === SHIPMENT_STATUSES.PAID) {
+        const shippedOrders = await shipShipment(shipment, {
+          carrier: carrier.trim(),
+          trackingNumber: trackingNumber.trim(),
+          trackingLink: trackingLink.trim(),
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: `Shipment marked as shipped (${shippedOrders.length} order${shippedOrders.length === 1 ? "" : "s"})`,
+          order: {
+            _id: order._id,
+            status: ORDER_STATUSES.SHIPPED,
+            shipping: shipment.shipping,
+          },
         });
       }
 

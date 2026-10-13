@@ -117,7 +117,7 @@ export const ActionsColumn = ({
             <span className="sr-only">Open actions menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-full">
           {onView && (
             <DropdownMenuItem
               onSelect={(event) => {

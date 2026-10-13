@@ -53,6 +53,9 @@ const useOrderManagement = () => {
   // ------------------------------- Modal States ------------------------------------
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  // Limits the dialog's status options — e.g. only "shipped" from a shipment
+  // row, only "cancelled" for an order inside a paid shipment. null = all.
+  const [allowedStatuses, setAllowedStatuses] = useState(null);
 
   const [newStatus, setNewStatus] = useState("");
   const [carrier, setCarrier] = useState("");
@@ -66,6 +69,9 @@ const useOrderManagement = () => {
 
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewOrder, setViewOrder] = useState(null);
+
+  // A consolidated shipment opened in its own view: { shipment, orders }.
+  const [viewShipment, setViewShipment] = useState(null);
 
   const resetStatusFields = useCallback(() => {
     setNewStatus("");
@@ -104,11 +110,19 @@ const useOrderManagement = () => {
     [configData?.deliveryMethods],
   );
 
+  // Rows: a consolidated shipment (with its orders) or a single order.
   const {
-    items: orders,
+    items: orderGroups,
     totalItems,
     totalPages,
-  } = extractPaginatedData(ordersData, "orders");
+  } = extractPaginatedData(ordersData, "groups");
+
+  // Which shipment rows are expanded to show their orders.
+  const [expandedShipments, setExpandedShipments] = useState({});
+  const toggleShipment = useCallback(
+    (id) => setExpandedShipments((prev) => ({ ...prev, [id]: !prev[id] })),
+    [],
+  );
 
   useEffect(() => {
     crud.setTotalItems(totalItems);
@@ -130,16 +144,21 @@ const useOrderManagement = () => {
       setStatusModalOpen(open);
       if (!open) {
         setSelectedOrder(null);
+        setAllowedStatuses(null);
         resetStatusFields();
       }
     },
     [resetStatusFields],
   );
 
+  // `presetStatus` pre-selects a status ("Mark as shipped" on a shipment
+  // row); `allowed` limits which statuses the dialog offers.
   const handleEdit = useCallback(
-    (order) => {
+    (order, { presetStatus, allowed } = {}) => {
       resetStatusFields();
       setSelectedOrder(order);
+      setAllowedStatuses(allowed || null);
+      if (presetStatus) setNewStatus(presetStatus);
       setStatusModalOpen(true);
     },
     [resetStatusFields],
@@ -157,6 +176,14 @@ const useOrderManagement = () => {
   const handleView = useCallback((order) => {
     setViewOrder(order);
     setViewModalOpen(true);
+  }, []);
+
+  const handleViewShipment = useCallback(
+    (group) => setViewShipment(group),
+    [],
+  );
+  const handleViewShipmentChange = useCallback((open) => {
+    if (!open) setViewShipment(null);
   }, []);
 
   // ------------------------------- Status Update ------------------------------------
@@ -232,20 +259,28 @@ const useOrderManagement = () => {
   );
 
   const getAvailableTransitions = useCallback(
-    (orderStatus) => adminStatusOptions[orderStatus] || [],
+    (orderStatus, allowed) => {
+      const options = adminStatusOptions[orderStatus] || [];
+      return allowed
+        ? options.filter((option) => allowed.includes(option.value))
+        : options;
+    },
     [adminStatusOptions],
   );
 
   // ------------------------------- Return ------------------------------------
   return {
     ...crud,
-    orders,
+    orderGroups,
+    expandedShipments,
+    toggleShipment,
     totalItems,
     totalPages,
     columns,
     isLoadingOrders,
     statusModalOpen,
     selectedOrder,
+    allowedStatuses,
     newStatus,
     carrier,
     trackingNumber,
@@ -259,6 +294,9 @@ const useOrderManagement = () => {
     isUpdatingStatus,
     viewModalOpen,
     viewOrder,
+    viewShipment,
+    handleViewShipment,
+    handleViewShipmentChange,
     orderReference,
     setNewStatus,
     setCarrier,

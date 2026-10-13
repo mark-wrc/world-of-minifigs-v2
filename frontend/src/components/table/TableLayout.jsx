@@ -18,6 +18,9 @@ const TableLayout = ({
   columns = [],
   data = [],
   renderRow,
+  // Optional extra rows under a row (e.g. a shipment's orders) — returns
+  // <tr> elements, or nothing when collapsed.
+  renderExpanded,
   isLoading = false,
   startItem = 0,
   endItem = 0,
@@ -61,9 +64,10 @@ const TableLayout = ({
               </tr>
             ) : data.length > 0 ? (
               data.map((item) => (
-                <tr key={item._id || item.id} className="border-t text-sm">
-                  {renderRow(item)}
-                </tr>
+                <React.Fragment key={item._id || item.id}>
+                  <tr className="border-t text-sm">{renderRow(item)}</tr>
+                  {renderExpanded?.(item)}
+                </React.Fragment>
               ))
             ) : (
               <tr>

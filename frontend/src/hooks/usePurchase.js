@@ -9,8 +9,76 @@ import {
   buildOrderTabs,
   getDisplayItems,
   getInvoiceNumber,
+  getOrderRef,
+  getShipmentRef,
+  getShipmentStatusConfig,
 } from "@/constant/orderData";
 import { formatDate, formatCurrency } from "@/utils/formatting";
+
+const buildOrderCard = (order) => {
+  const statusConfig = getOrderStatusConfig(order);
+  const invoiceLabel = getInvoiceNumber(order) || order._id?.substring(0, 7);
+  const createdAt = formatDate(order.createdAt);
+  const refundedAt = formatDate(order.refund?.completedAt);
+  const refundAmount = formatCurrency(
+    order.refund?.amount ?? order.payment?.totalAmount,
+  );
+  const showTrackingInfo =
+    order.status === "shipped" && Boolean(order.shipping?.trackingLink);
+  const showRefundInitiatedInfo = order.refund?.status === "pending";
+  const showRefundedInfo = order.refund?.status === "completed";
+
+  const orderItems = getDisplayItems(order, true);
+  return {
+    type: "order",
+    key: order._id,
+    orderId: order._id,
+    detailUrl: `/checkout/success?order_id=${order._id}`,
+    statusConfig,
+    invoiceLabel,
+    createdAt,
+    itemCount: orderItems.length,
+    totalAmount: formatCurrency(order.payment?.totalAmount),
+    showTrackingInfo,
+    trackingCarrier: order.shipping?.carrier || null,
+    showRefundInitiatedInfo,
+    showRefundedInfo,
+    refundAmount,
+    refundedAt,
+  };
+};
+
+// Orders shipped together: one card for the parcel and its shipping invoice,
+// listing each order inside with a link to its own page.
+const buildShipmentCard = ({ shipment, orders }) => {
+  const payment = shipment.payment || {};
+  return {
+    type: "shipment",
+    key: shipment._id,
+    shipmentRef: getShipmentRef(shipment),
+    statusConfig: getShipmentStatusConfig(shipment),
+    createdAt: formatDate(shipment.createdAt),
+    shippingFee: formatCurrency(payment.shippingFee),
+    shippingInsurance:
+      payment.shippingInsurance > 0
+        ? formatCurrency(payment.shippingInsurance)
+        : null,
+    shippingTotal: formatCurrency(payment.totalAmount),
+    receiptUrl: payment.receiptUrl || null,
+    trackingCarrier: shipment.shipping?.carrier || null,
+    trackingNumber: shipment.shipping?.trackingNumber || null,
+    trackingLink: shipment.shipping?.trackingLink || null,
+    orders: orders.map((order) => ({
+      orderId: order._id,
+      ref: getOrderRef(order),
+      orderType: order.orderType,
+      createdAt: formatDate(order.createdAt),
+      statusConfig: getOrderStatusConfig(order),
+      totalAmount: formatCurrency(order.payment?.totalAmount),
+      detailUrl: `/checkout/success?order_id=${order._id}`,
+    })),
+  };
+};
 
 const usePurchase = () => {
   const [page, setPage] = useState(1);
@@ -36,45 +104,20 @@ const usePurchase = () => {
     [configData?.statuses],
   );
 
-  const { items: orders, totalPages } = extractPaginatedData(
+  // Rows: a consolidated shipment (with its orders) or a single order.
+  const { items: groups, totalPages } = extractPaginatedData(
     ordersResponse,
-    "orders",
+    "groups",
   );
 
   const orderCards = useMemo(
     () =>
-      orders.map((order) => {
-        const statusConfig = getOrderStatusConfig(order);
-        const invoiceLabel =
-          getInvoiceNumber(order) || order._id?.substring(0, 7);
-        const createdAt = formatDate(order.createdAt);
-        const refundedAt = formatDate(order.refund?.completedAt);
-        const refundAmount = formatCurrency(
-          order.refund?.amount ?? order.payment?.totalAmount,
-        );
-        const showTrackingInfo =
-          order.status === "shipped" && Boolean(order.shipping?.trackingLink);
-        const showRefundInitiatedInfo = order.refund?.status === "pending";
-        const showRefundedInfo = order.refund?.status === "completed";
-
-        const orderItems = getDisplayItems(order, true);
-        return {
-          orderId: order._id,
-          detailUrl: `/checkout/success?order_id=${order._id}`,
-          statusConfig,
-          invoiceLabel,
-          createdAt,
-          itemCount: orderItems.length,
-          totalAmount: formatCurrency(order.payment?.totalAmount),
-          showTrackingInfo,
-          trackingCarrier: order.shipping?.carrier || null,
-          showRefundInitiatedInfo,
-          showRefundedInfo,
-          refundAmount,
-          refundedAt,
-        };
-      }),
-    [orders],
+      groups.map((group) =>
+        group.type === "shipment"
+          ? buildShipmentCard(group)
+          : buildOrderCard(group.order),
+      ),
+    [groups],
   );
 
   const isFirstPage = page <= 1;

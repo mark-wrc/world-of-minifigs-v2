@@ -35,6 +35,7 @@ import {
   getOrderConfig,
   getUserOrders,
   getUserOrderById,
+  getHeldOrders,
   cancelOrder,
 } from "../controllers/orderController.js";
 
@@ -72,6 +73,7 @@ router
 // Order routes (Authenticated)
 router.get("/orders/config", authenticate, getOrderConfig);
 router.get("/orders", authenticate, getUserOrders);
+router.get("/orders/held", authenticate, getHeldOrders);
 router.get("/orders/:id", authenticate, getUserOrderById);
 router.post("/orders/:id/cancel", authenticate, cancelOrder);
 

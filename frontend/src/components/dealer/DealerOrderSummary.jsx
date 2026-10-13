@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
 import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
+import ShippingPlanSelect from "@/components/shared/ShippingPlanSelect";
+import ShippingInsuranceOption from "@/components/shared/ShippingInsuranceOption";
 import { formatCurrency } from "@/utils/formatting";
 import { ChevronDown, ChevronUp, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import QuantityControl from "@/components/shared/QuantityControl";
+
+// Sticky offsets (px): below the fixed site header, and the gap kept under
+// the summary when it sticks by its bottom edge.
+const STICKY_HEADER_OFFSET = 96;
+const STICKY_BOTTOM_GAP = 16;
 
 // ─── A single ordered bundle: name, copy-quantity control, torso-bag split ─────
 const BundleRow = ({
@@ -20,7 +25,13 @@ const BundleRow = ({
 }) => (
   <div className="space-y-3">
     <div className="flex justify-between items-start gap-2">
-      <p className="text-sm font-bold">{bundle.bundleName}</p>
+      <p className="text-sm font-bold">
+        {bundle.bundleName}{" "}
+        <span className="text-xs font-medium text-muted-foreground">
+          ({(bundle.minifigQuantity * bundle.quantity).toLocaleString()}{" "}
+          minifigs total)
+        </span>
+      </p>
       <p className="text-sm font-bold text-success dark:text-accent shrink-0">
         {formatCurrency(bundle.totalPrice)}
       </p>
@@ -28,15 +39,9 @@ const BundleRow = ({
 
     {/* Bundle copy quantity — dealers can order up to maxBundleQuantity copies */}
     <div className="flex items-center justify-between gap-2">
-      <div className="flex flex-col">
-        <span className="text-xs font-medium text-foreground">
-          Bundle Quantity
-        </span>
-        <span className="text-[10px] text-muted-foreground font-medium">
-          {(bundle.minifigQuantity * bundle.quantity).toLocaleString()} minifigs
-          total
-        </span>
-      </div>
+      <span className="text-xs font-medium text-foreground">
+        Bundle Quantity
+      </span>
       <QuantityControl
         value={bundle.quantity}
         onChange={(val) => {
@@ -106,6 +111,7 @@ const DealerOrderSummary = ({
   totalOrderPrice,
   insuranceEnabled = false,
   insuranceAmount = 0,
+  itemsSubtotal = 0,
   canCheckout,
   onCheckout,
   isCheckoutLoading,
@@ -129,16 +135,63 @@ const DealerOrderSummary = ({
   const hasItems =
     bundles.length > 0 || addons.length > 0 || totalExtraBags > 0;
 
+  // Mobile: the summary sits below the catalog, so a bottom bar keeps the
+  // total and a way to checkout in reach until the real button is on screen.
+  const asideRef = useRef(null);
+  const footerRef = useRef(null);
+  const [footerVisible, setFooterVisible] = useState(false);
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) =>
+      setFooterVisible(entry.isIntersecting),
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Desktop: stick below the header while the summary fits the window. Once
+  // it's taller, stick by its bottom edge instead — it scrolls with the page
+  // (every option stays in view on the way down) until Total + Proceed to
+  // Payment reach the bottom of the screen, then stays there.
+  const [stickyTop, setStickyTop] = useState(STICKY_HEADER_OFFSET);
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+    const update = () =>
+      setStickyTop(
+        Math.min(
+          STICKY_HEADER_OFFSET,
+          window.innerHeight - el.offsetHeight - STICKY_BOTTOM_GAP,
+        ),
+      );
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
+  const scrollToSummary = () =>
+    asideRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
-    <aside className="lg:sticky lg:top-24 space-y-5">
-      <Card className="border-2 border-primary overflow-hidden p-0">
+    <aside
+      ref={asideRef}
+      className="lg:sticky scroll-mt-24"
+      style={{ top: stickyTop }}
+    >
+      <Card className="border-2 border-primary overflow-hidden p-0 gap-0">
         <div className="bg-primary p-4 text-primary-foreground">
           <h3 className="text-lg font-bold uppercase tracking-tight">
             Order Summary
           </h3>
         </div>
 
-        <div className="px-4 py-2 space-y-5">
+        <div className="px-4 py-4 space-y-5">
           {/* Empty state */}
           {!hasItems && (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -223,9 +276,11 @@ const DealerOrderSummary = ({
                           <span className="text-xs font-medium text-foreground">
                             Quantity
                           </span>
-                          <span className="text-[10px] text-muted-foreground font-medium">
-                            {formatCurrency(addon.unitPrice)} each
-                          </span>
+                          {addon.unitPrice > 0 && (
+                            <span className="text-[10px] text-muted-foreground font-medium">
+                              {formatCurrency(addon.unitPrice)} each
+                            </span>
+                          )}
                         </div>
                         <QuantityControl
                           value={addon.quantity}
@@ -305,69 +360,92 @@ const DealerOrderSummary = ({
             </div>
           )}
 
-          {/* Totals Section */}
-          <div className="pt-5 border-t border-dashed">
-            {/* Optional Shipping Insurance */}
-            {hasItems && (
-              <div className="flex items-start justify-between gap-3 pb-4 mb-4 border-b border-dashed">
-                <div className="flex items-start gap-2.5">
-                  <Checkbox
-                    id="dealer-shipping-insurance"
-                    checked={insuranceEnabled}
-                    onCheckedChange={onToggleInsurance}
-                    className="mt-0.5"
-                  />
-                  <Label
-                    htmlFor="dealer-shipping-insurance"
-                    className="cursor-pointer flex flex-col items-start gap-0.5"
-                  >
-                    <span className="text-sm font-bold flex items-center gap-1.5">
-                      Shipping Insurance
-                    </span>
-                    <span className="text-xs text-muted-foreground font-medium leading-snug">
-                      Protect your order against loss, theft, or damage during
-                      shipping.
-                    </span>
-                  </Label>
+          {/* Checkout options */}
+          {hasItems && (
+            <div className="pt-5 border-t border-dashed">
+              <ShippingCountrySelect
+                disabled={isCheckoutLoading}
+                className="mb-4"
+              />
+              <ShippingPlanSelect
+                disabled={isCheckoutLoading}
+                className="mb-4"
+              />
+              <PaymentMethodSelect
+                disabled={isCheckoutLoading}
+                className="mb-4"
+              />
+              {/* Optional Shipping Insurance — 0.5% of the parcel, charged
+                    with its shipping (none on a held order). */}
+              <ShippingInsuranceOption
+                itemsSubtotal={itemsSubtotal}
+                checked={insuranceEnabled}
+                onCheckedChange={onToggleInsurance}
+                disabled={isCheckoutLoading}
+                className="pb-4 mb-4 border-b border-dashed"
+              />
+
+              {/* Breakdown — insurance line only once it's ticked */}
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-semibold">
+                    {formatCurrency(itemsSubtotal)}
+                  </span>
                 </div>
-                <span className="text-sm font-bold text-success dark:text-accent shrink-0">
-                  {formatCurrency(insuranceAmount)}
-                </span>
+                {insuranceEnabled && insuranceAmount > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Shipping Insurance (0.5%)
+                    </span>
+                    <span className="font-semibold">
+                      {formatCurrency(insuranceAmount)}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-
-            {hasItems && (
-              <>
-                <ShippingCountrySelect
-                  disabled={isCheckoutLoading}
-                  className="mb-4"
-                />
-                <PaymentMethodSelect
-                  disabled={isCheckoutLoading}
-                  className="mb-4"
-                />
-              </>
-            )}
-
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold uppercase text-muted-foreground">
-                Total Amount
-              </span>
-              <p className="text-3xl font-black text-success dark:text-accent">
-                {formatCurrency(totalOrderPrice)}
-              </p>
             </div>
+          )}
+        </div>
 
-            <CheckoutButton
-              label="Proceed to Payment"
-              disabled={!canCheckout}
-              onClick={onCheckout}
-              isLoading={isCheckoutLoading}
-              className="mb-3 h-12"
-            />
+        {/* Total + checkout */}
+        <div ref={footerRef} className="px-4 pt-4 pb-1 border-t border-dashed">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-bold uppercase text-muted-foreground">
+              Total Amount
+            </span>
+            <p className="text-3xl font-black text-success dark:text-accent">
+              {formatCurrency(totalOrderPrice)}
+            </p>
           </div>
+
+          <CheckoutButton
+            label="Proceed to Payment"
+            disabled={!canCheckout}
+            onClick={onCheckout}
+            isLoading={isCheckoutLoading}
+            className="mb-3 h-12"
+          />
         </div>
       </Card>
+
+      {hasItems && !footerVisible && (
+        <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 pr-20 flex items-center justify-between gap-3">
+          <div className="leading-tight">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Total
+            </p>
+            <p className="text-xl font-black text-success dark:text-accent">
+              {formatCurrency(totalOrderPrice)}
+            </p>
+          </div>
+          <CheckoutButton
+            label="Review & Pay"
+            onClick={scrollToSummary}
+            className="h-11 w-auto px-5"
+          />
+        </div>
+      )}
     </aside>
   );
 };

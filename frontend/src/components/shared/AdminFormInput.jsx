@@ -265,7 +265,11 @@ export const AdminFormSelect = ({
 
         {!isLoading &&
           options.map((option) => (
-            <SelectItem key={getValue(option)} value={getValue(option)}>
+            <SelectItem
+              key={getValue(option)}
+              value={getValue(option)}
+              disabled={option.disabled}
+            >
               {renderOption?.(option) ?? getLabel(option)}
             </SelectItem>
           ))}

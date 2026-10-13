@@ -5,9 +5,20 @@ import {
   RefreshCw,
   Check,
   PackageCheck,
+  Archive,
 } from "lucide-react";
 
 export const STATUS_CONFIG = {
+  // Pay Now, Ship Later — paid, waiting for the customer to ask us to ship.
+  on_hold: {
+    label: "Held",
+    variant: "secondary",
+    header: "Paid & held for you",
+    icon: Archive,
+    iconColor: "text-amber-600 bg-amber-100 ring-amber-200",
+    description:
+      "Your order is paid and waiting safely with us. Keep shopping, then ship everything you've held together from My Orders for one flat shipping fee. A copy of your invoice has been sent to ",
+  },
   paid: {
     label: "Paid",
     variant: "success",
@@ -222,6 +233,43 @@ export const buildOrderTabs = (statuses) => {
       .filter((s) => s !== "failed")
       .map((s) => ({ value: s, label: STATUS_CONFIG[s]?.label || s })),
   ];
+};
+
+// ==================== Pay Now, Ship Later ====================
+
+// The consolidated shipment an order belongs to, when the API populated it.
+export const getOrderShipment = (order) =>
+  order?.shipmentId && typeof order.shipmentId === "object"
+    ? order.shipmentId
+    : null;
+
+// Short reference for an order inside a shipment list.
+export const getOrderRef = (order) =>
+  getInvoiceNumber(order) || order?._id?.substring(0, 7)?.toUpperCase() || "—";
+
+// A consolidated shipment's reference: its shipping invoice number once paid,
+// otherwise the short id the shipment emails use.
+export const getShipmentRef = (shipment) =>
+  shipment?.payment?.receiptNumber ||
+  String(shipment?._id || "").substring(0, 7).toUpperCase() ||
+  "—";
+
+const SHIPMENT_STATUS_CONFIG = {
+  paid: {
+    ...STATUS_CONFIG.paid,
+    label: "Shipping Paid",
+  },
+  shipped: STATUS_CONFIG.shipped,
+  cancelled: STATUS_CONFIG.cancelled,
+};
+
+export const getShipmentStatusConfig = (shipment) =>
+  SHIPMENT_STATUS_CONFIG[shipment?.status] || SHIPMENT_STATUS_CONFIG.paid;
+
+// Admin status filter for paid orders waiting in a consolidated shipment.
+export const CONSOLIDATED_FILTER = {
+  value: "consolidated",
+  label: "Ready to Pack (Consolidated)",
 };
 
 // Derive the admin delivery-method options from the fetched deliveryMethods

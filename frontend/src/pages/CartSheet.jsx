@@ -7,6 +7,7 @@ import { useCart } from "@/hooks/useCart";
 const CartSheet = () => {
   const {
     items,
+    totalPrice,
     totalPriceFormatted,
     totalQuantity,
     isOpen,
@@ -27,6 +28,7 @@ const CartSheet = () => {
         {sheetMode === "cart" ? (
           <CartView
             items={items}
+            totalPrice={totalPrice}
             totalPriceFormatted={totalPriceFormatted}
             totalQuantity={totalQuantity}
             onQuantityChange={updateQuantity}

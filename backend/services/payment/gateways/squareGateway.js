@@ -82,6 +82,9 @@ const createCheckout = async ({
   metadata,
   userId,
   email,
+  chargeShipping = true,
+  allowPromotions = true,
+  returnPath = "/checkout/success",
 }) => {
   const country = resolveShippingCountry(shippingCountry);
   const { draftId } = metadata;
@@ -104,14 +107,18 @@ const createCheckout = async ({
       askForShippingAddress: true,
       // Square has no {CHECKOUT_SESSION_ID} placeholder, so our draft id is the
       // reference the success page confirms against.
-      redirectUrl: `${FRONTEND_URL}/checkout/success?gateway=square&ref=${draftId}`,
-      shippingFee: {
-        name: shippingFeeName(country),
-        charge: toMoney(country.amount),
-      },
+      redirectUrl: `${FRONTEND_URL}${returnPath}?gateway=square&ref=${draftId}`,
+      // Held orders pay no shipping now; the shipping-only checkout bills its
+      // fee as a line item instead.
+      ...(chargeShipping && {
+        shippingFee: {
+          name: shippingFeeName(country),
+          charge: toMoney(country.amount),
+        },
+      }),
       allowTipping: false,
       // Our promo codes are Stripe coupons; Square coupons are a separate system.
-      enableCoupon: true,
+      enableCoupon: allowPromotions,
       enableLoyalty: false,
       ...(process.env.SQUARE_SUPPORT_EMAIL && {
         merchantSupportEmail: process.env.SQUARE_SUPPORT_EMAIL,
@@ -275,12 +282,14 @@ const normalizeWebhookRefund = (refund) =>
     paymentId: refund.payment_id,
   });
 
-const createRefund = async (order) => {
+// `record` is an order or a shipment (both carry the same payment fields).
+// Refunds the whole payment unless `amount` (dollars) asks for part of it.
+const createRefund = async (record, { amount } = {}) => {
   const { refund } = await getSquare().refunds.refundPayment({
-    idempotencyKey: `refund_${order._id}`,
-    paymentId: order.payment.transactionId,
-    // Square needs an explicit amount — always the full order total.
-    amountMoney: toMoney(order.payment.totalAmount * 100),
+    idempotencyKey: `refund_${record._id}`,
+    paymentId: record.payment.transactionId,
+    // Square needs an explicit amount — the full total unless told otherwise.
+    amountMoney: toMoney((amount ?? record.payment.totalAmount) * 100),
     reason: "Order cancelled",
   });
   return normalizeRefund(refund);

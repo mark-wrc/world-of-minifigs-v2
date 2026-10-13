@@ -32,3 +32,12 @@ export const getShippingCountry = (code) =>
 // (the API) validate with isSupportedShippingCountry first.
 export const resolveShippingCountry = (code) =>
   getShippingCountry(code) || getShippingCountry(DEFAULT_SHIPPING_COUNTRY);
+
+// Optional shipping insurance, any order type: 0.5% of the item subtotal of
+// everything in the parcel (no shipping, no tax). It's charged with the
+// shipping it protects — never on a held order, and on the whole parcel when
+// held orders ship together. Dollars in, dollars out.
+export const SHIPPING_INSURANCE_RATE = 0.005;
+
+export const computeShippingInsurance = (itemsSubtotal) =>
+  Math.round((itemsSubtotal || 0) * SHIPPING_INSURANCE_RATE * 100) / 100;

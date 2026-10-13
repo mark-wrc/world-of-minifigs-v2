@@ -15,6 +15,8 @@ import {
   getInvoiceUrl,
   getRefundId,
   getPaymentGatewayLabel,
+  getShipmentRef,
+  getShipmentStatusConfig,
 } from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
 import { buildCloudinaryUrl } from "@/utils/cloudinary";
@@ -41,6 +43,7 @@ const C = {
 };
 
 const STATUS_COLORS = {
+  on_hold: C.amber,
   paid: C.accentText,
   processing: [37, 99, 235],
   shipped: [59, 130, 246],
@@ -207,7 +210,10 @@ const mapWithConcurrency = async (items, limit, fn) => {
       await fn(items[index], index);
     }
   };
-  const workers = Array.from({ length: Math.min(limit, items.length) }, runNext);
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    runNext,
+  );
   await Promise.all(workers);
 };
 
@@ -376,6 +382,46 @@ const itemsTableWithImages = (
   return doc.lastAutoTable.finalY + 6;
 };
 
+// Page header: title on the left; reference, export time and a status pill
+// on the right.
+const drawPdfHeader = (doc, { title, refText, statusLabel, statusColor }) => {
+  // Right column: reference → Exported on → Status pill  (spans y≈10–29)
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  rgb(doc, C.gray600);
+  doc.text(refText, PAGE_W - M, 13, { align: "right" });
+  doc.text(
+    `Exported on ${new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}`,
+    PAGE_W - M,
+    19,
+    { align: "right" },
+  );
+
+  const statusLabelUpper = statusLabel.toUpperCase();
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  const textW = doc.getTextWidth(statusLabelUpper);
+  const pillW = Math.max(26, textW + 6);
+  const pillH = 7;
+  const pillX = PAGE_W - M - pillW;
+  const pillY = 22;
+
+  rect(doc, pillX, pillY, pillW, pillH, statusColor);
+  rgb(doc, C.white);
+  // Visually centered: baseline = pillY + (pillH + capHeight) / 2  (capHeight ≈ 2mm at 7.5pt)
+  doc.text(statusLabelUpper, pillX + pillW / 2, pillY + (pillH + 2) / 2, {
+    align: "center",
+  });
+
+  // Title baseline centered on the right column (center ≈ y=19.5)
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  rgb(doc, C.gray900);
+  doc.text(title, M, 23);
+
+  resetText(doc);
+};
+
 // ── Main export ───────────────────────────────────────────────────────────────
 export const exportOrderToPdf = async (order) => {
   if (!order) return;
@@ -390,7 +436,201 @@ export const exportOrderToPdf = async (order) => {
   }
 };
 
-const buildOrderPdf = async (order) => {
+// ── Shipment export ───────────────────────────────────────────────────────────
+// One PDF for a consolidated shipment. Page 1 is the shipment's own invoice —
+// shipment information, customer, ship to, tracking and what the shipment
+// charged. Each order then gets its own page: its items (with images) and its
+// own payment summary. The parcel can be packed and filed from this document.
+export const exportShipmentToPdf = async (shipment, orders = []) => {
+  if (!shipment) return;
+
+  const toastId = toast.loading("Preparing shipment PDF…");
+  try {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    // Page 1: the shipment's own invoice. Then one page per order.
+    const y = drawShipmentInfo(doc, shipment, orders);
+    drawShipmentPaymentSummary(doc, y, shipment);
+    for (const [index, order] of orders.entries()) {
+      doc.addPage();
+      await buildOrderPdf(order, {
+        doc,
+        startY: M,
+        position: `${index + 1} of ${orders.length}`,
+      });
+    }
+    doc.save(`shipment-${getShipmentRef(shipment)}.pdf`);
+    toast.success("PDF ready", { id: toastId });
+  } catch (error) {
+    console.error("Failed to export shipment PDF:", error);
+    toast.error("Failed to export PDF", { id: toastId });
+  }
+};
+
+// Header, shipment information, ship to and tracking; ends with the "Orders
+// in this Shipment" heading the orders follow. Returns the next y.
+const drawShipmentInfo = (doc, shipment, orders) => {
+  const ref = getShipmentRef(shipment);
+  const payment = shipment.payment || {};
+  const shipping = shipment.shipping || {};
+  const address = shipping.address || {};
+
+  drawPdfHeader(doc, {
+    title: "Shipment Summary",
+    refText: `Shipment #${ref}`,
+    statusLabel: getShipmentStatusConfig(shipment).label,
+    statusColor: STATUS_COLORS[shipment.status] ?? C.gray600,
+  });
+
+  let y = 38;
+
+  // Shipment
+  y = sectionHeader(doc, y, "Shipment Information");
+  const shipmentRows = [
+    // Status is the header pill — no row for it, so page 1 fits.
+    ["Shipping Invoice", ref],
+    ["Orders", String(orders.length)],
+    ["Paid At", payment.paidAt ? formatDate(payment.paidAt) : "—"],
+    ["Paid With", getPaymentGatewayLabel(shipment)],
+  ];
+  if (shipment.reviewNote)
+    shipmentRows.push(["Check Address", shipment.reviewNote]);
+  y = kvTable(doc, y, shipmentRows, (data) => {
+    if (
+      data.section === "body" &&
+      data.column.index === 1 &&
+      shipmentRows[data.row.index]?.[0] === "Check Address"
+    ) {
+      data.cell.styles.textColor = C.red;
+      data.cell.styles.fontStyle = "bold";
+    }
+  });
+
+  // Customer — once for the parcel (every order is theirs), with where it
+  // ships. The recipient only gets a row when it isn't the customer.
+  y = ensureSpace(doc, y);
+  y = sectionHeader(doc, y, "Customer");
+  const customerName = formatFullName(orders[0]?.userId) || "—";
+  const fullAddress = [
+    address.line1,
+    address.line2,
+    address.city,
+    address.state,
+    address.postalCode,
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const customerRows = [
+    ["Customer", customerName],
+    ["Email", safe(shipment.email || orders[0]?.email)],
+  ];
+  if (address.name && address.name.trim() !== customerName.trim()) {
+    customerRows.push(["Recipient", address.name]);
+  }
+  if (fullAddress) customerRows.push(["Address", fullAddress]);
+  if (address.phone) {
+    customerRows.push(["Contact No.", formatPhone(address.phone)]);
+  }
+  y = kvTable(doc, y, customerRows);
+
+  // Tracking — once shipped
+  if (shipping.trackingNumber) {
+    y = ensureSpace(doc, y);
+    y = sectionHeader(doc, y, "Shipping & Tracking");
+    y = kvTable(doc, y, [
+      ["Carrier", safe(shipping.carrier)],
+      ["Tracking No.", safe(shipping.trackingNumber)],
+      ["Tracking Link", safe(shipping.trackingLink)],
+      ["Shipped At", shipping.shippedAt ? formatDate(shipping.shippedAt) : "—"],
+    ]);
+  }
+
+  return y;
+};
+
+// Banner that opens each order inside a shipment export.
+// `meta` (type · paid at · paid with) sits on the right of the bar.
+const drawOrderBanner = (doc, y, title, meta) => {
+  rect(doc, M, y, CONTENT_W, 9, C.brand);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  rgb(doc, C.white);
+  doc.text(title, M + 4, y + 6);
+  if (meta) {
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.text(meta, PAGE_W - M - 4, y + 6, { align: "right" });
+  }
+  resetText(doc);
+  return y + 14;
+};
+
+// What the shipment itself charged — matches the shipment view.
+const drawShipmentPaymentSummary = (doc, y, shipment) => {
+  const payment = shipment.payment || {};
+  // Heading plus the rows (~11mm each, the total ~14mm) stay together.
+  y = ensureSpace(doc, y + 4, 50);
+  y = sectionHeader(doc, y, "Payment Summary");
+  const rows = [["Shipping Fee", formatCurrency(payment.shippingFee)]];
+  if (payment.shippingInsurance > 0) {
+    rows.push([
+      "Shipping Insurance (0.5%)",
+      formatCurrency(payment.shippingInsurance),
+    ]);
+  }
+  if (payment.taxAmount > 0) {
+    rows.push(["Sales Tax (shipping)", formatCurrency(payment.taxAmount)]);
+  }
+  rows.push(["TOTAL", formatCurrency(payment.totalAmount)]);
+  const totalRowIndex = rows.length - 1;
+
+  // Same look as an order's Payment Summary: right-aligned amounts and a
+  // large total.
+  autoTable(doc, {
+    startY: y,
+    margin: { left: M, right: M },
+    tableWidth: CONTENT_W,
+    theme: "plain",
+    // Keep the summary on one page — never strand the total on the next.
+    pageBreak: "avoid",
+    styles: {
+      fontSize: 10,
+      cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 5 },
+      overflow: "linebreak",
+      lineColor: C.gray200,
+      lineWidth: 0.2,
+      valign: "middle",
+    },
+    alternateRowStyles: { fillColor: C.gray100 },
+    columnStyles: {
+      0: {
+        fontStyle: "bold",
+        textColor: C.gray600,
+        cellWidth: 64,
+        fontSize: 9,
+        halign: "left",
+      },
+      1: { textColor: C.gray900, halign: "right" },
+    },
+    body: rows,
+    didParseCell: (data) => {
+      if (data.section !== "body" || data.row.index !== totalRowIndex) return;
+      data.cell.styles.fontStyle = "bold";
+      data.cell.styles.fontSize = 14;
+      data.cell.styles.textColor =
+        data.column.index === 1 ? C.accentText : C.gray900;
+    },
+  });
+  return doc.lastAutoTable.finalY + 6;
+};
+
+// Draws one order and saves it as its own file. Inside a shipment export, pass
+// `doc` and `startY`: the order flows into that document under an invoice
+// banner instead (no page header, no save), and the next y is returned.
+const buildOrderPdf = async (
+  order,
+  { doc: sharedDoc, startY, position } = {},
+) => {
   const isDealer =
     order.orderType === "dealer" || order.orderType === "wholesale";
 
@@ -433,210 +673,98 @@ const buildOrderPdf = async (order) => {
   });
 
   // Build PDF
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = sharedDoc ?? new jsPDF({ unit: "mm", format: "a4" });
 
-  const invoice =
-    getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
+  const invoice = getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
   const statusLabel = getOrderStatusConfig(order).label;
   const statusColor = STATUS_COLORS[order.status] ?? C.gray600;
 
   // ════════════════════════════════════════════════════════════════
   // HEADER
   // ════════════════════════════════════════════════════════════════
-  // Right column: Invoice # → Exported on → Status pill  (spans y≈10–29)
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  rgb(doc, C.gray600);
-  doc.text(`Invoice #${invoice}`, PAGE_W - M, 13, { align: "right" });
-  doc.text(
-    `Exported on ${new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}`,
-    PAGE_W - M,
-    19,
-    { align: "right" },
-  );
+  // Inside a shipment export each order shows only its own details — the
+  // customer, address, tracking and shipping fee are on the shipment once.
+  const inShipment = Boolean(sharedDoc);
 
-  const statusLabelUpper = statusLabel.toUpperCase();
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  const textW = doc.getTextWidth(statusLabelUpper);
-  const pillW = Math.max(26, textW + 6);
-  const pillH = 7;
-  const pillX = PAGE_W - M - pillW;
-  const pillY = 22;
-
-  rect(doc, pillX, pillY, pillW, pillH, statusColor);
-  rgb(doc, C.white);
-  // Visually centered: baseline = pillY + (pillH + capHeight) / 2  (capHeight ≈ 2mm at 7.5pt)
-  doc.text(statusLabelUpper, pillX + pillW / 2, pillY + (pillH + 2) / 2, {
-    align: "center",
-  });
-
-  // "Order Summary" baseline centered on the right column (center ≈ y=19.5)
-  doc.setFontSize(22);
-  doc.setFont("helvetica", "bold");
-  rgb(doc, C.gray900);
-  doc.text("Order Summary", M, 23);
-
-  resetText(doc);
-
-  let y = 38;
-
-  // ════════════════════════════════════════════════════════════════
-  // ORDER INFORMATION
-  // ════════════════════════════════════════════════════════════════
-  y = sectionHeader(doc, y, "Order Information");
-  const invoiceUrl = getInvoiceUrl(order);
-  const invoiceNumber =
-    getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
-  const hasInvoiceLink = !!(invoiceUrl && getInvoiceNumber(order));
-  const orderRows = [
-    ["Invoice No.", invoiceNumber],
-    ["Status", statusLabel],
-    [
-      "Order Type",
-      order.orderType
-        ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1)
-        : "—",
-    ],
-    ["Paid At", order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—"],
-    ["Paid With", getPaymentGatewayLabel(order)],
-  ];
-  const mismatch = order.payment?.shippingCountryMismatch;
-  if (mismatch) {
-    orderRows.push([
-      "Shipping Check",
-      `Shipping paid for ${mismatch.expected}, address is in ${mismatch.actual}`,
-    ]);
+  let y;
+  if (inShipment) {
+    // Just the order date on the banner — e.g. "October 13, 2026".
+    const orderDate = order.payment?.paidAt || order.createdAt;
+    const meta = orderDate
+      ? new Date(orderDate).toLocaleDateString("en-US", { dateStyle: "long" })
+      : "";
+    y = drawOrderBanner(
+      doc,
+      startY,
+      position ? `Invoice #${invoice}  (${position})` : `Invoice #${invoice}`,
+      meta,
+    );
+  } else {
+    drawPdfHeader(doc, {
+      title: "Order Summary",
+      refText: `Invoice #${invoice}`,
+      statusLabel,
+      statusColor,
+    });
+    y = 38;
   }
 
-  y = kvTable(
-    doc,
-    y,
-    orderRows,
-    (data) => {
-      if (data.section !== "body" || data.column.index !== 1) return;
-
-      // Invoice Number (Row 0)
-      if (data.row.index === 0 && hasInvoiceLink) {
-        data.cell.styles.textColor = C.brand;
-        data.cell.styles.fontStyle = "bold";
-      }
-
-      // Status (Row 1)
-      if (data.row.index === 1) {
-        data.cell.styles.textColor = statusColor;
-        data.cell.styles.fontStyle = "bold";
-      }
-    },
-    hasInvoiceLink
-      ? (data) => {
-          if (
-            data.section !== "body" ||
-            data.row.index !== 0 ||
-            data.column.index !== 1
-          )
-            return;
-          doc.link(
-            data.cell.x,
-            data.cell.y,
-            data.cell.width,
-            data.cell.height,
-            { url: invoiceUrl },
-          );
-        }
-      : undefined,
-  );
-
-  // ════════════════════════════════════════════════════════════════
-  // CUSTOMER
-  // ════════════════════════════════════════════════════════════════
-  y = ensureSpace(doc, y);
-  y = sectionHeader(doc, y, "Customer");
-  const customerRows = [
-    ["Name", formatFullName(order.userId)],
-    ["Email", safe(order.email)],
-  ];
-  if (order.shipping?.address?.phone) {
-    customerRows.push([
-      "Contact No.",
-      formatPhone(order.shipping.address.phone),
-    ]);
-  }
-  y = kvTable(doc, y, customerRows);
-
-  // ════════════════════════════════════════════════════════════════
-  // SHIPPING ADDRESS
-  // ════════════════════════════════════════════════════════════════
-  if (order.shipping?.address) {
-    y = ensureSpace(doc, y);
-    y = sectionHeader(doc, y, "Shipping Address");
-    const addr = order.shipping.address;
-    const fullAddress =
+  if (!inShipment) {
+    // ════════════════════════════════════════════════════════════════
+    // ORDER INFORMATION
+    // ════════════════════════════════════════════════════════════════
+    y = sectionHeader(doc, y, "Order Information");
+    const invoiceUrl = getInvoiceUrl(order);
+    const invoiceNumber =
+      getInvoiceNumber(order) || order._id?.substring(0, 7) || "—";
+    const hasInvoiceLink = !!(invoiceUrl && getInvoiceNumber(order));
+    const orderRows = [
+      ["Invoice No.", invoiceNumber],
+      ["Status", statusLabel],
       [
-        addr.line1,
-        addr.line2,
-        addr.city,
-        addr.state,
-        addr.postalCode,
-        addr.country,
-      ]
-        .filter(Boolean)
-        .join(", ") || "—";
-    const addrRows = [
-      ["Recipient", safe(addr.name)],
-      ["Address", fullAddress],
+        "Order Type",
+        order.orderType
+          ? order.orderType.charAt(0).toUpperCase() + order.orderType.slice(1)
+          : "—",
+      ],
+      [
+        "Paid At",
+        order.payment?.paidAt ? formatDate(order.payment.paidAt) : "—",
+      ],
+      ["Paid With", getPaymentGatewayLabel(order)],
     ];
-    if (addr.phone) addrRows.push(["Contact No.", formatPhone(addr.phone)]);
-    y = kvTable(doc, y, addrRows);
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // BILLING DETAILS
-  // ════════════════════════════════════════════════════════════════
-  if (order.billing?.cardHolderName || order.billing?.country) {
-    y = ensureSpace(doc, y);
-    y = sectionHeader(doc, y, "Billing Details");
-    y = kvTable(doc, y, [
-      ["Cardholder", safe(order.billing?.cardHolderName)],
-      ["Country", safe(order.billing?.country)],
-    ]);
-  }
-
-  // ════════════════════════════════════════════════════════════════
-  // SHIPPING & TRACKING
-  // ════════════════════════════════════════════════════════════════
-  if (order.shipping?.carrier) {
-    y = ensureSpace(doc, y);
-    y = sectionHeader(doc, y, "Tracking Information");
-    const tr = order.shipping || {};
-    const trackingRows = [
-      ["Carrier", safe(tr.carrier)],
-      ["Tracking No.", safe(tr.trackingNumber)],
-    ];
-    const trackingLink = tr.trackingLink;
-    const linkRowIndex = trackingRows.length;
-    trackingRows.push(["Tracking Link", safe(trackingLink)]);
+    const mismatch = order.payment?.shippingCountryMismatch;
+    if (mismatch) {
+      orderRows.push([
+        "Shipping Check",
+        `Shipping paid for ${mismatch.expected}, address is in ${mismatch.actual}`,
+      ]);
+    }
 
     y = kvTable(
       doc,
       y,
-      trackingRows,
-      trackingLink
+      orderRows,
+      (data) => {
+        if (data.section !== "body" || data.column.index !== 1) return;
+
+        // Invoice Number (Row 0)
+        if (data.row.index === 0 && hasInvoiceLink) {
+          data.cell.styles.textColor = C.brand;
+          data.cell.styles.fontStyle = "bold";
+        }
+
+        // Status (Row 1)
+        if (data.row.index === 1) {
+          data.cell.styles.textColor = statusColor;
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+      hasInvoiceLink
         ? (data) => {
             if (
               data.section !== "body" ||
-              data.row.index !== linkRowIndex ||
-              data.column.index !== 1
-            )
-              return;
-            data.cell.styles.textColor = C.brand;
-          }
-        : undefined,
-      trackingLink
-        ? (data) => {
-            if (
-              data.section !== "body" ||
-              data.row.index !== 2 ||
+              data.row.index !== 0 ||
               data.column.index !== 1
             )
               return;
@@ -645,34 +773,145 @@ const buildOrderPdf = async (order) => {
               data.cell.y,
               data.cell.width,
               data.cell.height,
-              { url: trackingLink },
+              { url: invoiceUrl },
             );
           }
         : undefined,
     );
+
+    // ════════════════════════════════════════════════════════════════
+    // CUSTOMER
+    // ════════════════════════════════════════════════════════════════
+    y = ensureSpace(doc, y);
+    y = sectionHeader(doc, y, "Customer");
+    const customerRows = [
+      ["Name", formatFullName(order.userId)],
+      ["Email", safe(order.email)],
+    ];
+    if (order.shipping?.address?.phone) {
+      customerRows.push([
+        "Contact No.",
+        formatPhone(order.shipping.address.phone),
+      ]);
+    }
+    y = kvTable(doc, y, customerRows);
+
+    // ════════════════════════════════════════════════════════════════
+    // SHIPPING ADDRESS
+    // ════════════════════════════════════════════════════════════════
+    if (order.shipping?.address) {
+      y = ensureSpace(doc, y);
+      y = sectionHeader(doc, y, "Shipping Address");
+      const addr = order.shipping.address;
+      const fullAddress =
+        [
+          addr.line1,
+          addr.line2,
+          addr.city,
+          addr.state,
+          addr.postalCode,
+          addr.country,
+        ]
+          .filter(Boolean)
+          .join(", ") || "—";
+      const addrRows = [
+        ["Recipient", safe(addr.name)],
+        ["Address", fullAddress],
+      ];
+      if (addr.phone) addrRows.push(["Contact No.", formatPhone(addr.phone)]);
+      y = kvTable(doc, y, addrRows);
+    }
   }
 
   // ════════════════════════════════════════════════════════════════
-  // DELIVERY DETAILS (hand delivery / in-store pick-up)
+  // BILLING DETAILS
   // ════════════════════════════════════════════════════════════════
-  if (order.status === "delivered") {
+  if (
+    !inShipment &&
+    (order.billing?.cardHolderName || order.billing?.country)
+  ) {
     y = ensureSpace(doc, y);
-    y = sectionHeader(doc, y, "Delivery Details");
-    const dl = order.delivery || {};
-    const deliveryRows = [
-      ["Method", getDeliveryMethodLabel(dl.method)],
-      ["Delivered On", formatDate(dl.deliveredAt || order.updatedAt)],
-    ];
-    if (dl.receivedBy) deliveryRows.push(["Received By", safe(dl.receivedBy)]);
-    if (dl.notes) deliveryRows.push(["Notes", safe(dl.notes)]);
+    y = sectionHeader(doc, y, "Billing Details");
+    y = kvTable(doc, y, [
+      ["Cardholder", safe(order.billing?.cardHolderName)],
+      ["Country", safe(order.billing?.country)],
+    ]);
+  }
 
-    y = kvTable(doc, y, deliveryRows);
+  if (!inShipment) {
+    // ════════════════════════════════════════════════════════════════
+    // SHIPPING & TRACKING
+    // ════════════════════════════════════════════════════════════════
+    if (order.shipping?.carrier) {
+      y = ensureSpace(doc, y);
+      y = sectionHeader(doc, y, "Tracking Information");
+      const tr = order.shipping || {};
+      const trackingRows = [
+        ["Carrier", safe(tr.carrier)],
+        ["Tracking No.", safe(tr.trackingNumber)],
+      ];
+      const trackingLink = tr.trackingLink;
+      const linkRowIndex = trackingRows.length;
+      trackingRows.push(["Tracking Link", safe(trackingLink)]);
+
+      y = kvTable(
+        doc,
+        y,
+        trackingRows,
+        trackingLink
+          ? (data) => {
+              if (
+                data.section !== "body" ||
+                data.row.index !== linkRowIndex ||
+                data.column.index !== 1
+              )
+                return;
+              data.cell.styles.textColor = C.brand;
+            }
+          : undefined,
+        trackingLink
+          ? (data) => {
+              if (
+                data.section !== "body" ||
+                data.row.index !== 2 ||
+                data.column.index !== 1
+              )
+                return;
+              doc.link(
+                data.cell.x,
+                data.cell.y,
+                data.cell.width,
+                data.cell.height,
+                { url: trackingLink },
+              );
+            }
+          : undefined,
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // DELIVERY DETAILS (hand delivery / in-store pick-up)
+    // ════════════════════════════════════════════════════════════════
+    if (order.status === "delivered") {
+      y = ensureSpace(doc, y);
+      y = sectionHeader(doc, y, "Delivery Details");
+      const dl = order.delivery || {};
+      const deliveryRows = [
+        ["Method", getDeliveryMethodLabel(dl.method)],
+        ["Delivered On", formatDate(dl.deliveredAt || order.updatedAt)],
+      ];
+      if (dl.receivedBy)
+        deliveryRows.push(["Received By", safe(dl.receivedBy)]);
+      if (dl.notes) deliveryRows.push(["Notes", safe(dl.notes)]);
+
+      y = kvTable(doc, y, deliveryRows);
+    }
   }
 
   // ════════════════════════════════════════════════════════════════
   // ORDER ITEMS
   // ════════════════════════════════════════════════════════════════
-  if (isDealer) {
+  if (isDealer && !inShipment) {
     doc.addPage();
     y = M;
   } else y = ensureSpace(doc, y, 45);
@@ -864,7 +1103,10 @@ const buildOrderPdf = async (order) => {
       },
       undefined,
       Object.fromEntries(
-        Object.entries(drops).map(([i, info]) => [i, `${info.percentOff}% OFF`]),
+        Object.entries(drops).map(([i, info]) => [
+          i,
+          `${info.percentOff}% OFF`,
+        ]),
       ),
       // Column 4 is Unit Price (column 0 is the image).
       (data) => {
@@ -914,18 +1156,33 @@ const buildOrderPdf = async (order) => {
     y = kvTable(doc, y, refundRows);
   }
 
+  // Inside a shipment each order ends at its items (and refund, if
+  // cancelled) — payment is summarised once, for the shipment.
+  if (inShipment) return y;
+
   // ════════════════════════════════════════════════════════════════
   // PAYMENT SUMMARY
   // ════════════════════════════════════════════════════════════════
   y += 4;
-  y = ensureSpace(doc, y, 45);
+  // Room for the heading and up to six ~11mm rows, so the heading never sits
+  // alone at the bottom of a page.
+  y = ensureSpace(doc, y, 80);
   y = sectionHeader(doc, y, "Payment Summary");
 
   const totalLabel = order.status === "cancelled" ? "REFUND AMOUNT" : "TOTAL";
-  const summaryRows = [
-    ["Subtotal", formatCurrency(order.payment?.subtotal)],
-    ["Shipping Fee", formatCurrency(order.payment?.shippingFee)],
-  ];
+  const summaryRows = [["Subtotal", formatCurrency(order.payment?.subtotal)]];
+  {
+    summaryRows.push([
+      "Shipping Fee",
+      // Shipped in a consolidated parcel — its fee was paid once, on the
+      // shipment.
+      typeof order.shipmentId === "object" &&
+      order.shipmentId &&
+      !order.payment?.shippingFee
+        ? `In Shipment #${getShipmentRef(order.shipmentId)}`
+        : formatCurrency(order.payment?.shippingFee),
+    ]);
+  }
   if (order.payment?.shippingInsurance > 0) {
     summaryRows.push([
       "Shipping Insurance (0.5%)",
@@ -956,6 +1213,8 @@ const buildOrderPdf = async (order) => {
     margin: { left: M, right: M },
     tableWidth: CONTENT_W,
     theme: "plain",
+    // Keep the summary on one page — never strand the total on the next.
+    pageBreak: "avoid",
     styles: {
       fontSize: 10,
       cellPadding: { top: 3.5, bottom: 3.5, left: 5, right: 5 },
@@ -1018,5 +1277,6 @@ const buildOrderPdf = async (order) => {
   });
   y = doc.lastAutoTable.finalY + 6;
 
-  doc.save(`order-${invoice}.pdf`);
+  if (!sharedDoc) doc.save(`order-${invoice}.pdf`);
+  return y;
 };

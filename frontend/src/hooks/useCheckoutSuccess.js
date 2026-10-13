@@ -17,6 +17,7 @@ import {
   getDisplayItems,
   getInvoiceNumber,
   getInvoiceUrl,
+  getOrderShipment,
 } from "@/constant/orderData";
 
 const useCheckoutSuccess = () => {
@@ -70,7 +71,10 @@ const useCheckoutSuccess = () => {
 
   const status = order?.status || "paid";
   const statusConfig = getOrderStatusConfig(order);
-  const canCancel = status === "paid";
+  const canCancel = status === "paid" || status === "on_hold";
+  const isHeld = status === "on_hold";
+  // The consolidated shipment this order ships in (Pay Now, Ship Later).
+  const shipment = getOrderShipment(order);
 
   const isCancelValid =
     cancelReason &&
@@ -86,7 +90,7 @@ const useCheckoutSuccess = () => {
   // Clear cart and invalidate caches on successful checkout (checkout return only)
   useEffect(() => {
     if (checkoutRef && data?.success && data?.order) {
-      dispatch(authApi.util.invalidateTags(["Cart", "Order"]));
+      dispatch(authApi.util.invalidateTags(["Cart", "Order", "HeldOrders"]));
       dispatch(clearCartLocal());
 
       const order = data.order;
@@ -179,6 +183,8 @@ const useCheckoutSuccess = () => {
     status,
     statusConfig,
     canCancel,
+    isHeld,
+    shipment,
     cancellationReasons,
 
     // State & Setters

@@ -7,12 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
 import CancelOrderModal from "@/components/products/CancelOrderModal";
+import OrderShipmentCard from "@/components/products/OrderShipmentCard";
 import OrderItemRow from "@/components/shared/OrderItemRow";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import {
   splitProductItemName,
   getDeliveryMethodLabel,
   getPaymentGatewayLabel,
+  getShipmentRef,
 } from "@/constant/orderData";
 import useCheckoutSuccess from "@/hooks/useCheckoutSuccess";
 import { perBagUnit } from "@shared/inventoryData";
@@ -33,6 +35,8 @@ const CheckoutSuccess = () => {
     status,
     statusConfig,
     canCancel,
+    isHeld,
+    shipment,
     cancellationReasons,
     cancelModalOpen,
     cancelReason,
@@ -101,7 +105,7 @@ const CheckoutSuccess = () => {
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed mx-auto max-w-xl">
             {statusConfig.description}
-            {status === "paid" && order?.email && (
+            {(status === "paid" || isHeld) && order?.email && (
               <span className="font-bold text-foreground">{order.email}</span>
             )}
           </p>
@@ -124,8 +128,15 @@ const CheckoutSuccess = () => {
         </div>
       </div>
 
+      {/* Pay Now, Ship Later — held order notice, above the order details */}
+      {isHeld && (
+        <div className="my-5">
+          <OrderShipmentCard order={order} isHeld shipment={shipment} />
+        </div>
+      )}
+
       {/* Header for Items */}
-      <div className="my-5 flex flex-wrap gap-4 items-end justify-between">
+      <div className="mt-5 mb-2 flex flex-wrap gap-4 items-end justify-between">
         <h2 className="text-2xl font-bold flex items-center">
           {status === "cancelled" ? "Cancelled Items" : "Order Details"}
         </h2>
@@ -172,9 +183,7 @@ const CheckoutSuccess = () => {
                                   key={i}
                                   className="flex items-center justify-between text-sm"
                                 >
-                                  <span className="font-medium">
-                                    {tb.name}
-                                  </span>
+                                  <span className="font-medium">{tb.name}</span>
                                   <span className="text-xs text-muted-foreground">
                                     ×{tb.quantity}
                                   </span>
@@ -309,7 +318,11 @@ const CheckoutSuccess = () => {
                         size="md"
                         imageUrl={item.imageUrl}
                         name={name}
-                        to={item.productId ? `/products/${item.productId}` : undefined}
+                        to={
+                          item.productId
+                            ? `/products/${item.productId}`
+                            : undefined
+                        }
                         quantity={item.quantity}
                         meta={[colorName, item.description]}
                         unitPrice={item.unitPrice}
@@ -323,6 +336,9 @@ const CheckoutSuccess = () => {
               </Card>
             )}
           </div>
+
+          {/* Pay Now, Ship Later — consolidated shipment */}
+          {!isHeld && <OrderShipmentCard order={order} shipment={shipment} />}
 
           {/* Bottom Card: Shipping Details (non-cancelled only) */}
           {status !== "cancelled" && (
@@ -524,7 +540,7 @@ const CheckoutSuccess = () => {
         </div>
 
         {/* Right Column: Receipt Sidebar */}
-        <div className="lg:col-span-4 sticky top-24 self-start z-10">
+        <div className="lg:col-span-4 sticky top-28 self-start z-10">
           <Card className="pt-0">
             <CardHeader
               className={`${
@@ -547,7 +563,13 @@ const CheckoutSuccess = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Shipping Fee</span>
                   <span className="font-bold">
-                    {formatCurrency(order?.payment?.shippingFee)}
+                    {isHeld
+                      ? "Paid when shipped"
+                      : order?.shipmentId && !order?.payment?.shippingFee
+                        ? shipment
+                          ? `In Shipment #${getShipmentRef(shipment)}`
+                          : "Paid with shipment"
+                        : formatCurrency(order?.payment?.shippingFee)}
                   </span>
                 </div>
                 {order?.payment?.shippingInsurance > 0 && (

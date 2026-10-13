@@ -9,6 +9,8 @@ import {
 } from "@/redux/api/authApi";
 import { sortByName } from "@/utils/formatting";
 import { useCheckout } from "@/hooks/useCheckout";
+import { useShippingPlan } from "@/hooks/useShippingPlan";
+import { computeShippingInsurance } from "@shared/shippingData";
 import {
   loadDealerDraft,
   saveDealerDraft,
@@ -20,8 +22,6 @@ import {
 // higher the dealer picks a bigger bundle.
 const MAX_BUNDLE_QUANTITY = 4;
 
-// Optional shipping insurance — 0.5% of the order subtotal.
-const SHIPPING_INSURANCE_RATE = 0.005;
 
 const clampBundleQuantity = (value) =>
   Math.max(1, Math.min(MAX_BUNDLE_QUANTITY, Math.floor(Number(value) || 1)));
@@ -902,11 +902,10 @@ export const useDealer = () => {
   const itemsTotalPrice =
     bundlesTotalPrice + addonsTotalPrice + extraBagsCost;
 
-  // Optional shipping insurance — 0.5% of the items subtotal. The amount is
-  // always computed so the dealer can see the cost up front; it is only added
-  // to the order total when the checkbox is ticked.
-  const insuranceAmount =
-    Math.round(itemsTotalPrice * SHIPPING_INSURANCE_RATE * 100) / 100;
+  // Optional shipping insurance — 0.5% of this order's items, charged with its
+  // shipping: nothing on a held order (see ShippingInsuranceOption).
+  const { isHold } = useShippingPlan();
+  const insuranceAmount = isHold ? 0 : computeShippingInsurance(itemsTotalPrice);
 
   const totalOrderPrice =
     itemsTotalPrice + (insuranceEnabled ? insuranceAmount : 0);
@@ -999,7 +998,7 @@ export const useDealer = () => {
       bundles: bundlesPayload.length > 0 ? bundlesPayload : undefined,
       addons: addonPayload.length > 0 ? addonPayload : undefined,
       extraBags: extraBagPayload.length > 0 ? extraBagPayload : undefined,
-      shippingInsurance: insuranceEnabled,
+      shippingInsurance: insuranceEnabled && !isHold,
     });
   }, [
     canCheckout,
@@ -1014,6 +1013,7 @@ export const useDealer = () => {
     addonQuantities,
     extraBagQuantities,
     insuranceEnabled,
+    isHold,
   ]);
 
   return {
@@ -1043,6 +1043,7 @@ export const useDealer = () => {
       totalOrderPrice,
       insuranceEnabled,
       insuranceAmount,
+      itemsSubtotal: itemsTotalPrice,
       canCheckout,
       maxBundleQuantity: MAX_BUNDLE_QUANTITY,
     },

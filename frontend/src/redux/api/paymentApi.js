@@ -44,6 +44,23 @@ export const paymentApi = createApi({
         params: gateway === "square" ? { gateway, ref } : { session_id: ref },
       }),
     }),
+
+    // ==================== Pay Now, Ship Later ====================
+    // Shipping-only checkout for every held order.
+    shipHeldOrders: builder.mutation({
+      query: (data) => ({
+        url: "/ship-held-orders",
+        method: "POST",
+        body: data,
+      }),
+    }),
+    confirmShipment: builder.query({
+      query: ({ gateway, ref }) => ({
+        url: "/confirm-shipment",
+        method: "GET",
+        params: gateway === "square" ? { gateway, ref } : { session_id: ref },
+      }),
+    }),
   }),
 });
 
@@ -51,4 +68,6 @@ export const {
   useGetPaymentConfigQuery,
   useCreateCheckoutSessionMutation,
   useConfirmOrderQuery,
+  useShipHeldOrdersMutation,
+  useConfirmShipmentQuery,
 } = paymentApi;

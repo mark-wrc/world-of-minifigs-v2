@@ -17,6 +17,11 @@ export {
 } from "./checkout/dealerCheckout.js";
 
 export {
+  buildShipmentCheckout,
+  createShipmentFromPayment,
+} from "./checkout/shipmentCheckout.js";
+
+export {
   handleRefundUpdated,
   applyCompletedRefund,
 } from "./refundHandler.js";

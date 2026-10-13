@@ -38,6 +38,7 @@ export const authApi = createApi({
     "ExtraBag",
     "TorsoBag",
     "UserOrder",
+    "HeldOrders",
     "FlashSale",
   ],
   endpoints: (builder) => ({
@@ -231,6 +232,13 @@ export const authApi = createApi({
       providesTags: ["UserOrder"],
     }),
 
+    // Pay Now, Ship Later — orders paid and waiting to be shipped, plus the
+    // flat rate to ship them all.
+    getHeldOrders: builder.query({
+      query: () => ({ url: "/orders/held", method: "GET" }),
+      providesTags: ["HeldOrders"],
+    }),
+
     getUserOrderById: builder.query({
       query: (id) => ({
         url: `/orders/${id}`,
@@ -245,7 +253,7 @@ export const authApi = createApi({
         method: "POST",
         body: { reason, notes },
       }),
-      invalidatesTags: ["UserOrder"],
+      invalidatesTags: ["UserOrder", "HeldOrders"],
     }),
 
     // ==================== Others ====================
@@ -317,6 +325,7 @@ export const {
 
   useGetOrderConfigQuery,
   useGetUserOrdersQuery,
+  useGetHeldOrdersQuery,
   useGetUserOrderByIdQuery,
   useCancelOrderMutation,
 

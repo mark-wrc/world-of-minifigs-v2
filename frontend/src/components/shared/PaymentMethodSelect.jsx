@@ -1,59 +1,49 @@
-import React, { useId } from "react";
-import { CreditCard } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import React from "react";
+import { Button } from "@/components/ui/button";
 import { usePaymentGateway } from "@/hooks/usePaymentGateway";
 
-const GATEWAY_OPTIONS = {
-  stripe: { label: "Stripe", description: "Card & promo codes" },
-  square: { label: "Square", description: "Card & promo codes" },
+// Listed in display order — Square first.
+const GATEWAY_LABELS = {
+  square: "Square",
+  stripe: "Stripe",
 };
 
 const PaymentMethodSelect = ({ disabled = false, className = "" }) => {
-  const idPrefix = useId();
   const { gateway, gateways, setGateway } = usePaymentGateway();
 
   // Only one gateway on offer — nothing to choose.
-  const options = gateways.filter((value) => GATEWAY_OPTIONS[value]);
+  const options = Object.keys(GATEWAY_LABELS).filter((value) =>
+    gateways.includes(value),
+  );
   if (options.length < 2) return null;
 
   return (
-    <div
-      className={`rounded-lg border-2 border-dashed border-success/50 dark:border-accent/50 bg-success/5 dark:bg-accent/5 p-3 space-y-2 ${className}`}
-    >
-      <div className="flex items-center gap-2">
-        <CreditCard className="size-4 shrink-0 text-success dark:text-accent" />
-        <span className="text-sm font-extrabold uppercase tracking-wide">
-          Payment Method
-        </span>
+    <div className={`space-y-2 ${className}`}>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Pay with
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((value) => (
+          <Button
+            key={value}
+            type="button"
+            variant="outline"
+            onClick={() => setGateway(value)}
+            disabled={disabled}
+            aria-pressed={gateway === value}
+            className={`h-11 font-semibold hover:bg-background hover:text-foreground dark:hover:bg-input/30 ${
+              gateway === value
+                ? "border-foreground ring-1 ring-foreground"
+                : "hover:border-foreground/40"
+            }`}
+          >
+            {GATEWAY_LABELS[value]}
+          </Button>
+        ))}
       </div>
-
-      <RadioGroup
-        value={gateway}
-        onValueChange={setGateway}
-        disabled={disabled}
-        className="grid-cols-2 gap-2"
-      >
-        {options.map((value) => {
-          const id = `${idPrefix}-${value}`;
-          return (
-            <label
-              key={value}
-              htmlFor={id}
-              className="flex items-center gap-2 rounded-md border-2 bg-background px-3 py-2 cursor-pointer has-[[data-state=checked]]:border-success dark:has-[[data-state=checked]]:border-accent"
-            >
-              <RadioGroupItem value={value} id={id} />
-              <span className="flex flex-col leading-tight">
-                <span className="text-sm font-bold">
-                  {GATEWAY_OPTIONS[value].label}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {GATEWAY_OPTIONS[value].description}
-                </span>
-              </span>
-            </label>
-          );
-        })}
-      </RadioGroup>
+      <p className="text-xs text-muted-foreground">
+        Cards and promo codes accepted.
+      </p>
     </div>
   );
 };

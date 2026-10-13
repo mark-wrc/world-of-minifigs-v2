@@ -27,6 +27,7 @@ const toStripeLineItem = ({
   quantity,
   imageUrl,
   description,
+  taxCode,
 }) => ({
   price_data: {
     currency: "usd",
@@ -34,6 +35,7 @@ const toStripeLineItem = ({
       name,
       ...(description && { description }),
       ...(imageUrl && { images: [imageUrl] }),
+      ...(taxCode && { tax_code: taxCode }),
     },
     unit_amount: unitAmountCents,
     tax_behavior: "exclusive",
@@ -88,6 +90,9 @@ const createCheckout = async ({
   userId,
   email,
   cancelUrl,
+  chargeShipping = true,
+  allowPromotions = true,
+  returnPath = "/checkout/success",
 }) => {
   // Try to get/create a linked Stripe customer for tax exemption support
   // Falls back to customer_email if Stripe customer API is unavailable
@@ -104,9 +109,12 @@ const createCheckout = async ({
   }
 
   const session = await getStripe().checkout.sessions.create({
-    ...buildStripeSessionConfig(shippingCountry),
+    ...buildStripeSessionConfig(shippingCountry, {
+      chargeShipping,
+      allowPromotions,
+    }),
     line_items: lineItems.map(toStripeLineItem),
-    success_url: `${FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${FRONTEND_URL}${returnPath}?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: cancelUrl,
     client_reference_id: userId.toString(),
     ...customerParam,
@@ -215,13 +223,16 @@ const normalizeRefund = (refund) => {
   };
 };
 
-const createRefund = async (order) => {
+// `record` is an order or a shipment (both carry the same payment fields).
+// Refunds the whole payment unless `amount` (dollars) asks for part of it.
+const createRefund = async (record, { amount } = {}) => {
   const refund = await getStripe().refunds.create(
     {
       payment_intent:
-        order.payment.transactionId || order.payment.stripePaymentIntentId,
+        record.payment.transactionId || record.payment.stripePaymentIntentId,
+      ...(amount != null && { amount: Math.round(amount * 100) }),
     },
-    { idempotencyKey: `refund_${order._id}` },
+    { idempotencyKey: `refund_${record._id}` },
   );
   return normalizeRefund(refund);
 };

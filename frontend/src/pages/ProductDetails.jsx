@@ -12,6 +12,8 @@ import {
 import QuantityControl from "@/components/shared/QuantityControl";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
 import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
+import ShippingPlanSelect from "@/components/shared/ShippingPlanSelect";
+import ShippingInsuranceOption from "@/components/shared/ShippingInsuranceOption";
 import RelatedProducts from "@/components/products/RelatedProducts";
 import { useProductDetails } from "@/hooks/useProductDetails";
 import { formatCurrency } from "@/utils/formatting";
@@ -361,7 +363,12 @@ const ProductDetails = () => {
                 disabled={isCheckoutLoading}
                 className="mt-1"
               />
+              <ShippingPlanSelect disabled={isCheckoutLoading} />
               <PaymentMethodSelect disabled={isCheckoutLoading} />
+              <ShippingInsuranceOption
+                itemsSubtotal={(Number(displayPrice) || 0) * quantity}
+                disabled={isCheckoutLoading}
+              />
               <CheckoutButton
                 label={checkoutLabel}
                 onClick={handleProductCheckout}

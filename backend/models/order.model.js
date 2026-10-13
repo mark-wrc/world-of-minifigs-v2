@@ -150,6 +150,12 @@ const orderSchema = new mongoose.Schema(
       enum: Object.values(ORDER_STATUSES),
       default: ORDER_STATUSES.PAID,
     },
+    // Set once the order joins a consolidated shipment (Pay Now, Ship Later):
+    // a held order whose shipping was paid, or the new order that paid it.
+    shipmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shipment",
+    },
     productItems: {
       type: [productItemSchema],
       default: undefined,
@@ -281,6 +287,8 @@ const orderSchema = new mongoose.Schema(
 
 orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ userId: 1, status: 1 });
+orderSchema.index({ shipmentId: 1 }, { sparse: true });
 orderSchema.index({ orderType: 1 });
 orderSchema.index({ "refund.status": 1 });
 orderSchema.index({ "payment.stripePaymentIntentId": 1 });

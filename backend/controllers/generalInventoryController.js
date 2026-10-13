@@ -32,6 +32,7 @@ import {
 
 // Order statuses that count as a completed sale (excludes cancelled/failed).
 const SOLD_ORDER_STATUSES = [
+  ORDER_STATUSES.ON_HOLD,
   ORDER_STATUSES.PAID,
   ORDER_STATUSES.SHIPPED,
   ORDER_STATUSES.DELIVERED,

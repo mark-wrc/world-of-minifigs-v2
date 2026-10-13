@@ -15,13 +15,14 @@ const orderDraftSchema = new mongoose.Schema(
     },
     orderType: {
       type: String,
-      enum: ["product", "dealer", "wholesale", "reward"],
+      enum: ["product", "dealer", "wholesale", "reward", "shipment"],
       required: true,
     },
     /**
      * Payload stores the specific configuration for the order type.
      * Dealer: { bundleId, torsoBagId, addons[], extraBags[] }
      * Product: { items: [{ productId, variantIndex, quantity }] }
+     * Shipment: { orderIds[] } — the held orders a shipping-only checkout ships
      */
     payload: {
       type: mongoose.Schema.Types.Mixed,
@@ -30,6 +31,10 @@ const orderDraftSchema = new mongoose.Schema(
     // Square order id behind the payment link, so the success page can check
     // the payment before the webhook arrives. Unused for Stripe.
     gatewayRef: { type: String },
+    // Pay Now, Ship Later choice for an order checkout:
+    // { mode: "ship_now" | "hold", heldOrderIds: [] }. heldOrderIds are the
+    // held orders to ship along with this one (ship_now only).
+    fulfillment: { type: mongoose.Schema.Types.Mixed },
     createdAt: {
       type: Date,
       default: Date.now,

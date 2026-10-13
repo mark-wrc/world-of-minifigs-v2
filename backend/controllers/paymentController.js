@@ -7,6 +7,8 @@ import {
   buildLineItemsForDirectProduct,
   buildLineItemsForDealer,
   buildCartLineItems,
+  buildShipmentCheckout,
+  createShipmentFromPayment,
   handleRefundUpdated,
   findOrderByCheckoutRef,
   FRONTEND_URL,
@@ -15,31 +17,109 @@ import {
   getDefaultGateway,
   isGatewayEnabled,
 } from "../services/payment/index.js";
-import { PAYMENT_GATEWAYS } from "../constants/orderConstants.js";
+import {
+  PAYMENT_GATEWAYS,
+  SHIPPING_MODES,
+  SHIPMENT_CHECKOUT_TYPE,
+} from "../constants/orderConstants.js";
 import Order from "../models/order.model.js";
+import Shipment from "../models/shipment.model.js";
+import { buildLineItem } from "../utils/payment/index.js";
+import {
+  computeShippingInsurance,
+  SHIPPING_INSURANCE_LABEL,
+} from "../services/payment/paymentConfig.js";
+import {
+  findHeldOrders,
+  getHeldDestination,
+  findShipmentByCheckoutRef,
+  SHIPMENT_ORDER_SUMMARY_FIELDS,
+} from "../services/shipmentService.js";
 import {
   DEFAULT_SHIPPING_COUNTRY,
   SHIPPING_COUNTRY_CODES,
   isSupportedShippingCountry,
+  getShippingCountry,
 } from "../../shared/shippingData.js";
 
 // Routes a normalized payment result to the checkout that owns its order type.
 const createOrderForPayment = (payment) => {
   const orderType = payment.metadata?.orderType;
+  if (orderType === SHIPMENT_CHECKOUT_TYPE) {
+    return createShipmentFromPayment(payment);
+  }
   return orderType === "dealer" || orderType === "wholesale"
     ? createDealerOrderFromPayment(payment)
     : createOrderFromPayment(payment);
 };
 
 // The draft was already consumed by the other path (webhook vs success page),
-// which is creating the order right now. Poll briefly (up to 6 s).
-const waitForOrder = async (checkoutRef) => {
+// which is creating the record right now. Poll briefly (up to 6 s).
+const waitForRecord = async (findByRef, checkoutRef) => {
   for (let attempt = 0; attempt < 6; attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    const order = await findOrderByCheckoutRef(checkoutRef);
-    if (order) return order;
+    const record = await findByRef(checkoutRef);
+    if (record) return record;
   }
   return null;
+};
+
+const sendError = (res, { status, message, description }) =>
+  res.status(status).json({ success: false, message, description });
+
+const validateGateway = (gatewayName) =>
+  isGatewayEnabled(gatewayName)
+    ? null
+    : {
+        status: 400,
+        message: "Payment method unavailable",
+        description: "Please choose a different payment method.",
+      };
+
+// Pay Now, Ship Later choice for an order checkout. Holding only works when
+// the held orders go to this same country — the flat rate is per country.
+// Held orders ship through "Ship all now" (shipHeldOrders below), never
+// alongside a new checkout.
+const resolveFulfillment = async (userId, body, shippingCountry) => {
+  const mode =
+    body.shippingMode === SHIPPING_MODES.HOLD
+      ? SHIPPING_MODES.HOLD
+      : SHIPPING_MODES.SHIP_NOW;
+  if (mode === SHIPPING_MODES.SHIP_NOW) return { fulfillment: { mode } };
+
+  const held = await findHeldOrders(userId).select("_id shipping.address");
+  const { country, mixed } = getHeldDestination(held);
+  if (mixed || (country && country !== shippingCountry)) {
+    const label = getShippingCountry(country)?.label || country;
+    return {
+      error: {
+        status: 400,
+        message: "Held orders ship elsewhere",
+        description: mixed
+          ? "Your held orders go to different countries. Please contact support to arrange shipping."
+          : `Your held orders ship to ${label}. Choose ${label} as the destination to hold this order.`,
+      },
+    };
+  }
+
+  return { fulfillment: { mode } };
+};
+
+const sumLineItems = (lineItems) =>
+  lineItems.reduce((sum, li) => sum + li.unitAmountCents * li.quantity, 0) /
+  100;
+
+// Optional 0.5% shipping insurance, any order type, charged with the shipping
+// it protects: never on a held order, and on this order's items otherwise.
+// Adds the line item and returns the amount.
+const addShippingInsurance = (lineItems, { itemsSubtotal }) => {
+  const amount = computeShippingInsurance(itemsSubtotal);
+  if (amount > 0) {
+    lineItems.push(
+      buildLineItem(SHIPPING_INSURANCE_LABEL, Math.round(amount * 100), 1),
+    );
+  }
+  return amount;
 };
 
 //----------------------------------- Payment Config ------------------------------------------
@@ -68,13 +148,16 @@ export const createCheckoutSession = async (req, res) => {
     }
 
     const gatewayName = body.gateway || getDefaultGateway();
-    if (!isGatewayEnabled(gatewayName)) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment method unavailable",
-        description: "Please choose a different payment method.",
-      });
-    }
+    const gatewayError = validateGateway(gatewayName);
+    if (gatewayError) return sendError(res, gatewayError);
+
+    const { fulfillment, error: fulfillmentError } = await resolveFulfillment(
+      userId,
+      body,
+      shippingCountry,
+    );
+    if (fulfillmentError) return sendError(res, fulfillmentError);
+    const isHeld = fulfillment.mode === SHIPPING_MODES.HOLD;
 
     let lineItems;
     let metadata = { orderType: "product" };
@@ -124,6 +207,15 @@ export const createCheckoutSession = async (req, res) => {
           ? `${FRONTEND_URL}/dealers`
           : FRONTEND_URL;
 
+    if (body.shippingInsurance === true && !isHeld) {
+      fulfillment.shippingInsurance = addShippingInsurance(lineItems, {
+        itemsSubtotal: sumLineItems(lineItems),
+      });
+    }
+
+    // Read back by the webhook when it builds the order.
+    await OrderDraft.findByIdAndUpdate(metadata.draftId, { fulfillment });
+
     const { url, sessionRef, gatewayOrderId } = await getGateway(
       gatewayName,
     ).createCheckout({
@@ -131,10 +223,12 @@ export const createCheckoutSession = async (req, res) => {
       shippingCountry,
       // The destination the buyer paid shipping for, checked against the
       // address they enter on the gateway's page.
-      metadata: { ...metadata, shippingCountry },
+      metadata: { ...metadata, shippingCountry, shippingMode: fulfillment.mode },
       userId,
       email: req.user.email,
       cancelUrl,
+      // Held orders pay shipping later, in one flat fee for everything held.
+      chargeShipping: !isHeld,
     });
 
     // Square: remember its order so the success page can check the payment
@@ -161,9 +255,11 @@ export const createCheckoutSession = async (req, res) => {
   }
 };
 
-//----------------------------------- Confirm Order (Success Page) -------------------------------------------
+//----------------------------------- Confirm Checkout (Success Pages) -------------------------------------------
 // Stripe returns `?session_id=`; Square returns `?gateway=square&ref=<draftId>`.
-export const confirmOrder = async (req, res) => {
+// Shared by the order and shipping-only checkouts — `findByRef` looks up the
+// record the payment creates and `key` names it in the response.
+const confirmCheckout = async (req, res, { findByRef, key, label }) => {
   try {
     const gatewayName = req.query.gateway || PAYMENT_GATEWAYS.STRIPE;
     const isSquare = gatewayName === PAYMENT_GATEWAYS.SQUARE;
@@ -177,18 +273,22 @@ export const confirmOrder = async (req, res) => {
       });
     }
 
-    // Square refs are guessable draft ids, so only the buyer may read the order.
+    // Square refs are guessable draft ids, so only the buyer may read the record.
     const notFound = () =>
-      res.status(404).json({ success: false, message: "Order not found" });
+      res.status(404).json({ success: false, message: `${label} not found` });
     const isOwner = (doc) => doc.userId.equals(req.user._id);
+    const found = (record) =>
+      res.status(200).json({ success: true, [key]: record });
 
-    // 1. Check if the order already exists (webhook may have beaten us here)
-    let order = await findOrderByCheckoutRef(checkoutRef);
+    // 1. Check if the record already exists (webhook may have beaten us here)
+    let record = await findByRef(checkoutRef);
 
-    if (order) {
-      if (isSquare && !isOwner(order)) return notFound();
-      if (!isSquare) order = await gateway.patchReceiptFields(order);
-      return res.status(200).json({ success: true, order });
+    if (record) {
+      if (isSquare && !isOwner(record)) return notFound();
+      if (!isSquare && key === "order") {
+        record = await gateway.patchReceiptFields(record);
+      }
+      return found(record);
     }
 
     // 2. Verify payment status with the gateway
@@ -218,32 +318,104 @@ export const confirmOrder = async (req, res) => {
       }
     }
 
-    // 3. Atomically claim the draft and create the order.
+    // 3. Atomically claim the draft and create the record.
     //    getDraftAndClean uses findByIdAndDelete so only one caller (this request
     //    or the webhook) will get the draft — the other gets null.
     if (payment) {
       const result = await createOrderForPayment(payment);
-      if (result?.order) {
-        return res.status(200).json({ success: true, order: result.order });
+      if (result?.[key]) {
+        return found(await findByRef(checkoutRef));
       }
     }
 
-    // 4. Draft was already consumed by the webhook — wait for its order.
-    order = await waitForOrder(checkoutRef);
-    if (order) {
-      if (isSquare && !isOwner(order)) return notFound();
-      return res.status(200).json({ success: true, order });
+    // 4. Draft was already consumed by the webhook — wait for its record.
+    record = await waitForRecord(findByRef, checkoutRef);
+    if (record) {
+      if (isSquare && !isOwner(record)) return notFound();
+      return found(record);
     }
 
     return res.status(500).json({
       success: false,
-      message: "Order creation timed out. Please contact support.",
+      message: `${label} creation timed out. Please contact support.`,
     });
   } catch (error) {
-    console.error("Confirm order error:", error);
+    console.error(`Confirm ${key} error:`, error);
     res.status(500).json({
       success: false,
-      message: "Failed to load order",
+      message: `Failed to load ${key}`,
+    });
+  }
+};
+
+export const confirmOrder = (req, res) =>
+  confirmCheckout(req, res, {
+    findByRef: findOrderByCheckoutRef,
+    key: "order",
+    label: "Order",
+  });
+
+// The shipment with a brief line per order it ships, for its success page.
+const findShipmentForConfirm = (ref) =>
+  findShipmentByCheckoutRef(ref)
+    .select(
+      "userId orders status shippingCountry payment.shippingFee payment.shippingInsurance payment.taxAmount payment.totalAmount payment.gateway payment.receiptUrl payment.receiptNumber payment.paidAt shipping.address refund.status refund.amount createdAt",
+    )
+    .populate({ path: "orders", select: SHIPMENT_ORDER_SUMMARY_FIELDS });
+
+export const confirmShipment = (req, res) =>
+  confirmCheckout(req, res, {
+    findByRef: findShipmentForConfirm,
+    key: "shipment",
+    label: "Shipment",
+  });
+
+//----------------------------------- Ship Held Orders (Shipping-Only Checkout) ------------------------------------------
+// "Ship my held orders" with nothing new to buy — one checkout for the flat fee.
+export const shipHeldOrders = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const body = req.body || {};
+
+    const gatewayName = body.gateway || getDefaultGateway();
+    const gatewayError = validateGateway(gatewayName);
+    if (gatewayError) return sendError(res, gatewayError);
+
+    const result = await buildShipmentCheckout(userId, {
+      shippingInsurance: body.shippingInsurance === true,
+    });
+    if (result.error) return sendError(res, result.error);
+
+    const { lineItems, metadata, shippingCountry } = result;
+    const { url, sessionRef, gatewayOrderId } = await getGateway(
+      gatewayName,
+    ).createCheckout({
+      lineItems,
+      shippingCountry,
+      metadata: { ...metadata, shippingCountry },
+      userId,
+      email: req.user.email,
+      cancelUrl: `${FRONTEND_URL}/purchase`,
+      // The fee is the line item itself, and no promo codes apply to it.
+      chargeShipping: false,
+      allowPromotions: false,
+      returnPath: "/shipment/success",
+    });
+
+    if (gatewayOrderId) {
+      await OrderDraft.findByIdAndUpdate(metadata.draftId, {
+        gatewayRef: gatewayOrderId,
+      });
+    }
+
+    return res.status(200).json({ success: true, url, sessionId: sessionRef });
+  } catch (error) {
+    console.error("Ship held orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to start shipping checkout",
+      description:
+        error?.message || "An unexpected error occurred. Please try again.",
     });
   }
 };
@@ -346,10 +518,12 @@ export const squareWebhook = async (req, res) => {
         const payment = event.data?.object?.payment;
         if (payment?.status !== "COMPLETED" || !payment.order_id) break;
 
-        // Repeat deliveries for an order we already have: skip the API calls.
-        const exists = await Order.exists({
-          "payment.gatewayOrderId": payment.order_id,
-        });
+        // Repeat deliveries for an order or shipment we already have: skip
+        // the API calls.
+        const byGatewayOrder = { "payment.gatewayOrderId": payment.order_id };
+        const exists =
+          (await Order.exists(byGatewayOrder)) ||
+          (await Shipment.exists(byGatewayOrder));
         if (exists) break;
 
         const result = await squareGateway.fetchPaidSession(payment.order_id);

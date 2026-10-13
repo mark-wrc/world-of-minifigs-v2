@@ -7,12 +7,15 @@ import {
 import { CheckoutButton } from "@/components/shared/OrderActionButton";
 import ShippingCountrySelect from "@/components/shared/ShippingCountrySelect";
 import PaymentMethodSelect from "@/components/shared/PaymentMethodSelect";
+import ShippingPlanSelect from "@/components/shared/ShippingPlanSelect";
+import ShippingInsuranceOption from "@/components/shared/ShippingInsuranceOption";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyCartView from "@/components/cart/EmptyCartView";
 import CartItem from "@/components/cart/CartItem";
 
 const CartView = ({
   items,
+  totalPrice = 0,
   totalPriceFormatted,
   totalQuantity,
   onQuantityChange,
@@ -61,7 +64,12 @@ const CartView = ({
           </span>
         </div>
         <ShippingCountrySelect disabled={isCheckoutLoading} />
+        <ShippingPlanSelect disabled={isCheckoutLoading} />
         <PaymentMethodSelect disabled={isCheckoutLoading} />
+        <ShippingInsuranceOption
+          itemsSubtotal={Number(totalPrice) || 0}
+          disabled={isCheckoutLoading}
+        />
         <CheckoutButton
           onClick={onCheckout}
           disabled={isCheckoutLoading}

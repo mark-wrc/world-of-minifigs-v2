@@ -135,6 +135,7 @@ export async function createOrderFromPayment(payment) {
   const result = await createOrderRecord(payment, {
     orderType: ORDER_TYPES.PRODUCT,
     items: orderItems,
+    fulfillment: draft.fulfillment,
   });
 
   if (!result?.created) return result;

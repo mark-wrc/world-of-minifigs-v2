@@ -13,7 +13,7 @@ import {
   saveOrderDraft,
   getDraftAndClean,
 } from "../paymentCore.js";
-import { EXTRA_BAG_RATIO, SHIPPING_INSURANCE_RATE } from "../paymentConfig.js";
+import { EXTRA_BAG_RATIO } from "../paymentConfig.js";
 import { ORDER_TYPES } from "../../../constants/orderConstants.js";
 import {
   getActiveFlashSaleMap,
@@ -160,7 +160,6 @@ export async function buildLineItemsForDealer(
 
   // 2. Validate & fetch addons
   const validatedAddons = [];
-  let addonsTotal = 0;
   if (addons && Array.isArray(addons) && addons.length > 0) {
     for (const addonEntry of addons) {
       const { addonId, selectedItems } = addonEntry;
@@ -268,7 +267,6 @@ export async function buildLineItemsForDealer(
         }
       }
 
-      addonsTotal += finalPrice;
       validatedAddons.push({
         addonId: addon._id.toString(),
         addonName: addon.addonName,
@@ -285,7 +283,6 @@ export async function buildLineItemsForDealer(
   //    one bundle is selected; it is based on the single largest bundle, not
   //    the sum of bundles or copy quantities.
   const validatedExtraBags = [];
-  let extraBagsTotal = 0;
   if (extraBags && Array.isArray(extraBags) && extraBags.length > 0) {
     if (validatedBundles.length > 0) {
       const maxBags = Math.floor(largestBundleMinifigs / EXTRA_BAG_RATIO);
@@ -319,7 +316,6 @@ export async function buildLineItemsForDealer(
       const subName = extraBag.subCollectionId?.subCollectionName || "Bag";
       const bagName = `Extra ${subName}`;
 
-      extraBagsTotal += extraBag.price * qty;
       validatedExtraBags.push({
         extraBagId: extraBag._id.toString(),
         bagName: bagName,
@@ -347,7 +343,6 @@ export async function buildLineItemsForDealer(
 
   // 5. Build line items — one per ordered bundle.
   const lineItems = [];
-  let bundlesTotal = 0;
 
   validatedBundles.forEach((vb) => {
     const bagSummary = vb.torsoBags
@@ -358,7 +353,6 @@ export async function buildLineItemsForDealer(
     const bundleName = `${vb.bundle.minifigQuantity} Minifigs${
       vb.quantity > 1 ? ` × ${vb.quantity}` : ""
     }${bagSummary ? ` [${bagSummary}]` : ""}`;
-    bundlesTotal += vb.bundle.totalPrice * vb.quantity;
     lineItems.push(
       buildLineItem(
         bundleName,
@@ -411,24 +405,10 @@ export async function buildLineItemsForDealer(
     });
   }
 
-  // 6. Optional shipping insurance — 0.5% of the order subtotal.
-  const orderSubtotal = bundlesTotal + addonsTotal + extraBagsTotal;
-  const shippingInsurance =
-    body.shippingInsurance === true
-      ? Math.round(orderSubtotal * SHIPPING_INSURANCE_RATE * 100) / 100
-      : 0;
+  // Optional shipping insurance is added by the checkout controller for
+  // every order type — on the whole parcel when held orders ship along.
 
-  if (shippingInsurance > 0) {
-    lineItems.push(
-      buildLineItem(
-        "Shipping Insurance (0.5%)",
-        Math.round(shippingInsurance * 100),
-        1,
-      ),
-    );
-  }
-
-  // 7. Save Draft Snapshot (Scalability & Character Limit Solution)
+  // 6. Save Draft Snapshot (Scalability & Character Limit Solution)
   const draftId = await saveOrderDraft(userId, channelOrderType, {
     bundles: validatedBundles.map((vb) => ({
       bundleId: vb.bundle._id,
@@ -437,7 +417,6 @@ export async function buildLineItemsForDealer(
     })),
     addons: validatedAddons,
     extraBags: validatedExtraBags,
-    shippingInsurance,
   });
 
   return {
@@ -474,6 +453,7 @@ export async function createDealerOrderFromPayment(payment) {
     bundles: bundlesDraft,
     addons,
     extraBags,
+    // Drafts saved before insurance moved to draft.fulfillment.
     shippingInsurance = 0,
   } = draft.payload;
 
@@ -577,6 +557,7 @@ export async function createDealerOrderFromPayment(payment) {
     orderType: channelOrderType,
     items: manifest,
     shippingInsurance,
+    fulfillment: draft.fulfillment,
   });
 
   if (result?.created) {

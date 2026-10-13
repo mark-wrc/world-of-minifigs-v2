@@ -4,6 +4,8 @@ import {
   squareWebhook,
   createCheckoutSession,
   confirmOrder,
+  confirmShipment,
+  shipHeldOrders,
   getPaymentConfig,
 } from "../controllers/paymentController.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -33,5 +35,14 @@ router.post(
   createCheckoutSession,
 );
 router.get("/confirm-order", authenticate, confirmOrder);
+
+// Pay Now, Ship Later — one flat-fee checkout to ship every held order.
+router.post(
+  "/ship-held-orders",
+  express.json(),
+  authenticate,
+  shipHeldOrders,
+);
+router.get("/confirm-shipment", authenticate, confirmShipment);
 
 export default router;

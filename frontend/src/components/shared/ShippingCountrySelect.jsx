@@ -1,6 +1,5 @@
 import React from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Truck } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -20,22 +19,17 @@ const ShippingCountrySelect = ({ disabled = false, className = "" }) => {
   const selected = resolveShippingCountry(country);
 
   return (
-    <div
-      className={`rounded-lg border-2 border-dashed border-success/50 dark:border-accent/50 bg-success/5 dark:bg-accent/5 p-3 space-y-2 ${className}`}
-    >
-      <div className="flex items-center gap-2">
-        <Truck className="size-4 shrink-0 text-success dark:text-accent" />
-        <span className="text-sm font-extrabold uppercase tracking-wide">
-          Shipping Destination
-        </span>
-      </div>
+    <div className={`space-y-2 ${className}`}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        Ship to
+      </p>
 
       <Select
         value={selected.code}
         onValueChange={(value) => dispatch(setShippingCountry(value))}
         disabled={disabled}
       >
-        <SelectTrigger className="w-full data-[size=default]:h-11 bg-background font-bold">
+        <SelectTrigger className="w-full data-[size=default]:h-11">
           <SelectValue placeholder="Select destination" />
         </SelectTrigger>
         <SelectContent>
@@ -47,7 +41,7 @@ const ShippingCountrySelect = ({ disabled = false, className = "" }) => {
         </SelectContent>
       </Select>
 
-      <p className="text-xs text-muted-foreground leading-snug">
+      <p className="text-xs text-muted-foreground">
         Shipping and tax are calculated for this destination on the next step.
       </p>
     </div>

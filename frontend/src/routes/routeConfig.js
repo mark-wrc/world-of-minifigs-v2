@@ -15,6 +15,7 @@ import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import NotFound from "@/components/layout/NotFound";
 import Profile from "@/pages/Profile";
 import Purchase from "@/pages/Purchase";
+import ShipmentSuccess from "@/pages/ShipmentSuccess";
 import AdminPanel from "@/pages/AdminPanel";
 import Dashboard from "@/pages/admin/Dashboard";
 import BannerManagement from "@/pages/admin/banner/BannerManagement";
@@ -96,6 +97,8 @@ export const publicRoutes = [
 // Private routes (non-admin)
 export const privateRoutes = [
   { path: "/purchase", element: Purchase },
+  // Pay Now, Ship Later — return page of the shipping-only checkout.
+  { path: "/shipment/success", element: ShipmentSuccess },
   { path: "/profile", element: Profile },
   {
     path: "/dealers",

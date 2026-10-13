@@ -1,10 +1,15 @@
 import Order from "../../models/order.model.js";
 import OrderDraft from "../../models/orderDraft.model.js";
 import User from "../../models/user.model.js";
-import { ORDER_STATUSES, ORDER_TYPES } from "../../constants/orderConstants.js";
+import {
+  ORDER_STATUSES,
+  ORDER_TYPES,
+  SHIPPING_MODES,
+} from "../../constants/orderConstants.js";
 import sendEmail from "../../utils/sendEmail.js";
 import { getAdminNewOrderTemplate } from "../../utils/Email/orderEmails.js";
 import { getShippingCountry } from "../../../shared/shippingData.js";
+import { consolidateWithOrder } from "../shipmentService.js";
 
 // ------------------------- Draft Management (Scalability) -------------------------
 
@@ -68,16 +73,24 @@ const sendShippingCountryMismatchEmail = (order, adminEmail) => {
 // ------------------------- Shared: Create Order Record ----------------------------
 
 // `payment` is the normalized payment result every gateway produces
-// (see services/payment/gateways).
+// (see services/payment/gateways). `fulfillment` is the draft's Pay Now, Ship
+// Later choice: a held order starts "on_hold"; a ship-now order may carry
+// held orders to ship with it. Its `shippingInsurance` is the optional 0.5%
+// charged on this checkout — for the whole parcel when held orders ship along.
+// The `shippingInsurance` option only covers drafts saved before that.
 export async function createOrderRecord(
   payment,
   {
     orderType = ORDER_TYPES.PRODUCT,
     items,
     extraFields = {},
-    shippingInsurance = 0,
+    shippingInsurance: legacyShippingInsurance = 0,
+    fulfillment,
   },
 ) {
+  const shippingInsurance =
+    fulfillment?.shippingInsurance ?? legacyShippingInsurance;
+
   // 1. Prevent duplicate orders from same checkout
   const existingOrder = await findOrderByCheckoutRef(payment.sessionId);
   if (existingOrder) return { order: existingOrder, created: false };
@@ -112,7 +125,10 @@ export async function createOrderRecord(
       ...(discount && { discount }),
       ...(shippingCountryMismatch && { shippingCountryMismatch }),
     },
-    status: ORDER_STATUSES.PAID,
+    status:
+      fulfillment?.mode === SHIPPING_MODES.HOLD
+        ? ORDER_STATUSES.ON_HOLD
+        : ORDER_STATUSES.PAID,
     ...(shippingAddress && { shipping: { address: shippingAddress } }),
     ...(billing && { billing }),
   };
@@ -131,6 +147,20 @@ export async function createOrderRecord(
   }
 
   const order = await Order.create(orderData);
+
+  // Legacy "Ship my held orders with this one": checkouts no longer send
+  // heldOrderIds, but a draft started before that option was removed still
+  // consolidates here. Never blocks the order itself.
+  if (fulfillment?.heldOrderIds?.length) {
+    try {
+      await consolidateWithOrder(order, fulfillment.heldOrderIds);
+    } catch (err) {
+      console.error(
+        `Consolidating held orders into ${order._id} failed:`,
+        err.message,
+      );
+    }
+  }
 
   const adminEmail = process.env.SMTP_FROM_EMAIL;
   if (adminEmail) {

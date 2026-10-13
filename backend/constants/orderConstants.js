@@ -9,6 +9,8 @@ export const CANCELLATION_REASONS = [
 ];
 
 export const ORDER_STATUSES = {
+  // Paid, but held until the customer asks us to ship it (Pay Now, Ship Later).
+  ON_HOLD: "on_hold",
   PAID: "paid",
   SHIPPED: "shipped",
   DELIVERED: "delivered",
@@ -43,7 +45,38 @@ export const VALID_STATUS_TRANSITIONS = {
     ORDER_STATUSES.DELIVERED,
     ORDER_STATUSES.CANCELLED,
   ],
+  // A held order only becomes "paid" (ready to pack) when the customer pays to
+  // ship it — never by hand. Staff can still hand it over in store or cancel it.
+  [ORDER_STATUSES.ON_HOLD]: [
+    ORDER_STATUSES.DELIVERED,
+    ORDER_STATUSES.CANCELLED,
+  ],
 };
+
+// ------------------------- Pay Now, Ship Later -------------------------
+
+// Chosen per checkout: ship this order now (shipping charged), or hold it and
+// pay one flat shipping fee later for everything held.
+export const SHIPPING_MODES = {
+  SHIP_NOW: "ship_now",
+  HOLD: "hold",
+};
+
+export const SHIPMENT_STATUSES = {
+  PAID: "paid", // shipping paid, waiting to be packed
+  SHIPPED: "shipped",
+  CANCELLED: "cancelled", // every order in it was cancelled before shipping
+};
+
+// Where a shipment's flat fee was paid: its own shipping-only checkout, or as
+// the shipping fee of a new order checked out with "ship my held orders".
+export const SHIPMENT_PAYMENT_SOURCES = {
+  STANDALONE: "standalone",
+  ORDER: "order",
+};
+
+// Draft / payment metadata tag for a shipping-only checkout.
+export const SHIPMENT_CHECKOUT_TYPE = "shipment";
 
 export const PAYMENT_GATEWAYS = {
   STRIPE: "stripe",

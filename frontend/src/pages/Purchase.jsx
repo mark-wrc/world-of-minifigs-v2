@@ -1,6 +1,9 @@
 import React from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import OrderCard from "@/components/products/OrderCard";
+import ShipmentCard from "@/components/products/ShipmentCard";
+import HeldOrdersPanel from "@/components/products/HeldOrdersPanel";
 import ProductPagination from "@/components/products/ProductPagination";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import ErrorState from "@/components/shared/ErrorState";
@@ -23,6 +26,10 @@ const Purchase = () => {
     isFetching,
     isError,
   } = usePurchase();
+
+  // ?shipment=<id> (the shipped email's button) opens that shipment's card.
+  const [searchParams] = useSearchParams();
+  const focusShipmentId = searchParams.get("shipment");
 
   if (isLoading) {
     return <LoadingSpinner minHeight="min-h-screen" />;
@@ -48,6 +55,9 @@ const Purchase = () => {
         </p>
       </div>
 
+      {/* Held orders — ship them all for one flat fee */}
+      <HeldOrdersPanel />
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
@@ -71,13 +81,21 @@ const Purchase = () => {
               </div>
             ) : (
               <div
-                className={`mt-5 grid gap-3 ${
+                className={`mt-5 grid gap-3 items-start ${
                   orderCards.length > 1 ? "grid-cols-2" : "grid-cols-1"
                 }`}
               >
-                {orderCards.map((orderCard) => (
-                  <OrderCard key={orderCard.orderId} orderCard={orderCard} />
-                ))}
+                {orderCards.map((card) =>
+                  card.type === "shipment" ? (
+                    <ShipmentCard
+                      key={card.key}
+                      shipmentCard={card}
+                      focused={String(card.key) === focusShipmentId}
+                    />
+                  ) : (
+                    <OrderCard key={card.key} orderCard={card} />
+                  ),
+                )}
 
                 {showPagination && (
                   <ProductPagination

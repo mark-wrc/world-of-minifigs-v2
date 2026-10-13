@@ -30,7 +30,7 @@ export const isGatewayEnabled = (name) => getEnabledGateways().includes(name);
 
 export const getDefaultGateway = () => {
   const enabled = getEnabledGateways();
-  return enabled.includes(PAYMENT_GATEWAYS.STRIPE)
-    ? PAYMENT_GATEWAYS.STRIPE
+  return enabled.includes(PAYMENT_GATEWAYS.SQUARE)
+    ? PAYMENT_GATEWAYS.SQUARE
     : enabled[0] || PAYMENT_GATEWAYS.STRIPE;
 };

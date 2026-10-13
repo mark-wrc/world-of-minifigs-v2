@@ -3,6 +3,7 @@ import {
   PAYMENT_GATEWAYS,
   REFUND_STATUSES,
 } from "../../constants/orderConstants.js";
+import { applyShipmentRefund } from "../shipmentService.js";
 
 // ------------ Apply a Completed Refund ------------
 // `refund` is a normalized gateway refund. Mutates the order (caller saves)
@@ -39,6 +40,10 @@ export async function handleRefundUpdated(refund) {
     return;
   }
   if (!refund.completed || !refund.transactionId) return;
+
+  // A shipping refund can share its payment with an order (the order that
+  // paid a consolidated shipment's fee), so match shipments by refund id first.
+  if (await applyShipmentRefund(refund)) return;
 
   const order = await Order.findOne({
     $or: [

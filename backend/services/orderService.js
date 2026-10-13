@@ -7,6 +7,10 @@ import {
 import { restockOrder } from "../utils/payment/index.js";
 import { getOrderGateway } from "./payment/gateways/index.js";
 import { applyCompletedRefund } from "./payment/refundHandler.js";
+import {
+  getCancellationRefundAmount,
+  releaseShipmentIfEmpty,
+} from "./shipmentService.js";
 
 // ------------------------ Constants --------------------------------
 
@@ -50,7 +54,12 @@ export const validateUserCancellationRequest = (reason, notes) => {
 };
 
 export const ensureOrderIsUserCancellable = (order) => {
-  if (order.status === ORDER_STATUSES.PAID) return null;
+  if (
+    order.status === ORDER_STATUSES.PAID ||
+    order.status === ORDER_STATUSES.ON_HOLD
+  ) {
+    return null;
+  }
 
   const reasonByStatus = {
     [ORDER_STATUSES.SHIPPED]:
@@ -98,15 +107,31 @@ export const releaseCancellationLock = async (order) => {
 
 // ------------------------ Gateway Refund --------------------------------
 
-// Refunds the full order through whichever gateway took the payment.
-export const createRefundForOrder = async (order) =>
-  getOrderGateway(order).createRefund(order);
+// Refunds the order through whichever gateway took the payment — in full,
+// except an order whose shipping fee still covers a consolidated shipment.
+export const createRefundForOrder = async (order) => {
+  const amount = await getCancellationRefundAmount(order);
+  return getOrderGateway(order).createRefund(order, { amount });
+};
+
+// Once an order in a consolidated shipment is cancelled, the shipment may
+// have nothing left to ship — then its shipping fee is refunded too.
+export const releaseOrderShipmentSafely = async (order) => {
+  try {
+    await releaseShipmentIfEmpty(order);
+  } catch (err) {
+    console.error(
+      `Releasing shipment for cancelled order ${order._id} failed:`,
+      err.message,
+    );
+  }
+};
 
 // ------------------------ Cancellation Metadata --------------------------------
 
 export const applyCancellationMetadata = (
   order,
-  { role, cancelledById, reason, notes, refundId },
+  { role, cancelledById, reason, notes, refundId, refundAmount },
 ) => {
   order.status = ORDER_STATUSES.CANCELLED;
   order.refund.status = REFUND_STATUSES.PENDING;
@@ -120,7 +145,7 @@ export const applyCancellationMetadata = (
   if (order.payment.gateway !== "square") {
     order.refund.stripeRefundId = refundId;
   }
-  order.refund.amount = order.payment.totalAmount;
+  order.refund.amount = refundAmount ?? order.payment.totalAmount;
 };
 
 // ------------------------ Restock --------------------------------

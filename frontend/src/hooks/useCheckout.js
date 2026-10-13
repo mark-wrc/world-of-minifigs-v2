@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { useCreateCheckoutSessionMutation } from "@/redux/api/paymentApi";
 import { usePaymentGateway } from "@/hooks/usePaymentGateway";
+import { useShippingPlan } from "@/hooks/useShippingPlan";
 import { handleApiError } from "@/utils/apiHelpers";
 
 /**
@@ -13,6 +14,8 @@ export const useCheckout = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const shippingCountry = useSelector((state) => state.shipping.country);
   const { gateway } = usePaymentGateway();
+  const { checkoutFields } = useShippingPlan();
+  const { shippingMode, shippingInsurance } = checkoutFields;
   const [createCheckoutSession, { isLoading: isCheckoutLoading }] =
     useCreateCheckoutSessionMutation();
 
@@ -29,6 +32,9 @@ export const useCheckout = () => {
         const res = await createCheckoutSession({
           shippingCountry,
           gateway,
+          shippingMode,
+          // Dealer / wholesale payloads override this with their own choice.
+          shippingInsurance,
           ...payload,
         }).unwrap();
         if (res?.url) {
@@ -44,7 +50,14 @@ export const useCheckout = () => {
         handleApiError(err, "Checkout failed", "Please try again");
       }
     },
-    [isAuthenticated, shippingCountry, gateway, createCheckoutSession],
+    [
+      isAuthenticated,
+      shippingCountry,
+      gateway,
+      shippingMode,
+      shippingInsurance,
+      createCheckoutSession,
+    ],
   );
 
   return { checkout, isCheckoutLoading, isAuthenticated };
