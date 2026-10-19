@@ -19,11 +19,12 @@ import { sanitizeString, sanitizeOptional } from "@/utils/formatting";
 import { validateOrderStatusUpdate } from "@/utils/validation";
 
 const columns = [
-  { key: "invoice", label: "Invoice Number" },
+  { key: "invoice", label: "Invoice No." },
   { key: "customer", label: "Customer" },
   { key: "email", label: "Email" },
   { key: "orderType", label: "Type" },
   { key: "totalAmount", label: "Total" },
+  { key: "paymentMethod", label: "Payment" },
   { key: "status", label: "Status" },
   { key: "createdAt", label: "Created At" },
   { key: "actions", label: "Actions" },

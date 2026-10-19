@@ -180,9 +180,12 @@ const OrderManagement = () => {
         {/* Total */}
         <PriceCell amount={order.payment?.totalAmount} />
 
+        {/* Payment Method */}
+        <TableCell>{getPaymentGatewayLabel(order)}</TableCell>
+
         {/* Status */}
         <TableCell>
-          <div className="flex flex-col items-start gap-1">
+          <div className="flex flex-col items-center gap-1">
             <Badge className={`font-medium ${statusConfig.iconColor}`}>
               {statusConfig.label}
             </Badge>
@@ -265,9 +268,12 @@ const OrderManagement = () => {
         {/* Shipping paid */}
         <PriceCell amount={shipment.payment?.totalAmount} />
 
+        {/* Payment Method — how shipping was paid */}
+        <TableCell>{getPaymentGatewayLabel(shipment)}</TableCell>
+
         {/* Status */}
         <TableCell>
-          <div className="flex flex-col items-start gap-1">
+          <div className="flex flex-col items-center gap-1">
             <Badge className={`font-medium ${statusConfig.iconColor}`}>
               {statusConfig.label}
             </Badge>
