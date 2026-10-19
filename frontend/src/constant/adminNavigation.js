@@ -136,12 +136,12 @@ export const adminNavigation = [
     path: "skill-level",
     icon: Gauge,
   },
-  {
-    id: "designers",
-    label: "Designers",
-    path: "designers",
-    icon: PenTool,
-  },
+  // {
+  //   id: "designers",
+  //   label: "Designers",
+  //   path: "designers",
+  //   icon: PenTool,
+  // },
   {
     id: "orders",
     label: "Orders",
