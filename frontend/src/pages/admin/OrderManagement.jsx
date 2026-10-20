@@ -177,11 +177,11 @@ const OrderManagement = () => {
         {/* Order Type */}
         <TableCell className="capitalize">{display(order.orderType)}</TableCell>
 
-        {/* Total */}
-        <PriceCell amount={order.payment?.totalAmount} />
-
         {/* Payment Method */}
         <TableCell>{getPaymentGatewayLabel(order)}</TableCell>
+
+        {/* Total */}
+        <PriceCell amount={order.payment?.totalAmount} />
 
         {/* Status */}
         <TableCell>
@@ -265,11 +265,11 @@ const OrderManagement = () => {
           </div>
         </TableCell>
 
-        {/* Shipping paid */}
-        <PriceCell amount={shipment.payment?.totalAmount} />
-
         {/* Payment Method — how shipping was paid */}
         <TableCell>{getPaymentGatewayLabel(shipment)}</TableCell>
+
+        {/* Shipping paid */}
+        <PriceCell amount={shipment.payment?.totalAmount} />
 
         {/* Status */}
         <TableCell>
