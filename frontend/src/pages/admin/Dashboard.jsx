@@ -44,7 +44,7 @@ import {
   TrendChart,
 } from "@/components/admin/dashboard/charts";
 import { PAYMENT_GATEWAY_LABELS, STATUS_CONFIG } from "@/constant/orderData";
-import { formatCompact } from "@/utils/formatting";
+import { formatCompact, formatPercent } from "@/utils/formatting";
 import useDashboard, {
   CHANNEL_OPTIONS,
   DATE_PRESETS,
@@ -85,11 +85,46 @@ const FEES_NOTE =
 
 // Parts of what customers paid, in the order money is added to an order.
 const MONEY_PARTS = [
-  { key: "subtotal", label: "Items", hint: "Products, bundles and add-ons", icon: Package, color: "bg-success", chip: "text-success bg-success/10 ring-success/20" },
-  { key: "shipping", label: "Shipping", hint: "Charged at checkout", icon: Truck, color: "bg-viz-1", chip: "text-viz-1 bg-viz-1/10 ring-viz-1/20" },
-  { key: "consolidated", label: "Consolidated shipping", hint: "Paid later for held orders", icon: Boxes, color: "bg-viz-2", chip: "text-viz-2 bg-viz-2/10 ring-viz-2/20" },
-  { key: "insurance", label: "Shipping insurance", hint: "Optional parcel cover", icon: ShieldCheck, color: "bg-amber-500", chip: "text-amber-600 bg-amber-500/10 ring-amber-500/20" },
-  { key: "tax", label: "Tax", hint: "Sales tax collected", icon: Receipt, color: "bg-viz-other", chip: "text-muted-foreground bg-muted ring-border" },
+  {
+    key: "subtotal",
+    label: "Items",
+    hint: "Products, bundles and add-ons",
+    icon: Package,
+    color: "bg-success",
+    chip: "text-success bg-success/10 ring-success/20",
+  },
+  {
+    key: "shipping",
+    label: "Shipping",
+    hint: "Charged at checkout",
+    icon: Truck,
+    color: "bg-viz-1",
+    chip: "text-viz-1 bg-viz-1/10 ring-viz-1/20",
+  },
+  {
+    key: "consolidated",
+    label: "Consolidated shipping",
+    hint: "Paid later for held orders",
+    icon: Boxes,
+    color: "bg-viz-2",
+    chip: "text-viz-2 bg-viz-2/10 ring-viz-2/20",
+  },
+  {
+    key: "insurance",
+    label: "Shipping insurance",
+    hint: "Optional parcel cover",
+    icon: ShieldCheck,
+    color: "bg-amber-500",
+    chip: "text-amber-600 bg-amber-500/10 ring-amber-500/20",
+  },
+  {
+    key: "tax",
+    label: "Tax",
+    hint: "Sales tax collected",
+    icon: Receipt,
+    color: "bg-viz-other",
+    chip: "text-muted-foreground bg-muted ring-border",
+  },
 ];
 
 // Where an add-on is offered, as set on the add-on itself.
@@ -119,7 +154,14 @@ const STATUS_HINTS = {
   failed: "Payment didn't go through",
 };
 
-const STATUS_ORDER = ["paid", "on_hold", "shipped", "delivered", "cancelled", "failed"];
+const STATUS_ORDER = [
+  "paid",
+  "on_hold",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "failed",
+];
 
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 
@@ -150,12 +192,20 @@ const buildPeriods = (from, to, bucket) => {
     }
   } else if (bucket === "month") {
     const end = new Date(ty, tm - 1, 1);
-    for (let d = new Date(fy, fm - 1, 1); d <= end; d.setMonth(d.getMonth() + 1)) {
+    for (
+      let d = new Date(fy, fm - 1, 1);
+      d <= end;
+      d.setMonth(d.getMonth() + 1)
+    ) {
       keys.push(toDateInput(d).slice(0, 7));
     }
   } else {
     const end = new Date(ty, tm - 1, td);
-    for (let d = new Date(fy, fm - 1, fd); d <= end; d.setDate(d.getDate() + 1)) {
+    for (
+      let d = new Date(fy, fm - 1, fd);
+      d <= end;
+      d.setDate(d.getDate() + 1)
+    ) {
       keys.push(toDateInput(d));
     }
   }
@@ -221,8 +271,7 @@ const Delta = ({ current, previous }) => {
       </span>
     );
   }
-  const change = ((current - previous) / previous) * 100;
-  const up = change >= 0;
+  const up = current >= previous;
   const Icon = up ? ArrowUpRight : ArrowDownRight;
   return (
     <span className="inline-flex items-center gap-1 text-xs">
@@ -230,14 +279,23 @@ const Delta = ({ current, previous }) => {
         className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-semibold ${up ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
       >
         <Icon className="size-3.5" />
-        {Math.abs(change).toFixed(1)}%
+        {formatPercent(Math.abs(current - previous), previous)}
       </span>
       <span className="text-muted-foreground">vs previous</span>
     </span>
   );
 };
 
-const StatTile = ({ label, value, current, previous, hint, trend, info, footer }) => (
+const StatTile = ({
+  label,
+  value,
+  current,
+  previous,
+  hint,
+  trend,
+  info,
+  footer,
+}) => (
   <section className="bg-card dark:bg-card/50 rounded-xl border border-border/70 dark:border-none shadow-sm p-4 flex flex-col gap-1.5 min-w-0">
     <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
       {label}
@@ -257,7 +315,9 @@ const StatTile = ({ label, value, current, previous, hint, trend, info, footer }
       )}
     </div>
     {/* Nothing to draw for a single point or an all-zero range, so take no space. */}
-    {trend?.length > 1 && trend.some((v) => v > 0) && <Sparkline values={trend} />}
+    {trend?.length > 1 && trend.some((v) => v > 0) && (
+      <Sparkline values={trend} />
+    )}
     {footer && <div className="mt-auto">{footer}</div>}
   </section>
 );
@@ -266,16 +326,19 @@ const StatTile = ({ label, value, current, previous, hint, trend, info, footer }
 // rate reads as a third of the bar instead of a dot. The label stays exact.
 const REFUND_RATE_SCALE = 10;
 
-// Share of sales that was refunded — always drawable, even at 0%.
+// Refunds as a share of gross sales — always drawable, even at 0%. Refunded
+// orders are cancelled and so missing from `sales`; add them back so the rate
+// is refunds ÷ everything originally sold (the usual definition).
 const RefundRate = ({ refunded, sales }) => {
-  const rate = sales > 0 ? (refunded / sales) * 100 : 0;
+  const gross = sales + refunded;
+  const rate = gross > 0 ? (refunded / gross) * 100 : 0;
   return (
     <div className="flex flex-col gap-1.5 pt-1">
       <div className="flex items-baseline justify-between text-xs">
         <span className="text-muted-foreground">Refund rate</span>
         <span className="font-semibold tabular-nums">
-          {rate > 0 && rate < 0.1 ? "<0.1" : rate.toFixed(1)}%
-          <span className="font-normal text-muted-foreground"> of sales</span>
+          {formatPercent(refunded, gross)}
+          <span className="font-normal text-muted-foreground"> of gross sales</span>
         </span>
       </div>
       <div
@@ -358,7 +421,11 @@ const RankedTable = ({
     const filtered =
       q && searchKeys
         ? rows.filter((row) =>
-            searchKeys.some((k) => String(row[k] ?? "").toLowerCase().includes(q)),
+            searchKeys.some((k) =>
+              String(row[k] ?? "")
+                .toLowerCase()
+                .includes(q),
+            ),
           )
         : rows;
     if (!sort.key) return filtered;
@@ -369,16 +436,17 @@ const RankedTable = ({
       if (typeof av === "number" || typeof bv === "number") {
         return ((av || 0) - (bv || 0)) * dir;
       }
-      return String(av ?? "").localeCompare(String(bv ?? ""), undefined, {
-        numeric: true,
-      }) * dir;
+      return (
+        String(av ?? "").localeCompare(String(bv ?? ""), undefined, {
+          numeric: true,
+        }) * dir
+      );
     });
   }, [rows, query, searchKeys, sort]);
 
   const barTotal = barKey
     ? shareTotal || rows.reduce((sum, r) => sum + (r[barKey] || 0), 0) || 1
     : 1;
-  const barMax = barKey ? Math.max(...rows.map((r) => r[barKey] || 0), 1) : 1;
   const visible = showAll ? processed : processed.slice(0, initialRows);
   const colCount = columns.length + 1 + (barKey ? 1 : 0);
 
@@ -403,13 +471,19 @@ const RankedTable = ({
   const renderHeader = (c) => {
     const right = c.align === "right";
     const active = sort.key === c.key;
-    const SortIcon = !active ? ArrowUpDown : sort.dir === "desc" ? ChevronDown : ChevronUp;
+    const SortIcon = !active
+      ? ArrowUpDown
+      : sort.dir === "desc"
+        ? ChevronDown
+        : ChevronUp;
     return (
       <th
         key={c.key}
         scope="col"
         className={`py-2.5 px-3 text-xs font-semibold text-muted-foreground whitespace-nowrap ${right ? "text-right" : "text-left"}`}
-        aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+        aria-sort={
+          active ? (sort.dir === "asc" ? "ascending" : "descending") : undefined
+        }
       >
         {c.sortable === false ? (
           c.label
@@ -475,13 +549,19 @@ const RankedTable = ({
           </colgroup>
           <thead className="bg-muted/50">
             <tr className="border-b border-border/70">
-              <th scope="col" className="py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground">
+              <th
+                scope="col"
+                className="py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground"
+              >
                 #
               </th>
               {renderHeader(nameColumn)}
               {beforeBar.map(renderHeader)}
               {barKey && (
-                <th scope="col" className="py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                <th
+                  scope="col"
+                  className="py-2.5 px-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
+                >
                   Percentage
                 </th>
               )}
@@ -493,9 +573,17 @@ const RankedTable = ({
               <tr>
                 <td colSpan={colCount}>
                   {query ? (
-                    <EmptyState icon={Search} title="No matches" description="Try a different search." />
+                    <EmptyState
+                      icon={Search}
+                      title="No matches"
+                      description="Try a different search."
+                    />
                   ) : (
-                    <EmptyState icon={PackageOpen} title={emptyText} description="Try a wider date range." />
+                    <EmptyState
+                      icon={PackageOpen}
+                      title={emptyText}
+                      description="Try a wider date range."
+                    />
                   )}
                 </td>
               </tr>
@@ -508,21 +596,27 @@ const RankedTable = ({
                     // Items with no sales in the range stay listed, greyed out.
                     className={`border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors ${barKey && !row[barKey] ? "opacity-55" : ""}`}
                   >
-                    <td className="py-3 px-3 text-xs text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="py-3 px-3 text-xs text-muted-foreground tabular-nums">
+                      {i + 1}
+                    </td>
                     <td className="py-3 px-3 truncate">
-                      {nameColumn.render ? nameColumn.render(row) : (row[nameColumn.key] ?? "—")}
+                      {nameColumn.render
+                        ? nameColumn.render(row)
+                        : (row[nameColumn.key] ?? "—")}
                     </td>
                     {beforeBar.map((c) => renderCell(c, row))}
                     {barKey && (
                       <td className="py-3 px-3">
                         <div className="flex items-center gap-2">
-                          <span className="w-10 shrink-0 text-xs font-medium tabular-nums">
-                            {(share * 100).toFixed(share > 0 && share < 0.01 ? 1 : 0)}%
+                          <span className="w-12 shrink-0 text-xs font-medium tabular-nums">
+                            {formatPercent(row[barKey], barTotal)}
                           </span>
                           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                             <div
                               className="h-full rounded-full bg-success transition-[width] duration-500"
-                              style={{ width: `${((row[barKey] || 0) / barMax) * 100}%` }}
+                              style={{
+                                width: `${share * 100}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -584,8 +678,18 @@ const SalesTrend = ({ periods, bucket }) => {
       description={`Paid orders per ${bucket}`}
       action={
         <div className="flex flex-wrap gap-2">
-          <Segmented label="Metric" value={metric} onChange={setMetric} options={METRICS} />
-          <Segmented label="View" value={view} onChange={setView} options={VIEWS} />
+          <Segmented
+            label="Metric"
+            value={metric}
+            onChange={setMetric}
+            options={METRICS}
+          />
+          <Segmented
+            label="View"
+            value={view}
+            onChange={setView}
+            options={VIEWS}
+          />
         </div>
       }
     >
@@ -594,7 +698,9 @@ const SalesTrend = ({ periods, bucket }) => {
           points={points}
           empty={{
             icon: LineChart,
-            title: isMoney ? "No sales in this range" : "No orders in this range",
+            title: isMoney
+              ? "No sales in this range"
+              : "No orders in this range",
             description: "Try a wider date range.",
           }}
           ariaLabel={`${isMoney ? "Sales" : "Orders"} per ${bucket}`}
@@ -605,18 +711,28 @@ const SalesTrend = ({ periods, bucket }) => {
               <div className="flex justify-between gap-4 text-muted-foreground">
                 <span>{isMoney ? "Orders" : "Sales"}</span>
                 <span className="tabular-nums text-foreground">
-                  {isMoney ? formatNumber(point.raw.orders) : formatMoney(point.raw.sales)}
+                  {isMoney
+                    ? formatNumber(point.raw.orders)
+                    : formatMoney(point.raw.sales)}
                 </span>
               </div>
               {isMoney &&
                 types.map((t) =>
                   point.raw.byType[t] ? (
-                    <div key={t} className="flex items-center justify-between gap-4">
+                    <div
+                      key={t}
+                      className="flex items-center justify-between gap-4"
+                    >
                       <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                        <span className="h-0.5 w-3 rounded-full" style={{ background: ORDER_TYPES[t].color }} />
+                        <span
+                          className="h-0.5 w-3 rounded-full"
+                          style={{ background: ORDER_TYPES[t].color }}
+                        />
                         {ORDER_TYPES[t].label}
                       </span>
-                      <span className="tabular-nums">{formatMoney(point.raw.byType[t])}</span>
+                      <span className="tabular-nums">
+                        {formatMoney(point.raw.byType[t])}
+                      </span>
                     </div>
                   ) : null,
                 )}
@@ -629,7 +745,11 @@ const SalesTrend = ({ periods, bucket }) => {
             <thead className="sticky top-0 bg-card">
               <tr className="border-b text-xs text-muted-foreground">
                 <th className="py-2 px-2 text-left font-semibold">
-                  {bucket === "month" ? "Month" : bucket === "hour" ? "Hour" : "Day"}
+                  {bucket === "month"
+                    ? "Month"
+                    : bucket === "hour"
+                      ? "Hour"
+                      : "Day"}
                 </th>
                 <th className="py-2 px-2 text-right font-semibold">Orders</th>
                 <th className="py-2 px-2 text-right font-semibold">Sales</th>
@@ -637,10 +757,19 @@ const SalesTrend = ({ periods, bucket }) => {
             </thead>
             <tbody>
               {[...periods].reverse().map((p) => (
-                <tr key={p.period} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 px-2">{formatPeriod(p.period, bucket, true)}</td>
-                  <td className="py-2 px-2 text-right tabular-nums">{formatNumber(p.orders)}</td>
-                  <td className="py-2 px-2 text-right tabular-nums">{formatMoney(p.sales)}</td>
+                <tr
+                  key={p.period}
+                  className="border-b border-border/60 last:border-0"
+                >
+                  <td className="py-2 px-2">
+                    {formatPeriod(p.period, bucket, true)}
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums">
+                    {formatNumber(p.orders)}
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums">
+                    {formatMoney(p.sales)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -736,7 +865,8 @@ const Dashboard = () => {
 
     const byPeriod = new Map(data.salesOverTime.map((p) => [p.period, p]));
     const periods = buildPeriods(dates.from, dates.to, bucket).map(
-      (key) => byPeriod.get(key) || { period: key, orders: 0, sales: 0, byType: {} },
+      (key) =>
+        byPeriod.get(key) || { period: key, orders: 0, sales: 0, byType: {} },
     );
     const salesTrend = periods.map((p) => p.sales);
     const ordersTrend = periods.map((p) => p.orders);
@@ -756,22 +886,27 @@ const Dashboard = () => {
         value: r.orders,
         hint: STATUS_HINTS[r.status],
         color: STATUS_COLORS[r.status] || "bg-muted-foreground",
-        chip: STATUS_CONFIG[r.status]?.iconColor || "text-muted-foreground bg-muted ring-border",
+        chip:
+          STATUS_CONFIG[r.status]?.iconColor ||
+          "text-muted-foreground bg-muted ring-border",
         icon: STATUS_CONFIG[r.status]?.icon || XCircle,
       }));
 
-    const statusCount = (s) => data.byStatus.find((r) => r.status === s)?.orders || 0;
+    const statusCount = (s) =>
+      data.byStatus.find((r) => r.status === s)?.orders || 0;
     const toShip = statusCount("paid");
     const held = statusCount("on_hold");
 
     const moneyRows = MONEY_PARTS.map((p) => ({
       ...p,
-      amount: p.key === "consolidated" ? standaloneTotal : breakdown[p.key] || 0,
+      amount:
+        p.key === "consolidated" ? standaloneTotal : breakdown[p.key] || 0,
     }));
     const grossCollected = sumBy(moneyRows, "amount");
     const totalCollected = grossCollected - breakdown.discounts;
 
     const bagsTotal = sumBy(ch.bags, "bags");
+    const bagItemsSold = ch.bags.filter((r) => r.bags > 0).length;
     const topInventory = [...ch.bags]
       .sort((a, b) => b.bags - a.bags)
       .slice(0, TOP_INVENTORY);
@@ -792,10 +927,29 @@ const Dashboard = () => {
             defaultSort="copies"
             barKey="copies"
             columns={[
-              { key: "name", label: "Bundle", render: (r) => <span className="font-semibold">{r.name}</span> },
-              { key: "copies", label: "Qty", align: "right", render: (r) => formatNumber(r.copies) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-              { key: "revenue", label: "Revenue", align: "right", render: (r) => formatMoney(r.revenue) },
+              {
+                key: "name",
+                label: "Bundle",
+                render: (r) => <span className="font-semibold">{r.name}</span>,
+              },
+              {
+                key: "copies",
+                label: "Qty",
+                align: "right",
+                render: (r) => formatNumber(r.copies),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
+              {
+                key: "revenue",
+                label: "Revenue",
+                align: "right",
+                render: (r) => formatMoney(r.revenue),
+              },
             ]}
           />
         ),
@@ -813,9 +967,25 @@ const Dashboard = () => {
             barKey="quantity"
             initialRows={Infinity}
             columns={[
-              { key: "name", label: "Bag number", render: (r) => <span className="font-semibold">{r.name || "—"}</span> },
-              { key: "quantity", label: "Bags sold", align: "right", render: (r) => formatNumber(r.quantity) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
+              {
+                key: "name",
+                label: "Bag number",
+                render: (r) => (
+                  <span className="font-semibold">{r.name || "—"}</span>
+                ),
+              },
+              {
+                key: "quantity",
+                label: "Bags sold",
+                align: "right",
+                render: (r) => formatNumber(r.quantity),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
             ]}
           />
         ),
@@ -833,11 +1003,34 @@ const Dashboard = () => {
             barKey="copies"
             percentAfter="channels"
             columns={[
-              { key: "name", label: "Add-on", render: (r) => <span className="font-semibold">{r.name}</span> },
-              { key: "channels", label: "Channel", render: (r) => channelLabel(r.channels) || "—" },
-              { key: "copies", label: "Qty", align: "right", render: (r) => formatNumber(r.copies) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-              { key: "revenue", label: "Revenue", align: "right", render: (r) => formatMoney(r.revenue) },
+              {
+                key: "name",
+                label: "Add-on",
+                render: (r) => <span className="font-semibold">{r.name}</span>,
+              },
+              {
+                key: "channels",
+                label: "Channel",
+                render: (r) => channelLabel(r.channels) || "—",
+              },
+              {
+                key: "copies",
+                label: "Qty",
+                align: "right",
+                render: (r) => formatNumber(r.copies),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
+              {
+                key: "revenue",
+                label: "Revenue",
+                align: "right",
+                render: (r) => formatMoney(r.revenue),
+              },
             ]}
           />
         ),
@@ -846,8 +1039,19 @@ const Dashboard = () => {
         value: "bags",
         label: "Top inventory",
         count: topInventory.length,
-        title: `Top ${TOP_INVENTORY} selling inventory`,
-        description: "Best-selling inventory items by bags sold",
+        title: "Top selling inventory",
+        description: (
+          <>
+            <span className="font-semibold text-viz-1 tabular-nums">
+              {formatNumber(bagsTotal)}
+            </span>{" "}
+            bags sold across{" "}
+            <span className="font-semibold text-viz-1 tabular-nums">
+              {formatNumber(bagItemsSold)}
+            </span>{" "}
+            inventory items
+          </>
+        ),
         table: (
           <RankedTable
             rows={topInventory}
@@ -857,11 +1061,45 @@ const Dashboard = () => {
             percentAfter="colorName"
             initialRows={TOP_INVENTORY}
             columns={[
-              { key: "name", label: "Item", render: (r) => <span className="font-semibold">{r.name || "—"}</span> },
-              { key: "colorName", label: "Color", render: (r) => (r.colorName ? <ColorSwatch color={r.colorHex} label={r.colorName} className="whitespace-nowrap" /> : "—") },
-              { key: "bags", label: "Bags sold", align: "right", render: (r) => formatNumber(r.bags) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-              { key: "revenue", label: "Revenue", align: "right", render: (r) => formatMoney(r.revenue) },
+              {
+                key: "name",
+                label: "Item",
+                render: (r) => (
+                  <span className="font-semibold">{r.name || "—"}</span>
+                ),
+              },
+              {
+                key: "colorName",
+                label: "Color",
+                render: (r) =>
+                  r.colorName ? (
+                    <ColorSwatch
+                      color={r.colorHex}
+                      label={r.colorName}
+                      className="whitespace-nowrap"
+                    />
+                  ) : (
+                    "—"
+                  ),
+              },
+              {
+                key: "bags",
+                label: "Bags sold",
+                align: "right",
+                render: (r) => formatNumber(r.bags),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
+              {
+                key: "revenue",
+                label: "Revenue",
+                align: "right",
+                render: (r) => formatMoney(r.revenue),
+              },
             ]}
           />
         ),
@@ -878,10 +1116,29 @@ const Dashboard = () => {
             defaultSort="quantity"
             barKey="quantity"
             columns={[
-              { key: "name", label: "Extra bag", render: (r) => <span className="font-semibold">{r.name}</span> },
-              { key: "quantity", label: "Qty", align: "right", render: (r) => formatNumber(r.quantity) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-              { key: "revenue", label: "Revenue", align: "right", render: (r) => formatMoney(r.revenue) },
+              {
+                key: "name",
+                label: "Extra bag",
+                render: (r) => <span className="font-semibold">{r.name}</span>,
+              },
+              {
+                key: "quantity",
+                label: "Qty",
+                align: "right",
+                render: (r) => formatNumber(r.quantity),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
+              {
+                key: "revenue",
+                label: "Revenue",
+                align: "right",
+                render: (r) => formatMoney(r.revenue),
+              },
             ]}
           />
         ),
@@ -899,14 +1156,30 @@ const Dashboard = () => {
             barKey="spent"
             emptyText="No dealer or wholesale orders in this range"
             columns={[
-              { key: "name", label: "Customer", render: (r) => (
-                <div className="flex flex-col min-w-0">
-                  <span className="font-semibold">{r.name || "—"}</span>
-                  <span className="text-xs text-muted-foreground truncate">{r.email}</span>
-                </div>
-              ) },
-              { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
-              { key: "spent", label: "Spent", align: "right", render: (r) => formatMoney(r.spent) },
+              {
+                key: "name",
+                label: "Customer",
+                render: (r) => (
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold">{r.name || "—"}</span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {r.email}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                key: "orders",
+                label: "Orders",
+                align: "right",
+                render: (r) => formatNumber(r.orders),
+              },
+              {
+                key: "spent",
+                label: "Spent",
+                align: "right",
+                render: (r) => formatMoney(r.spent),
+              },
             ]}
           />
         ),
@@ -946,7 +1219,12 @@ const Dashboard = () => {
             label="Refunds"
             value={formatMoney(kpis.refunds.amount)}
             hint={plural(kpis.refunds.orders, "refunded order")}
-            footer={<RefundRate refunded={kpis.refunds.amount} sales={kpis.sales.current} />}
+            footer={
+              <RefundRate
+                refunded={kpis.refunds.amount}
+                sales={kpis.sales.current}
+              />
+            }
           />
         </div>
 
@@ -955,7 +1233,10 @@ const Dashboard = () => {
 
         {/* ── Order mix + payment ── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          <Panel title="Orders by type" description="Sales from dealer, wholesale and product orders">
+          <Panel
+            title="Orders by type"
+            description="Sales from dealer, wholesale and product orders"
+          >
             <DonutChart
               emptyText="No paid orders in this range"
               emptyHint="Try a wider date range."
@@ -974,7 +1255,10 @@ const Dashboard = () => {
                 }))}
             />
           </Panel>
-          <Panel title="Payment method" description="Which gateway customers paid with">
+          <Panel
+            title="Payment method"
+            description="Which gateway customers paid with"
+          >
             <DonutChart
               emptyText="No payments in this range"
               emptyHint="Try a wider date range."
@@ -993,12 +1277,14 @@ const Dashboard = () => {
                 }))}
             />
           </Panel>
-
         </div>
 
         {/* ── Status + money ── */}
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-          <Panel title="Order status" description="Every order placed in this range">
+          <Panel
+            title="Order status"
+            description="Every order placed in this range"
+          >
             <SegmentBar
               rows={statusRows}
               totalLabel="orders placed"
@@ -1012,17 +1298,23 @@ const Dashboard = () => {
                   Needs attention
                 </span>
                 {/* One tile takes the full width; two sit side by side. */}
-                <div className={`grid gap-2 ${toShip > 0 && held > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+                <div
+                  className={`grid gap-2 ${toShip > 0 && held > 0 ? "grid-cols-2" : "grid-cols-1"}`}
+                >
                   {toShip > 0 && (
                     <Link
                       to="/admin/orders"
                       className="group flex flex-col rounded-lg bg-success/10 px-3 py-2 hover:bg-success/15 transition-colors"
                     >
                       <span className="flex items-center justify-between">
-                        <span className="text-lg font-bold tabular-nums leading-tight">{toShip}</span>
+                        <span className="text-lg font-bold tabular-nums leading-tight">
+                          {toShip}
+                        </span>
                         <ArrowUpRight className="size-4 text-success transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                       </span>
-                      <span className="text-xs text-muted-foreground">To ship</span>
+                      <span className="text-xs text-muted-foreground">
+                        To ship
+                      </span>
                     </Link>
                   )}
                   {held > 0 && (
@@ -1031,10 +1323,14 @@ const Dashboard = () => {
                       className="group flex flex-col rounded-lg bg-amber-500/10 px-3 py-2 hover:bg-amber-500/15 transition-colors"
                     >
                       <span className="flex items-center justify-between">
-                        <span className="text-lg font-bold tabular-nums leading-tight">{held}</span>
+                        <span className="text-lg font-bold tabular-nums leading-tight">
+                          {held}
+                        </span>
                         <ArrowUpRight className="size-4 text-amber-600 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                       </span>
-                      <span className="text-xs text-muted-foreground">Held in storage</span>
+                      <span className="text-xs text-muted-foreground">
+                        Held in storage
+                      </span>
                     </Link>
                   )}
                 </div>
@@ -1042,7 +1338,10 @@ const Dashboard = () => {
             )}
           </Panel>
 
-          <Panel title="Where the money came from" description="Every dollar collected in this range">
+          <Panel
+            title="Revenue breakdown"
+            description="What customers paid for items, shipping, insurance and tax"
+          >
             {grossCollected === 0 && breakdown.discounts === 0 ? (
               <EmptyState
                 icon={Wallet}
@@ -1052,12 +1351,20 @@ const Dashboard = () => {
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold tracking-tight">{formatMoney(totalCollected)}</span>
-                  <span className="text-sm text-muted-foreground">collected</span>
+                  <span className="text-2xl font-bold tracking-tight">
+                    {formatMoney(totalCollected)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    collected
+                  </span>
                 </div>
 
                 {/* What each part contributes — zero parts take no space in the bar. */}
-                <div className="flex h-2.5 gap-[2px]" role="img" aria-label="Money collected by source">
+                <div
+                  className="flex h-2.5 gap-[2px]"
+                  role="img"
+                  aria-label="Money collected by source"
+                >
                   {moneyRows
                     .filter((r) => r.amount > 0)
                     .map((r) => (
@@ -1065,7 +1372,10 @@ const Dashboard = () => {
                         key={r.key}
                         title={`${r.label}: ${formatMoney(r.amount)}`}
                         className={`${r.color} h-full first:rounded-l-full last:rounded-r-full`}
-                        style={{ width: `${(r.amount / (grossCollected || 1)) * 100}%`, minWidth: 4 }}
+                        style={{
+                          width: `${(r.amount / (grossCollected || 1)) * 100}%`,
+                          minWidth: 4,
+                        }}
                       />
                     ))}
                 </div>
@@ -1073,23 +1383,30 @@ const Dashboard = () => {
                 <ul className="flex flex-col -mx-2">
                   {moneyRows.map((r) => {
                     const Icon = r.icon;
-                    const share = grossCollected ? (r.amount / grossCollected) * 100 : 0;
                     return (
                       <li
                         key={r.key}
                         className={`flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/60 transition-colors ${r.amount ? "" : "opacity-60"}`}
                       >
-                        <span className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 ${r.chip}`}>
+                        <span
+                          className={`flex size-7 shrink-0 items-center justify-center rounded-md ring-1 ${r.chip}`}
+                        >
                           <Icon className="size-4" />
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="text-sm font-medium leading-tight">{r.label}</span>
-                          <span className="text-[11px] text-muted-foreground truncate">{r.hint}</span>
+                          <span className="text-sm font-medium leading-tight">
+                            {r.label}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground truncate">
+                            {r.hint}
+                          </span>
                         </span>
                         <span className="flex flex-col items-end">
-                          <span className="text-sm font-semibold tabular-nums">{formatMoney(r.amount)}</span>
+                          <span className="text-sm font-semibold tabular-nums">
+                            {formatMoney(r.amount)}
+                          </span>
                           <span className="text-[11px] text-muted-foreground tabular-nums">
-                            {share > 0 && share < 0.1 ? "<0.1" : share.toFixed(share > 0 && share < 1 ? 1 : 0)}%
+                            {formatPercent(r.amount, grossCollected)}
                           </span>
                         </span>
                       </li>
@@ -1103,11 +1420,17 @@ const Dashboard = () => {
                     <Tag className="size-4" />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="text-sm font-medium leading-tight">Discounts given</span>
-                    <span className="text-[11px] text-muted-foreground">Coupons and promo codes</span>
+                    <span className="text-sm font-medium leading-tight">
+                      Discounts given
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Coupons and promo codes
+                    </span>
                   </span>
                   <span className="text-sm font-semibold tabular-nums">
-                    {breakdown.discounts > 0 ? `−${formatMoney(breakdown.discounts)}` : formatMoney(0)}
+                    {breakdown.discounts > 0
+                      ? `−${formatMoney(breakdown.discounts)}`
+                      : formatMoney(0)}
                   </span>
                 </div>
 
@@ -1134,7 +1457,8 @@ const Dashboard = () => {
               />
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              What {CHANNEL_BUYERS[channel] || CHANNEL_BUYERS.all} bought in this range.
+              What {CHANNEL_BUYERS[channel] || CHANNEL_BUYERS.all} bought in
+              this range.
             </p>
           </div>
 
@@ -1151,20 +1475,32 @@ const Dashboard = () => {
               current={ch.orders.current}
               previous={ch.orders.previous}
             />
-            <StatTile label="Bundles" value={formatNumber(bundleCopies)} hint="total qty sold" />
+            <StatTile
+              label="Bundles"
+              value={formatNumber(bundleCopies)}
+              hint="total qty sold"
+            />
             <StatTile
               label="Torso bags"
               value={formatNumber(torsoTotal)}
               hint={`across ${plural(ch.torsoBags.length, "bag number")}`}
             />
-            <StatTile label="Add-ons" value={formatNumber(addonCopies)} hint="total qty sold" />
+            <StatTile
+              label="Add-ons"
+              value={formatNumber(addonCopies)}
+              hint="total qty sold"
+            />
           </div>
 
           <Tabs defaultValue="bundles" className="gap-4">
             <div className="overflow-x-auto -mx-1 px-1">
               <TabsList className="h-auto p-1 gap-1">
                 {tabs.map((t) => (
-                  <TabsTrigger key={t.value} value={t.value} className="px-3 py-1.5 gap-2">
+                  <TabsTrigger
+                    key={t.value}
+                    value={t.value}
+                    className="px-3 py-1.5 gap-2"
+                  >
                     {t.label}
                     <span className="rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
                       {t.count}

@@ -166,6 +166,14 @@ export const formatPhone = (phone) => {
 };
 
 // Short axis/summary numbers: 950 · 1.2K · 3.4M (prefix "$" with money: true).
+// One rule for every percentage on the dashboard: part ÷ total, one decimal,
+// and "<0.1%" for slivers that would otherwise read as "0.0%".
+export const formatPercent = (part, total) => {
+  const pct = total ? (Number(part || 0) / total) * 100 : 0;
+  if (pct > 0 && pct < 0.1) return "<0.1%";
+  return `${pct.toFixed(1)}%`;
+};
+
 export const formatCompact = (value, { money = false } = {}) => {
   const n = Number(value || 0);
   const abs = Math.abs(n);

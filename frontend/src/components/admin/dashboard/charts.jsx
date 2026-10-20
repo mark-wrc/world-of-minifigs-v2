@@ -1,5 +1,6 @@
 import React from "react";
 import { Inbox } from "lucide-react";
+import { formatPercent } from "@/utils/formatting";
 
 // Charts for the admin dashboard — plain SVG, no chart library.
 // Marks follow one spec: 2px lines, a ~10% area wash, hairline grid, 2px
@@ -414,7 +415,7 @@ export const DonutChart = ({
           </span>
           {current && (
             <span className="text-[11px] text-muted-foreground">
-              {((current.value / total) * 100).toFixed(1)}%
+              {formatPercent(current.value, total)}
             </span>
           )}
         </div>
@@ -451,7 +452,7 @@ export const DonutChart = ({
                   {row.display}
                 </span>
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {((row.value / total) * 100).toFixed(1)}%
+                  {formatPercent(row.value, total)}
                 </span>
               </span>
             </button>
@@ -523,7 +524,6 @@ export const SegmentBar = ({
       <ul className="flex flex-col -mx-2">
         {rows.map((row) => {
           const Icon = row.icon;
-          const share = (row.value / total) * 100;
           return (
             <li
               key={row.key}
@@ -550,7 +550,7 @@ export const SegmentBar = ({
                   {row.value.toLocaleString()}
                 </span>
                 <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {share.toFixed(share > 0 && share < 1 ? 1 : 0)}%
+                  {formatPercent(row.value, total)}
                 </span>
               </span>
             </li>
