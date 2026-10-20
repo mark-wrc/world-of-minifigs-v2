@@ -92,6 +92,16 @@ const MONEY_PARTS = [
   { key: "tax", label: "Tax", hint: "Sales tax collected", icon: Receipt, color: "bg-viz-other", chip: "text-muted-foreground bg-muted ring-border" },
 ];
 
+// Where an add-on is offered, as set on the add-on itself.
+const channelLabel = (channels = []) => {
+  const dealer = channels.includes("dealer");
+  const wholesale = channels.includes("wholesale");
+  if (dealer && wholesale) return "Dealer / Wholesale";
+  if (wholesale) return "Wholesale";
+  if (dealer) return "Dealer";
+  return null;
+};
+
 // Who the Dealer & Wholesale section describes for each order-type filter.
 const CHANNEL_BUYERS = {
   all: "dealers and wholesalers",
@@ -495,7 +505,8 @@ const RankedTable = ({
                 return (
                   <tr
                     key={row.id ?? row.name ?? i}
-                    className="border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors"
+                    // Items with no sales in the range stay listed, greyed out.
+                    className={`border-b border-border/60 last:border-0 hover:bg-muted/40 transition-colors ${barKey && !row[barKey] ? "opacity-55" : ""}`}
                   >
                     <td className="py-3 px-3 text-xs text-muted-foreground tabular-nums">{i + 1}</td>
                     <td className="py-3 px-3 truncate">
@@ -820,8 +831,10 @@ const Dashboard = () => {
             rows={ch.addons}
             defaultSort="copies"
             barKey="copies"
+            percentAfter="channels"
             columns={[
               { key: "name", label: "Add-on", render: (r) => <span className="font-semibold">{r.name}</span> },
+              { key: "channels", label: "Channel", render: (r) => channelLabel(r.channels) || "—" },
               { key: "copies", label: "Qty", align: "right", render: (r) => formatNumber(r.copies) },
               { key: "orders", label: "Orders", align: "right", render: (r) => formatNumber(r.orders) },
               { key: "revenue", label: "Revenue", align: "right", render: (r) => formatMoney(r.revenue) },
@@ -834,7 +847,7 @@ const Dashboard = () => {
         label: "Top inventory",
         count: topInventory.length,
         title: `Top ${TOP_INVENTORY} selling inventory`,
-        description: "Best-selling inventory items by bags sold — percentage is of all bags sold",
+        description: "Best-selling inventory items by bags sold",
         table: (
           <RankedTable
             rows={topInventory}

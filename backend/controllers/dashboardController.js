@@ -2,6 +2,11 @@ import Order from "../models/order.model.js";
 import Shipment from "../models/shipment.model.js";
 import GeneralInventory from "../models/generalInventory.model.js";
 import User from "../models/user.model.js";
+import Bundle from "../models/bundle.model.js";
+import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
+import DealerAddon from "../models/dealerAddon.model.js";
+import DealerExtraBag from "../models/dealerExtraBag.model.js";
+import "../models/subCollection.model.js";
 import {
   ORDER_STATUSES,
   ORDER_TYPES,
@@ -90,7 +95,51 @@ const sumSales = (match) =>
 
 // Dealer + wholesale breakdown. Wholesale orders share the dealer order shape
 // (`dealerItems`), so one pipeline covers both channels.
-const getChannelBreakdown = async (match) => {
+// Everything the admin currently sells to dealers / wholesalers, so items
+// with no sales still show up (as 0) next to the ones that sold.
+const getChannelCatalog = async (channelTypes) => {
+  const [bundles, torsoBags, addons, extraBags] = await Promise.all([
+    Bundle.find({ bundleType: "dealer", isActive: true }).select("bundleName").lean(),
+    DealerTorsoBag.find({ isActive: true }).select("bagName").lean(),
+    // Every add-on (active or not) so sold rows can show where each is sold.
+    DealerAddon.find().select("addonName addonType visibleChannels isActive").lean(),
+    DealerExtraBag.find({ isActive: true })
+      .populate("subCollectionId", "subCollectionName")
+      .select("subCollectionId")
+      .lean(),
+  ]);
+  return {
+    bundles: bundles.map((b) => ({ id: b._id, name: b.bundleName })),
+    torsoBags: torsoBags.map((b) => ({ id: b._id, name: b.bagName })),
+    // Add-ons saved before channels existed are dealer-only.
+    addonChannels: new Map(
+      addons.map((a) => [String(a._id), a.visibleChannels?.length ? a.visibleChannels : ["dealer"]]),
+    ),
+    addons: addons
+      .filter((a) => {
+        const channels = a.visibleChannels?.length ? a.visibleChannels : ["dealer"];
+        return a.isActive && channels.some((c) => channelTypes.includes(c));
+      })
+      .map((a) => ({ id: a._id, name: a.addonName, type: a.addonType })),
+    // Same name the checkout writes onto the order.
+    extraBags: extraBags.map((b) => ({
+      id: b._id,
+      name: `Extra ${b.subCollectionId?.subCollectionName || "Bag"}`,
+    })),
+  };
+};
+
+// Append a zero row for every catalog item that didn't sell in the range.
+const withCatalog = (rows, catalog, zero, keyOf = (r) => String(r.id)) => {
+  const sold = new Set(rows.map(keyOf));
+  const unsold = catalog
+    .filter((item) => !sold.has(keyOf(item)))
+    .map((item) => ({ ...item, ...zero, orders: 0 }));
+  return [...rows, ...unsold];
+};
+
+const getChannelBreakdown = async (match, channelTypes) => {
+  const catalogPromise = getChannelCatalog(channelTypes);
   const [facets] = await Order.aggregate([
     { $match: match },
     {
@@ -257,24 +306,43 @@ const getChannelBreakdown = async (match) => {
         ...r,
         ...(r.revenue !== undefined && { revenue: toAmount(r.revenue) }),
       }))
-      .sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+      .sort(
+        (a, b) =>
+          (b[sortKey] || 0) - (a[sortKey] || 0) ||
+          String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, {
+            numeric: true,
+          }),
+      );
 
   const countOrders = ({ orders, ...rest }) => ({ ...rest, orders: orders.length });
+  const catalog = await catalogPromise;
+  const bagNumber = (row) => (row.name || String(row.id ?? row._id)).trim().toLowerCase();
 
   return {
     bundles: finish(
-      mergeRows([...facets.bundles, ...facets.legacyBundles], ["copies", "revenue"]),
+      withCatalog(
+        mergeRows([...facets.bundles, ...facets.legacyBundles], ["copies", "revenue"]),
+        catalog.bundles,
+        { copies: 0, revenue: 0 },
+      ),
       "copies",
     ),
     torsoBags: finish(
       // Bag names are the bag numbers; a re-created bag keeps its number.
-      mergeRows([...facets.torsoBags, ...facets.legacyTorsoBags], ["quantity"], (row) =>
-        (row.name || String(row._id)).trim().toLowerCase(),
+      withCatalog(
+        mergeRows([...facets.torsoBags, ...facets.legacyTorsoBags], ["quantity"], bagNumber),
+        catalog.torsoBags,
+        { quantity: 0 },
+        bagNumber,
       ),
       "quantity",
     ),
     addons: finish(
-      facets.addons.map(({ _id, ...r }) => countOrders({ id: _id, ...r })),
+      withCatalog(
+        facets.addons.map(({ _id, ...r }) => countOrders({ id: _id, ...r })),
+        catalog.addons,
+        { copies: 0, revenue: 0 },
+      ).map((r) => ({ ...r, channels: catalog.addonChannels.get(String(r.id)) || [] })),
       "copies",
     ),
     bags: finish(
@@ -289,7 +357,11 @@ const getChannelBreakdown = async (match) => {
       "bags",
     ),
     extraBags: finish(
-      facets.extraBags.map(({ _id, ...r }) => countOrders({ id: _id, ...r })),
+      withCatalog(
+        facets.extraBags.map(({ _id, ...r }) => countOrders({ id: _id, ...r })),
+        catalog.extraBags,
+        { quantity: 0, revenue: 0 },
+      ),
       "quantity",
     ),
     topCustomers: facets.customers.map(({ _id, user, spent, ...r }) => ({
@@ -454,7 +526,7 @@ export const getDashboardAnalytics = async (req, res) => {
           },
         },
       ]),
-      getChannelBreakdown(channelMatch),
+      getChannelBreakdown(channelMatch, channelTypes),
       sumSales(channelMatch),
       sumSales({ ...inPrevious, ...sold, orderType: { $in: channelTypes } }),
     ]);
