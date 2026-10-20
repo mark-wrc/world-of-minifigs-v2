@@ -94,6 +94,7 @@ import {
   getOrderById,
   updateOrderStatus,
 } from "../controllers/orderController.js";
+import { getDashboardAnalytics } from "../controllers/dashboardController.js";
 import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
   createGeneralInventoryBulk,
@@ -208,6 +209,9 @@ router.get("/skillLevels", getAllSkillLevels);
 router.get("/skillLevels/:id", getSkillLevelById);
 router.put("/skillLevels/:id", updateSkillLevel);
 router.delete("/skillLevels/:id", deleteSkillLevel);
+
+// Dashboard routes
+router.get("/dashboard/analytics", getDashboardAnalytics);
 
 // Order Management routes
 router.get("/orders", getAllOrders);

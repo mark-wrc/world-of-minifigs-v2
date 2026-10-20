@@ -638,6 +638,22 @@ export const adminApi = createApi({
       invalidatesTags: ["SkillLevel"],
     }),
 
+    // ==================== Dashboard ====================
+    // Sales, order mix and dealer/wholesale breakdown for a date range
+    getDashboardAnalytics: builder.query({
+      query: ({ from, to, tz, channel } = {}) => ({
+        url: "/dashboard/analytics",
+        method: "GET",
+        params: {
+          ...(from && { from }),
+          ...(to && { to }),
+          ...(tz && { tz }),
+          ...(channel && channel !== "all" && { channel }),
+        },
+      }),
+      providesTags: ["Order"],
+    }),
+
     // ==================== Order Management ====================
     // Get all orders
     getOrders: builder.query({
@@ -890,6 +906,8 @@ export const {
   useCreateSkillLevelMutation,
   useUpdateSkillLevelMutation,
   useDeleteSkillLevelMutation,
+
+  useGetDashboardAnalyticsQuery,
 
   useGetOrdersQuery,
   useUpdateOrderStatusMutation,

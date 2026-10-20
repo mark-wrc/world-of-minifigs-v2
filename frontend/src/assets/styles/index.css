@@ -56,6 +56,11 @@ html {
   --destructive-foreground: oklch(1 0 89.8756); /* #FFFFFF */
   --success: oklch(0.6231 0.1232 165.4988); /* #1D9E75 */
   --success-foreground: oklch(1 0 89.8756); /* #FFFFFF */
+  /* Dashboard series — fixed order, colorblind-checked */
+  --viz-1: #2a78d6; /* blue */
+  --viz-2: #eb6834; /* orange */
+  --viz-3: #1baf7a; /* aqua */
+  --viz-other: #9a9a96;
   --border: oklch(0.9005 0.0084 91.4895); /* #E0DED8 */
   --input: oklch(0.949 0.0083 91.4846); /* #F0EEE8 */
   --ring: oklch(0.4904 0.1889 22.1518); /* #B3122A */
@@ -129,6 +134,11 @@ html {
   --destructive-foreground: oklch(1 0 89.8756); /* #FFFFFF */
   --success: oklch(0.6231 0.1232 165.4988); /* #1D9E75 */
   --success-foreground: oklch(1 0 89.8756); /* #FFFFFF */
+  /* Dashboard series — dark steps of the same hues */
+  --viz-1: #3987e5; /* blue */
+  --viz-2: #d95926; /* orange */
+  --viz-3: #199e70; /* aqua */
+  --viz-other: #8a8a85;
   --border: oklch(0.3485 0 89.8756); /* #3A3A3A */
   --input: oklch(0.2221 0 89.8756); /* #1B1B1B */
   --ring: oklch(0.7027 0.195 40.2301); /* #FF6A2E */
@@ -194,6 +204,10 @@ html {
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-viz-1: var(--viz-1);
+  --color-viz-2: var(--viz-2);
+  --color-viz-3: var(--viz-3);
+  --color-viz-other: var(--viz-other);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);

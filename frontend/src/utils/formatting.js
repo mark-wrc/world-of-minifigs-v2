@@ -164,3 +164,13 @@ export const formatPhone = (phone) => {
   if (ten) return `(${ten.slice(0, 3)}) ${ten.slice(3, 6)}-${ten.slice(6)}`;
   return phone;
 };
+
+// Short axis/summary numbers: 950 · 1.2K · 3.4M (prefix "$" with money: true).
+export const formatCompact = (value, { money = false } = {}) => {
+  const n = Number(value || 0);
+  const abs = Math.abs(n);
+  const prefix = money ? "$" : "";
+  if (abs >= 1_000_000) return `${prefix}${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (abs >= 1_000) return `${prefix}${(n / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  return `${prefix}${Math.round(n)}`;
+};
