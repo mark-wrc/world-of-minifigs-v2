@@ -180,6 +180,12 @@ export const updateIntegrationOrderStatus = async (req, res) => {
     });
   }
 
+  for (const field of ["carrier", "trackingNumber", "trackingLink", "receivedBy", "notes", "deliveryMethod"]) {
+    const value = req.body[field];
+    if (value === null || value === undefined) delete req.body[field];
+    else if (typeof value !== "string") req.body[field] = String(value);
+  }
+
   if (status === ORDER_STATUSES.SHIPPED && !req.body.trackingLink) {
     req.body.trackingLink = buildTrackingLink(carrier, trackingNumber);
   }
@@ -232,12 +238,17 @@ const STOCK_TYPES = {
   addon: DealerAddon,
 };
 const MAX_STOCK_ROWS = 200;
+// Item IDs are matched ignoring upper/lower case, like the product item ID index.
+const ITEM_ID_COLLATION = { locale: "en", strength: 2 };
 
-const isWholeNumber = (value) => Number.isInteger(value);
+// Guards against a mistyped count (an extra few zeros) reaching the store.
+const MAX_STOCK = 1000000;
 
-// Finds the one document a row points at: { filter, variantItemId } or { error }.
+const isWholeNumber = (value) => Number.isInteger(value) && Math.abs(value) <= MAX_STOCK;
+
+// Finds the one document a row points at: { model, docId, variantItemId } or { error }.
 const resolveStockRow = async (row) => {
-  const model = STOCK_TYPES[row.type];
+  const model = Object.hasOwn(STOCK_TYPES, row.type) ? STOCK_TYPES[row.type] : null;
   if (!model) {
     return { error: `type must be one of: ${Object.keys(STOCK_TYPES).join(", ")}` };
   }
@@ -250,7 +261,7 @@ const resolveStockRow = async (row) => {
   } else if (row.itemId && ["product", "inventory"].includes(row.type)) {
     const itemId = String(row.itemId).trim();
     if (row.type === "product") {
-      const standalone = await Product.countDocuments({ itemId });
+      const standalone = await Product.countDocuments({ productType: "standalone", itemId }).collation(ITEM_ID_COLLATION);
       if (standalone) filter.itemId = itemId;
       else variantItemId = itemId;
     } else {
@@ -265,9 +276,13 @@ const resolveStockRow = async (row) => {
     filter["variants.itemId"] = variantItemId;
   }
 
-  const found = await model.find(filter).select("_id").limit(3).lean();
+  const found = await model.find(filter).collation(ITEM_ID_COLLATION).select("_id productType").limit(3).lean();
   if (found.length === 0) return { error: "Item not found" };
   if (found.length > 1) return { error: "itemId matches more than one item; send the id instead" };
+  // A product with colors keeps its stock per color.
+  if (row.type === "product" && !variantItemId && found[0].productType === "variant") {
+    return { error: "This product has colors; send variantItemId for the color to change" };
+  }
   return { model, docId: found[0]._id, variantItemId };
 };
 
@@ -279,10 +294,10 @@ const applyStockRow = async (row, userId) => {
   }
   const allowsUntracked = row.type === "addon";
   if (setting && !(isWholeNumber(row.stock) && row.stock >= 0) && !(allowsUntracked && row.stock === null)) {
-    return { error: "stock must be a whole number, 0 or more" };
+    return { error: `stock must be a whole number from 0 to ${MAX_STOCK}` };
   }
   if (!setting && !(isWholeNumber(row.change) && row.change !== 0)) {
-    return { error: "change must be a whole number other than 0" };
+    return { error: `change must be a whole number other than 0 (at most ${MAX_STOCK})` };
   }
 
   const resolved = await resolveStockRow(row);
@@ -295,7 +310,11 @@ const applyStockRow = async (row, userId) => {
   const enough = setting ? undefined : { $gte: Math.max(0, -row.change) };
   const filter = { _id: docId };
   if (variantItemId) {
-    filter.variants = { $elemMatch: { itemId: variantItemId, ...(enough ? { stock: enough } : {}) } };
+    // The exact variant item ID as stored (the lookup above ignored case).
+    const doc = await model.findById(docId).select("variants.itemId").lean();
+    const stored = doc?.variants?.find((v) => v.itemId?.toLowerCase() === variantItemId.toLowerCase())?.itemId;
+    if (!stored) return { error: "Item not found" };
+    filter.variants = { $elemMatch: { itemId: stored, ...(enough ? { stock: enough } : {}) } };
   } else if (enough) {
     filter.stock = enough;
   }
@@ -305,7 +324,8 @@ const applyStockRow = async (row, userId) => {
 
   const result = await model.updateOne(filter, update);
   if (result.matchedCount === 0) {
-    return { error: "Not enough stock to remove that many (or stock isn't tracked)" };
+    const exists = await model.exists({ _id: docId });
+    return { error: exists ? "Not enough stock to remove that many (or stock isn't tracked)" : "Item not found" };
   }
 
   const saved = await model
@@ -313,7 +333,7 @@ const applyStockRow = async (row, userId) => {
     .select("stock variants.itemId variants.stock")
     .lean();
   const stock = variantItemId
-    ? saved?.variants?.find((v) => v.itemId === variantItemId)?.stock
+    ? saved?.variants?.find((v) => v.itemId?.toLowerCase() === variantItemId.toLowerCase())?.stock
     : saved?.stock;
   return { id: saved?._id, stock };
 };

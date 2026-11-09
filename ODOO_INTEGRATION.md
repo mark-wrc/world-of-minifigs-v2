@@ -88,7 +88,10 @@ Odoo remembers the newest `updatedAt` it has seen and asks for
 ```
 
 - `stock` sets the count; `change` adds (positive) or removes (negative).
-  Removing never takes stock below zero.
+  Removing never takes stock below zero. Use `change` when adding or removing a
+  few, so a sale that happens at the same moment is never overwritten.
+- Whole numbers only, up to 1,000,000.
+- A product with colors keeps stock per color: send `variantItemId`.
 - `type` is `product`, `inventory`, `torso-bag` or `addon`. Products and inventory
   can be found by `itemId` (for products, a variant's item ID also works); if an
   item ID matches more than one item, send the `id`.

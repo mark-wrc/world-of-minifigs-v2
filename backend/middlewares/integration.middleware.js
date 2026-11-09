@@ -34,7 +34,8 @@ const invalidKey = (res) =>
 const findIntegrationAdmin = () => {
   const email = (process.env.INTEGRATION_ADMIN_EMAIL || "").trim().toLowerCase();
   if (!email) return null;
-  return User.findOne({ email, role: "admin", isActive: true }).select(
+  // Older accounts may have no isActive flag; only a switched-off account is refused.
+  return User.findOne({ email, role: "admin", isActive: { $ne: false } }).select(
     "-password -refreshToken",
   );
 };
