@@ -6,6 +6,7 @@ import {
   updateIntegrationOrderStatus,
   getIntegrationProducts,
   getIntegrationInventory,
+  updateIntegrationStock,
 } from "../controllers/integrationController.js";
 
 // Odoo connection — every route needs the X-Api-Key header (see ODOO_INTEGRATION.md)
@@ -18,5 +19,6 @@ router.patch("/orders/:id/status", updateIntegrationOrderStatus);
 
 router.get("/products", getIntegrationProducts);
 router.get("/inventory", getIntegrationInventory);
+router.patch("/stock", updateIntegrationStock);
 
 export default router;

@@ -12,7 +12,11 @@ The API is **off** until the server has a key:
    `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 2. In Render, open the web service, go to **Environment**, and add
    `INTEGRATION_API_KEY` with that key. Save; Render restarts the service.
-3. Put the same key in Odoo's connection settings. Never commit it.
+3. Make an admin account for Odoo on the website (for example
+   `odoo@brickextreme.com`, role **admin**) and add
+   `INTEGRATION_ADMIN_EMAIL` with that email. Everything Odoo changes is
+   recorded as made by this account.
+4. Put the same key in Odoo's connection settings. Never commit it.
 
 Without the key (or with one shorter than 32 characters) every integration
 address answers "Route not found".
@@ -22,6 +26,27 @@ Every request sends the key in a header:
 ```
 X-Api-Key: <the key>
 ```
+
+## Full admin access
+
+With the key, Odoo can use **every admin address** (`/api/v1/admin/...`) exactly
+like an admin signed in on the website: create and edit products, inventory,
+torso bags, add-ons, flash sales, banners, and so on. The same checks and rules
+apply as in the admin screens.
+
+```
+X-Api-Key: <the key>
+GET /api/v1/admin/general-inventory
+PUT /api/v1/admin/general-inventory/:id     { "pricePerBag": 2.5 }
+POST /api/v1/admin/dealer/torso-bags        { ... same body as the admin screen sends ... }
+```
+
+Pictures work the same way as in the admin screens: ask for an upload signature
+(`GET /api/v1/admin/uploads/signature?type=general-inventory`), upload the file
+straight to Cloudinary, then send its `publicId` and `url` in the item.
+
+If `INTEGRATION_ADMIN_EMAIL` isn't set, or isn't an active admin, the admin
+addresses refuse the key. Without the key they work as before (website sign-in).
 
 ## Reading
 
@@ -47,6 +72,30 @@ Options for the lists:
 Odoo remembers the newest `updatedAt` it has seen and asks for
 `updatedSince=<that time>` next time, so it only downloads changes.
 
+## Stock
+
+`PATCH /api/v1/integration/stock` sets or adjusts stock for up to 200 items at once.
+
+```json
+{ "items": [
+  { "type": "inventory", "itemId": "973pb1", "stock": 30 },
+  { "type": "inventory", "id": "<inventory id>", "change": -2 },
+  { "type": "product", "itemId": "3001", "stock": 12 },
+  { "type": "product", "id": "<product id>", "variantItemId": "973pb2", "stock": 5 },
+  { "type": "torso-bag", "id": "<bag id>", "stock": 40 },
+  { "type": "addon", "id": "<add-on id>", "stock": null }
+] }
+```
+
+- `stock` sets the count; `change` adds (positive) or removes (negative).
+  Removing never takes stock below zero.
+- `type` is `product`, `inventory`, `torso-bag` or `addon`. Products and inventory
+  can be found by `itemId` (for products, a variant's item ID also works); if an
+  item ID matches more than one item, send the `id`.
+- Add-ons can be set to `null` (not tracked, never sells out).
+- Each row is handled on its own. The reply lists every row with `ok` and the new
+  `stock`, or the `error` for that row.
+
 ## Updating an order
 
 `PATCH /api/v1/integration/orders/:id/status` uses the same rules and the same
@@ -71,8 +120,9 @@ Delivered (handed over in person or picked up):
 
 `deliveryMethod` is `hand_delivered` or `store_pickup`.
 
-Cancelling is **not** available here, because it refunds the customer; it stays
-in the website admin.
+Cancelling is not part of this address, because it refunds the customer. It is
+possible through the admin address (`PATCH /api/v1/admin/orders/:id/status`), but
+Odoo doesn't use it: cancelling stays a person's decision in the website admin.
 
 ## Files
 

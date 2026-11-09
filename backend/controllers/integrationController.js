@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
 import GeneralInventory from "../models/generalInventory.model.js";
+import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
+import DealerAddon from "../models/dealerAddon.model.js";
 import { normalizePagination } from "../utils/pagination.js";
 import { ORDER_STATUSES } from "../constants/orderConstants.js";
 import { updateOrderStatus } from "./orderController.js";
@@ -182,8 +184,7 @@ export const updateIntegrationOrderStatus = async (req, res) => {
     req.body.trackingLink = buildTrackingLink(carrier, trackingNumber);
   }
 
-  // No staff member made this change; the order records no "by" user.
-  req.user = { _id: undefined };
+  // req.user is the Odoo admin account (or no one, if it isn't set up).
   return updateOrderStatus(req, res);
 };
 
@@ -217,5 +218,138 @@ export const getIntegrationInventory = async (req, res) => {
     );
   } catch (error) {
     return serverError(res, "get inventory", error);
+  }
+};
+
+//------------------------------------------------ Stock ------------------------------------------
+
+// What Odoo can set stock on. Products are matched by their own item ID or a
+// variant's item ID; inventory by item ID; bags and add-ons by their id.
+const STOCK_TYPES = {
+  product: Product,
+  inventory: GeneralInventory,
+  "torso-bag": DealerTorsoBag,
+  addon: DealerAddon,
+};
+const MAX_STOCK_ROWS = 200;
+
+const isWholeNumber = (value) => Number.isInteger(value);
+
+// Finds the one document a row points at: { filter, variantItemId } or { error }.
+const resolveStockRow = async (row) => {
+  const model = STOCK_TYPES[row.type];
+  if (!model) {
+    return { error: `type must be one of: ${Object.keys(STOCK_TYPES).join(", ")}` };
+  }
+
+  const filter = {};
+  let variantItemId = row.variantItemId ? String(row.variantItemId).trim() : null;
+  if (row.id) {
+    if (!mongoose.isValidObjectId(row.id)) return { error: "Item not found" };
+    filter._id = row.id;
+  } else if (row.itemId && ["product", "inventory"].includes(row.type)) {
+    const itemId = String(row.itemId).trim();
+    if (row.type === "product") {
+      const standalone = await Product.countDocuments({ itemId });
+      if (standalone) filter.itemId = itemId;
+      else variantItemId = itemId;
+    } else {
+      filter.itemId = itemId;
+    }
+  } else {
+    return { error: "Send the item's id (or itemId for products and inventory)" };
+  }
+
+  if (variantItemId) {
+    if (row.type !== "product") return { error: "variantItemId is only for products" };
+    filter["variants.itemId"] = variantItemId;
+  }
+
+  const found = await model.find(filter).select("_id").limit(3).lean();
+  if (found.length === 0) return { error: "Item not found" };
+  if (found.length > 1) return { error: "itemId matches more than one item; send the id instead" };
+  return { model, docId: found[0]._id, variantItemId };
+};
+
+// Sets ({ stock }) or adjusts ({ change }) one row's stock. Returns the result row.
+const applyStockRow = async (row, userId) => {
+  const setting = row.stock !== undefined;
+  if (setting === (row.change !== undefined)) {
+    return { error: "Send either stock (the new count) or change (amount to add or remove)" };
+  }
+  const allowsUntracked = row.type === "addon";
+  if (setting && !(isWholeNumber(row.stock) && row.stock >= 0) && !(allowsUntracked && row.stock === null)) {
+    return { error: "stock must be a whole number, 0 or more" };
+  }
+  if (!setting && !(isWholeNumber(row.change) && row.change !== 0)) {
+    return { error: "change must be a whole number other than 0" };
+  }
+
+  const resolved = await resolveStockRow(row);
+  if (resolved.error) return resolved;
+  const { model, docId, variantItemId } = resolved;
+
+  const path = variantItemId ? "variants.$.stock" : "stock";
+  const audit = userId ? { updatedBy: userId } : {};
+  // Removing stock never takes it below zero (and can't touch an untracked add-on).
+  const enough = setting ? undefined : { $gte: Math.max(0, -row.change) };
+  const filter = { _id: docId };
+  if (variantItemId) {
+    filter.variants = { $elemMatch: { itemId: variantItemId, ...(enough ? { stock: enough } : {}) } };
+  } else if (enough) {
+    filter.stock = enough;
+  }
+  const update = setting
+    ? { $set: { [path]: row.stock, ...audit } }
+    : { $inc: { [path]: row.change }, ...(userId ? { $set: audit } : {}) };
+
+  const result = await model.updateOne(filter, update);
+  if (result.matchedCount === 0) {
+    return { error: "Not enough stock to remove that many (or stock isn't tracked)" };
+  }
+
+  const saved = await model
+    .findById(docId)
+    .select("stock variants.itemId variants.stock")
+    .lean();
+  const stock = variantItemId
+    ? saved?.variants?.find((v) => v.itemId === variantItemId)?.stock
+    : saved?.stock;
+  return { id: saved?._id, stock };
+};
+
+// PATCH /stock  { items: [ { type, id | itemId, variantItemId?, stock | change } ] }
+// Each row is applied on its own; the reply says how each one went.
+export const updateIntegrationStock = async (req, res) => {
+  const items = req.body?.items;
+  if (!Array.isArray(items) || items.length === 0 || items.length > MAX_STOCK_ROWS) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid items",
+      description: `Send items: a list of 1 to ${MAX_STOCK_ROWS} stock changes.`,
+    });
+  }
+
+  try {
+    const results = [];
+    for (const row of items) {
+      const result = await applyStockRow(row || {}, req.user?._id);
+      results.push({
+        type: row?.type,
+        id: row?.id,
+        itemId: row?.itemId,
+        variantItemId: row?.variantItemId,
+        ...(result.error ? { ok: false, error: result.error } : { ok: true, ...result }),
+      });
+    }
+
+    const failed = results.filter((r) => !r.ok).length;
+    return res.status(200).json({
+      success: failed === 0,
+      message: failed ? `${failed} of ${results.length} not updated` : "Stock updated",
+      results,
+    });
+  } catch (error) {
+    return serverError(res, "update stock", error);
   }
 };

@@ -1,8 +1,6 @@
 import express from "express";
-import {
-  authenticate,
-  authorizeAdmin,
-} from "../middlewares/auth.middleware.js";
+import { authorizeAdmin } from "../middlewares/auth.middleware.js";
+import { authenticateAdminOrIntegration } from "../middlewares/integration.middleware.js";
 import {
   createBanner,
   getAllBanners,
@@ -115,8 +113,9 @@ import { getUploadSignature } from "../controllers/uploadController.js";
 
 const router = express.Router();
 
-// All admin routes require authentication and admin role
-router.use(authenticate, authorizeAdmin);
+// All admin routes require authentication and admin role. Odoo signs in with
+// the integration key and acts as the Odoo admin account (ODOO_INTEGRATION.md).
+router.use(authenticateAdminOrIntegration, authorizeAdmin);
 
 // Direct browser→Cloudinary upload signature (keeps large image bytes off the server)
 router.get("/uploads/signature", getUploadSignature);
