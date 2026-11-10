@@ -57,10 +57,14 @@ export const authenticateIntegration = async (req, res, next) => {
   next();
 };
 
-// Admin areas Odoo never needs, so the key can't reach them: user accounts
-// (roles, tax-exempt status, the list of customers' accounts). Matched without
+// Admin areas Odoo never needs, so the key can't reach them. Matched without
 // regard to upper/lower case, like the routes themselves.
-const INTEGRATION_BLOCKED_ADMIN_PATHS = [/^\/users(\/|$)/i];
+//   /users      user accounts (roles, tax-exempt status, the list of accounts)
+//   /orders     orders, including cancelling (which refunds the customer). Odoo
+//               reads orders and marks them shipped/delivered through
+//               /api/v1/integration/orders instead, which can't cancel.
+//   /dashboard  the website's reports; Odoo makes its own from the orders it reads
+const INTEGRATION_BLOCKED_ADMIN_PATHS = [/^\/users(\/|$)/i, /^\/orders(\/|$)/i, /^\/dashboard(\/|$)/i];
 
 // For the admin routes: a request with the integration key acts as the Odoo
 // admin account; everything else signs in as usual.
@@ -71,7 +75,7 @@ export const authenticateAdminOrIntegration = async (req, res, next) => {
     return res.status(403).json({
       success: false,
       message: "Not available to Odoo",
-      description: "User accounts can only be changed by a person in the website admin.",
+      description: "User accounts, the admin order screens and the dashboard are only for people signed in to the website admin.",
     });
   }
 

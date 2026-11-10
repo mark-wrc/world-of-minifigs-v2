@@ -45,9 +45,14 @@ Pictures work the same way as in the admin screens: ask for an upload signature
 (`GET /api/v1/admin/uploads/signature?type=general-inventory`), upload the file
 straight to Cloudinary, then send its `publicId` and `url` in the item.
 
-One exception: **user accounts** (`/api/v1/admin/users...` — the user list, roles and
-tax-exempt status) always refuse the key. Only a person signed in to the website admin
-can change them.
+Three areas always refuse the key; only a person signed in to the website admin can use them:
+
+- **User accounts** (`/api/v1/admin/users...`): the user list, roles and tax-exempt status.
+- **Admin order screens** (`/api/v1/admin/orders...`), including cancelling, which refunds
+  the customer. Odoo reads orders and marks them shipped or delivered through
+  `/api/v1/integration/orders` (below), which cannot cancel.
+- **The dashboard** (`/api/v1/admin/dashboard...`). Odoo makes its own reports from the
+  orders it reads.
 
 If `INTEGRATION_ADMIN_EMAIL` isn't set, or isn't an active admin, the admin
 addresses refuse the key. Without the key they work as before (website sign-in).
@@ -127,9 +132,8 @@ Delivered (handed over in person or picked up):
 
 `deliveryMethod` is `hand_delivered` or `store_pickup`.
 
-Cancelling is not part of this address, because it refunds the customer. It is
-possible through the admin address (`PATCH /api/v1/admin/orders/:id/status`), but
-Odoo doesn't use it: cancelling stays a person's decision in the website admin.
+Cancelling is not possible with the key at all, because it refunds the customer. It
+stays a person's decision in the website admin.
 
 ## Files
 
