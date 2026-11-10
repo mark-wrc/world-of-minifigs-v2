@@ -45,6 +45,10 @@ Pictures work the same way as in the admin screens: ask for an upload signature
 (`GET /api/v1/admin/uploads/signature?type=general-inventory`), upload the file
 straight to Cloudinary, then send its `publicId` and `url` in the item.
 
+One exception: **user accounts** (`/api/v1/admin/users...` — the user list, roles and
+tax-exempt status) always refuse the key. Only a person signed in to the website admin
+can change them.
+
 If `INTEGRATION_ADMIN_EMAIL` isn't set, or isn't an active admin, the admin
 addresses refuse the key. Without the key they work as before (website sign-in).
 
