@@ -951,8 +951,14 @@ export const getAllUsers = async (req, res) => {
         .lean()
     ).map((u) => ({ ...u, isTaxExempt: u.isTaxExempt ?? false }));
 
-    // Sort: admins first, then by creation date (newest first)
+    // Sort: the signed-in admin's own account first, then other admins,
+    // then everyone else by creation date (newest first)
+    const currentUserId = req.user?._id ? String(req.user._id) : null;
     const sortedUsers = allUsers.sort((a, b) => {
+      if (currentUserId) {
+        if (String(a._id) === currentUserId) return -1;
+        if (String(b._id) === currentUserId) return 1;
+      }
       // Admin users first
       if (a.role === "admin" && b.role !== "admin") return -1;
       if (b.role === "admin" && a.role !== "admin") return 1;
