@@ -272,6 +272,12 @@ export const CONSOLIDATED_FILTER = {
   label: "Ready to Pack (Consolidated)",
 };
 
+// Orders with items still waiting to ship (backordered).
+export const BACKORDER_FILTER = {
+  value: "backordered",
+  label: "Backordered (items waiting)",
+};
+
 // Derive the admin delivery-method options from the fetched deliveryMethods
 export const buildDeliveryMethodOptions = (deliveryMethods) =>
   Object.values(deliveryMethods || {}).map((value) => ({

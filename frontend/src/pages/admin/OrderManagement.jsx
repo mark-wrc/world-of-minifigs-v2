@@ -1,5 +1,12 @@
 import React from "react";
-import { Archive, Boxes, Check, ChevronRight, Copy } from "lucide-react";
+import {
+  Archive,
+  Boxes,
+  Check,
+  ChevronRight,
+  ClipboardList,
+  Copy,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -46,8 +53,19 @@ import {
   getShipmentRef,
   getShipmentStatusConfig,
   CONSOLIDATED_FILTER,
+  BACKORDER_FILTER,
   STATUS_CONFIG,
 } from "@/constant/orderData";
+import {
+  getAwaitingBackorders,
+  hasAwaitingBackorder,
+} from "@shared/orderLines";
+import BackorderShipments from "@/components/shared/BackorderShipments";
+import {
+  BackorderDialog,
+  ShipBackorderDialog,
+  BackorderReportDialog,
+} from "@/components/admin/orders/BackorderDialogs";
 import useOrderManagement from "@/hooks/admin/useOrderManagement";
 import OrderItemRow from "@/components/shared/OrderItemRow";
 import { perBagUnit } from "@shared/inventoryData";
@@ -144,6 +162,20 @@ const OrderManagement = () => {
 
   const isSelectedHeld = selectedOrder?.status === "on_hold";
 
+  // Backorders: which order each dialog is open for, and the report.
+  const [backorderOrder, setBackorderOrder] = React.useState(null);
+  const [shipBackorderOrder, setShipBackorderOrder] = React.useState(null);
+  const [backorderReportOpen, setBackorderReportOpen] = React.useState(false);
+  // The order views show a copy of the order from when it was opened; after a
+  // backorder change, show the saved backorder straight away.
+  const [backorderUpdates, setBackorderUpdates] = React.useState({});
+  const handleBackorderSaved = (orderId, backorders) =>
+    setBackorderUpdates((prev) => ({ ...prev, [orderId]: backorders || [] }));
+  const withBackorderUpdate = (order) =>
+    order && backorderUpdates[order._id] !== undefined
+      ? { ...order, backorders: backorderUpdates[order._id] }
+      : order;
+
   // Shipment view: which orders are expanded to their full details.
   const [openParcelOrders, setOpenParcelOrders] = React.useState({});
   const toggleParcelOrder = (id) =>
@@ -194,6 +226,16 @@ const OrderManagement = () => {
                 className={`text-[10px] font-semibold uppercase tracking-wide ${shipment.reviewNote ? "text-destructive" : "text-blue-600"}`}
               >
                 Consolidated · {shipment.orders?.length || 0} orders
+              </span>
+            )}
+            {hasAwaitingBackorder(withBackorderUpdate(order)) && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                Backorder ·{" "}
+                {getAwaitingBackorders(withBackorderUpdate(order)).length} item
+                {getAwaitingBackorders(withBackorderUpdate(order)).length === 1
+                  ? ""
+                  : "s"}{" "}
+                waiting
               </span>
             )}
           </div>
@@ -770,6 +812,34 @@ const OrderManagement = () => {
           )}
       </section>
 
+      {/* ── Backorder: items shipping separately ── */}
+      <BackorderShipments
+        order={viewOrder}
+        admin
+        actions={
+          (viewOrder?.status === "shipped" ||
+            viewOrder?.status === "delivered") &&
+          hasAwaitingBackorder(viewOrder) && (
+            <Button size="sm" onClick={() => setShipBackorderOrder(viewOrder)}>
+              Ship Backordered Items
+            </Button>
+          )
+        }
+      />
+      {(viewOrder?.status === "paid" || viewOrder?.status === "on_hold") && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setBackorderOrder(viewOrder)}
+          >
+            {hasAwaitingBackorder(viewOrder)
+              ? "Change Backorder"
+              : "Backorder Items (out of stock)"}
+          </Button>
+        </div>
+      )}
+
       {/* ── Refund Details ── */}
       {viewOrder?.status === "cancelled" && (
         <section className="space-y-2">
@@ -1073,7 +1143,9 @@ const OrderManagement = () => {
                 </Button>
                 {isOpen && (
                   <div className="space-y-5 px-4 pb-4">
-                    {renderOrderDetails(order, { inShipment: true })}
+                    {renderOrderDetails(withBackorderUpdate(order), {
+                      inShipment: true,
+                    })}
                   </div>
                 )}
               </div>
@@ -1150,6 +1222,7 @@ const OrderManagement = () => {
         data={orderGroups}
         isLoading={isLoadingOrders}
         searchExtra={
+          <>
           <Select
             value={statusFilter || "all"}
             onValueChange={handleStatusFilterChange}
@@ -1167,8 +1240,19 @@ const OrderManagement = () => {
               <SelectItem value={CONSOLIDATED_FILTER.value}>
                 {CONSOLIDATED_FILTER.label}
               </SelectItem>
+              <SelectItem value={BACKORDER_FILTER.value}>
+                {BACKORDER_FILTER.label}
+              </SelectItem>
             </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            onClick={() => setBackorderReportOpen(true)}
+          >
+            <ClipboardList className="size-4" />
+            Backorder Report
+          </Button>
+          </>
         }
         renderRow={(group) =>
           group.type === "shipment"
@@ -1377,7 +1461,7 @@ const OrderManagement = () => {
           <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
         }
       >
-        {renderOrderDetails(viewOrder)}
+        {renderOrderDetails(withBackorderUpdate(viewOrder))}
       </ViewAdminDialog>
 
       {/* View Shipment Dialog — the parcel and every order inside it */}
@@ -1405,6 +1489,24 @@ const OrderManagement = () => {
       >
         {viewShipment && renderShipmentDetails(viewShipment)}
       </ViewAdminDialog>
+
+      {/* Backorders */}
+      <BackorderDialog
+        open={Boolean(backorderOrder)}
+        onOpenChange={(open) => !open && setBackorderOrder(null)}
+        order={backorderOrder}
+        onSaved={handleBackorderSaved}
+      />
+      <ShipBackorderDialog
+        open={Boolean(shipBackorderOrder)}
+        onOpenChange={(open) => !open && setShipBackorderOrder(null)}
+        order={shipBackorderOrder}
+        onSaved={handleBackorderSaved}
+      />
+      <BackorderReportDialog
+        open={backorderReportOpen}
+        onOpenChange={setBackorderReportOpen}
+      />
     </div>
   );
 };

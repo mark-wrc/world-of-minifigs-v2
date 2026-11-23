@@ -694,6 +694,32 @@ export const adminApi = createApi({
       invalidatesTags: ["Order"],
     }),
 
+    // Backorders: hold lines of an order back (before it ships)
+    setOrderBackorder: builder.mutation({
+      query: ({ id, lines, note }) => ({
+        url: `/orders/${id}/backorder`,
+        method: "PUT",
+        body: { lines, ...(note && { note }) },
+      }),
+      invalidatesTags: ["Order"],
+    }),
+
+    // Backorders: ship the held lines (all, or the quantities given)
+    shipOrderBackorder: builder.mutation({
+      query: ({ id, carrier, trackingNumber, trackingLink, lines }) => ({
+        url: `/orders/${id}/backorder/ship`,
+        method: "POST",
+        body: { carrier, trackingNumber, trackingLink, ...(lines && { lines }) },
+      }),
+      invalidatesTags: ["Order"],
+    }),
+
+    // Backorders: everything still waiting to ship
+    getBackorderReport: builder.query({
+      query: () => ({ url: "/orders/backorders", method: "GET" }),
+      providesTags: ["Order"],
+    }),
+
     // ==================== User Management ====================
     // Get all users
     getUsers: builder.query({
@@ -911,6 +937,9 @@ export const {
 
   useGetOrdersQuery,
   useUpdateOrderStatusMutation,
+  useSetOrderBackorderMutation,
+  useShipOrderBackorderMutation,
+  useGetBackorderReportQuery,
 
   useGetUsersQuery,
   useUpdateUserRoleMutation,

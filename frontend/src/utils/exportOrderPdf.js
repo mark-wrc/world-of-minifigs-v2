@@ -19,6 +19,7 @@ import {
   getShipmentStatusConfig,
 } from "@/constant/orderData";
 import { perBagUnit } from "@shared/inventoryData";
+import { getBackorderShipments } from "@shared/orderLines";
 import { buildCloudinaryUrl } from "@/utils/cloudinary";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -1115,6 +1116,37 @@ const buildOrderPdf = async (
         if (info) {
           drawStruckPrice(doc, data.cell, formatCurrency(info.originalPrice));
         }
+      },
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // BACKORDERED — items listed above that ship in a later package
+  // ════════════════════════════════════════════════════════════════
+  const laterShipments =
+    order.status === "cancelled" ? [] : getBackorderShipments(order);
+  if (laterShipments.length) {
+    y += 4;
+    y = ensureSpace(doc, y, 40);
+    y = sectionHeader(doc, y, "Shipping Separately (Backordered)");
+    y = itemsTable(
+      doc,
+      y,
+      ["Shipment", "Item", "Qty", "Status"],
+      laterShipments.flatMap((s) =>
+        s.lines.map((line) => [
+          String(s.generation),
+          line.name,
+          String(line.quantity),
+          s.status === "awaiting"
+            ? "Awaiting shipment (not in Shipment 1)"
+            : `Shipped ${formatDate(s.shipping?.shippedAt)} · ${s.shipping?.carrier || ""} ${s.shipping?.trackingNumber || ""}`.trim(),
+        ]),
+      ),
+      {
+        0: { halign: "center", cellWidth: 22 },
+        2: { halign: "center", cellWidth: 16 },
+        3: { cellWidth: 62 },
       },
     );
   }

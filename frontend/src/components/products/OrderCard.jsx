@@ -11,6 +11,7 @@ const OrderCard = ({ orderCard }) => {
     invoiceLabel,
     createdAt,
     itemCount,
+    hasBackorder,
     totalAmount,
   } = orderCard;
 
@@ -33,6 +34,11 @@ const OrderCard = ({ orderCard }) => {
             <p className="text-xs text-muted-foreground mt-1">
               {createdAt} · {itemCount} item{itemCount !== 1 ? "s" : ""}
             </p>
+            {hasBackorder && (
+              <p className="text-xs font-semibold text-amber-600 mt-1">
+                Some items are awaiting shipment
+              </p>
+            )}
           </div>
 
           {/* Divider */}
