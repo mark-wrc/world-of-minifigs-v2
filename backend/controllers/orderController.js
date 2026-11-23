@@ -15,7 +15,9 @@ import {
   CANCELLATION_REASONS,
   DELIVERY_METHODS,
   SHIPMENT_STATUSES,
+  BACKORDER_FILTER,
 } from "../constants/orderConstants.js";
+import { BACKORDER_STATUSES } from "../../shared/orderLines.js";
 import Shipment from "../models/shipment.model.js";
 import {
   getHeldSummary,
@@ -267,7 +269,7 @@ export const getUserOrders = async (req, res) => {
       limit,
       scope: { userId },
       orderSelect:
-        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById",
       orderPopulate: [shipmentPopulate(USER_SHIPMENT_FIELDS)],
       shipmentSelect: `${USER_SHIPMENT_FIELDS} createdAt payment.paidAt`,
     });
@@ -316,7 +318,7 @@ export const getUserOrderById = async (req, res) => {
 
     const order = await Order.findOne({ _id: id, userId })
       .select(
-        "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById",
+        "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById",
       )
       .populate(shipmentPopulate(USER_SHIPMENT_FIELDS));
 
@@ -445,6 +447,11 @@ export const getAllOrders = async (req, res) => {
     if (status === CONSOLIDATED_FILTER) {
       query.status = ORDER_STATUSES.PAID;
       query.shipmentId = { $ne: null };
+      oldestFirst = true;
+    } else if (status === BACKORDER_FILTER) {
+      // Orders with lines still waiting to ship, the longest waiting first.
+      query.status = { $ne: ORDER_STATUSES.CANCELLED };
+      query["backorders.status"] = BACKORDER_STATUSES.AWAITING;
       oldestFirst = true;
     } else if (status) {
       const statuses = status.split(",").map((s) => s.trim());

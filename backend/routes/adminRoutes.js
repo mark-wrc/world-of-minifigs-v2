@@ -92,6 +92,11 @@ import {
   getOrderById,
   updateOrderStatus,
 } from "../controllers/orderController.js";
+import {
+  setOrderBackorder,
+  shipOrderBackorder,
+  getBackorderReport,
+} from "../controllers/backorderController.js";
 import { getDashboardAnalytics } from "../controllers/dashboardController.js";
 import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
@@ -214,8 +219,12 @@ router.get("/dashboard/analytics", getDashboardAnalytics);
 
 // Order Management routes
 router.get("/orders", getAllOrders);
+// Backorders — before "/orders/:id" so "backorders" isn't read as an order id.
+router.get("/orders/backorders", getBackorderReport);
 router.get("/orders/:id", getOrderById);
 router.patch("/orders/:id/status", updateOrderStatus);
+router.put("/orders/:id/backorder", setOrderBackorder);
+router.post("/orders/:id/backorder/ship", shipOrderBackorder);
 
 // User Management routes
 router.get("/users", getAllUsers);

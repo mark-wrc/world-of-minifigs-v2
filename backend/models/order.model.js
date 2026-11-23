@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BACKORDER_STATUSES } from "../../shared/orderLines.js";
 import {
   ORDER_STATUSES,
   REFUND_STATUSES,
@@ -128,6 +129,38 @@ const dealerItemSchema = new mongoose.Schema(
     ],
   },
   { _id: false },
+);
+
+/* ---------------------------------------- Backorder Schema ---------------------------------------- */
+
+// Part of an order held back because it's out of stock. The rest of the order
+// ships as usual (Shipment 1, the order's own status and tracking); these lines
+// ship later as Shipment 2, 3, … with their own tracking. `lineKey` points at
+// the order line (see shared/orderLines.js); `quantity` is how many of it.
+const backorderLineSchema = new mongoose.Schema(
+  {
+    lineKey: { type: String, required: true },
+    name: { type: String },
+    quantity: { type: Number, required: true, min: 1 },
+    generation: { type: Number, required: true, min: 2 },
+    status: {
+      type: String,
+      enum: Object.values(BACKORDER_STATUSES),
+      default: BACKORDER_STATUSES.AWAITING,
+    },
+    // Staff note, e.g. "waiting on supplier" (admin only).
+    note: { type: String },
+    createdAt: { type: Date, default: Date.now },
+    createdById: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    shipping: {
+      carrier: { type: String },
+      trackingNumber: { type: String },
+      trackingLink: { type: String },
+      shippedAt: { type: Date },
+    },
+    shippedById: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+  { _id: true },
 );
 
 /* ----------------------------------------- Order Schema ------------------------------------------- */
@@ -264,6 +297,11 @@ const orderSchema = new mongoose.Schema(
       cardHolderName: { type: String },
       country: { type: String },
     },
+    // Lines held back to ship later (empty for almost every order).
+    backorders: {
+      type: [backorderLineSchema],
+      default: undefined,
+    },
     cancellation: {
       reason: { type: String },
       notes: { type: String },
@@ -291,6 +329,7 @@ orderSchema.index({ userId: 1, status: 1 });
 orderSchema.index({ shipmentId: 1 }, { sparse: true });
 orderSchema.index({ orderType: 1 });
 orderSchema.index({ "refund.status": 1 });
+orderSchema.index({ "backorders.status": 1 }, { sparse: true });
 orderSchema.index({ "payment.stripePaymentIntentId": 1 });
 orderSchema.index({ "payment.stripeSessionId": 1 });
 orderSchema.index({ "payment.checkoutSessionId": 1 });

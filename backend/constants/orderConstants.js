@@ -95,6 +95,9 @@ export const getPaymentGatewayLabel = (order) => {
   return PAYMENT_GATEWAY_LABELS[gateway] || gateway;
 };
 
+// Admin order list filter: orders with lines still waiting to ship.
+export const BACKORDER_FILTER = "backordered";
+
 export const ORDER_TYPES = {
   PRODUCT: "product",
   DEALER: "dealer",
