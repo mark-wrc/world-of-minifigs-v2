@@ -252,7 +252,9 @@ data, email or payment changes.
    look exactly as before: same boxes, same order. They're only wrapped so
    they stay in place, with a thin line under them. On short screens (window
    under 850px tall) they scroll normally, so the items are never squeezed
-   out of view.
+   out of view. The "Order Details" title and the close button stay put too.
+   `ViewAdminDialog` takes an optional `fixedTitle` prop for this. It's off by
+   default, so every other dialog is unchanged.
 6. **The copy button copies the name and the address.** It copies a
    label-ready block: recipient name, street, unit, "City, ST ZIP", country.
    Before, it copied the address only. It works the same in the consolidated
@@ -263,7 +265,7 @@ Files: `pages/admin/OrderManagement.jsx`,
 `components/admin/orders/RefundDialog.jsx`,
 `components/admin/orders/LineSearch.jsx` (new),
 `components/admin/orders/lineMatches.js` (new), and
-`components/table/BaseColumn.jsx`. `ActionsColumn` takes an optional
+`components/table/BaseColumn.jsx`, `components/table/ViewAdminDialog.jsx`. `ActionsColumn` takes an optional
 `extraActions` list. It's empty by default, so the other 35 tables that use
 it are unchanged.
 

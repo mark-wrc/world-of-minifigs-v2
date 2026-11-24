@@ -718,7 +718,7 @@ const OrderManagement = () => {
         className={
           inShipment
             ? "space-y-5"
-            : "space-y-5 [@media(min-height:850px)]:sticky -top-5 z-10 -mx-5 -mt-5 px-5 pt-5 pb-4 bg-background [@media(min-height:850px)]:border-b"
+            : "space-y-5 [@media(min-height:850px)]:sticky top-0 z-10 -mx-5 px-5 pb-4 bg-background [@media(min-height:850px)]:border-b"
         }
       >
         {/* ── Order Information ── */}
@@ -1782,6 +1782,7 @@ const OrderManagement = () => {
         open={viewModalOpen}
         onOpenChange={handleViewModalChange}
         title="Order Details"
+        fixedTitle
         footerActions={
           <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
         }
