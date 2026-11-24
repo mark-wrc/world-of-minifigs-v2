@@ -16,14 +16,15 @@ const ViewAdminDialog = ({
   children,
   className = "sm:max-w-xl",
   footerActions,
-  // Keep the title in place and scroll only what is under it. Off by default.
-  fixedTitle = false,
+  // Keep the title at the top and the buttons at the bottom, and scroll only
+  // what is between them. Off by default.
+  pinTitleAndButtons = false,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={
-          fixedTitle
+          pinTitleAndButtons
             ? `${className} flex flex-col overflow-hidden`
             : className
         }
@@ -35,16 +36,18 @@ const ViewAdminDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        {fixedTitle ? (
-          <div className="min-h-0 flex-1 overflow-y-auto -mx-5 px-5 -mb-5 pb-5 space-y-5">
-            <div className="space-y-5">{children}</div>
-            <DialogFooter>
+        {pinTitleAndButtons ? (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto -mx-5 px-5 pb-1 space-y-5">
+              {children}
+            </div>
+            <DialogFooter className="-mx-5 px-5 pt-4 border-t">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
               {footerActions}
             </DialogFooter>
-          </div>
+          </>
         ) : (
           <>
             <div className="space-y-5">{children}</div>

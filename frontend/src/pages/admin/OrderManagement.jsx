@@ -1608,6 +1608,7 @@ const OrderManagement = () => {
 
       {/* Update Order Status Dialog */}
       <AddUpdateItemDialog
+        pinTitleAndButtons
         open={statusModalOpen}
         onOpenChange={handleStatusModalChange}
         mode="edit"
@@ -1784,10 +1785,10 @@ const OrderManagement = () => {
 
       {/* View Order Details Dialog */}
       <ViewAdminDialog
+        pinTitleAndButtons
         open={viewModalOpen}
         onOpenChange={handleViewModalChange}
         title="Order Details"
-        fixedTitle
         className="sm:max-w-4xl"
         footerActions={
           <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
@@ -1811,6 +1812,7 @@ const OrderManagement = () => {
         );
         return (
           <ViewAdminDialog
+            pinTitleAndButtons
             open={Boolean(viewBackorder)}
             onOpenChange={(open) => !open && setViewBackorder(null)}
             title={
@@ -1863,6 +1865,7 @@ const OrderManagement = () => {
 
       {/* View Shipment Dialog — the parcel and every order inside it */}
       <ViewAdminDialog
+        pinTitleAndButtons
         open={Boolean(viewShipment)}
         onOpenChange={(open) => {
           if (!open) setOpenParcelOrders({});

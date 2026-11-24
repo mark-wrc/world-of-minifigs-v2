@@ -107,6 +107,7 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
 
   return (
     <AddUpdateItemDialog
+      pinTitleAndButtons
       open={open}
       onOpenChange={onOpenChange}
       mode="edit"
@@ -249,6 +250,7 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
 
   return (
     <AddUpdateItemDialog
+      pinTitleAndButtons
       open={open}
       onOpenChange={onOpenChange}
       mode="edit"
@@ -359,6 +361,7 @@ export const BackorderReportDialog = ({ open, onOpenChange, onOpenOrder }) => {
 
   return (
     <ViewAdminDialog
+      pinTitleAndButtons
       open={open}
       onOpenChange={onOpenChange}
       title="Backorder Report"

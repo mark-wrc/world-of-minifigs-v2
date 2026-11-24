@@ -115,6 +115,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
 
   return (
     <AddUpdateItemDialog
+      pinTitleAndButtons
       open={open}
       onOpenChange={onOpenChange}
       mode="edit"

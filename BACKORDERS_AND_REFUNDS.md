@@ -258,9 +258,16 @@ data, email or payment changes.
    - These boxes stay at the top while the rest of the order (tracking,
      items, backorders, refunds, payment) scrolls under them, with a thin line
      underneath. In windows under 700px tall they scroll normally.
-   - The "Order Details" title and the close button stay put too.
-     `ViewAdminDialog` takes an optional `fixedTitle` prop for this. It's off
-     by default, so every other dialog is unchanged.
+   - The title and close button stay at the top, and the buttons stay at the
+     bottom (Close/Export, Cancel/Save, Refund…). Only what's between them
+     scrolls, so the buttons are always visible.
+     - This applies to every Order Management window: the order, the
+       consolidated shipment, the backorder shipment, Update Order Status,
+       Backorder Items, Ship Backordered Items, the Backorder Report and
+       Refund.
+     - `ViewAdminDialog` and `AddUpdateItemDialog` take an optional
+       `pinTitleAndButtons` prop for this. It's off by default, so every other
+       admin window is unchanged.
 6. **The copy button copies the name and the address.** It copies a
    label-ready block: recipient name, street, unit, "City, ST ZIP", country.
    Before, it copied the address only. It works the same in the consolidated
@@ -271,7 +278,7 @@ Files: `pages/admin/OrderManagement.jsx`,
 `components/admin/orders/RefundDialog.jsx`,
 `components/admin/orders/LineSearch.jsx` (new),
 `components/admin/orders/lineMatches.js` (new), and
-`components/table/BaseColumn.jsx`, `components/table/ViewAdminDialog.jsx`. `ActionsColumn` takes an optional
+`components/table/BaseColumn.jsx`, `components/table/ViewAdminDialog.jsx`, `components/table/AddUpdateItemDialog.jsx`. `ActionsColumn` takes an optional
 `extraActions` list. It's empty by default, so the other 35 tables that use
 it are unchanged.
 

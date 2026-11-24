@@ -21,6 +21,9 @@ const AddUpdateItemDialog = ({
   submitButtonText,
   children,
   className = "sm:max-w-xl", // Default size
+  // Keep the title at the top and the buttons at the bottom, and scroll only
+  // the form between them. Off by default.
+  pinTitleAndButtons = false,
 }) => {
   const modeConfig = {
     add: {
@@ -46,7 +49,13 @@ const AddUpdateItemDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={className}>
+      <DialogContent
+        className={
+          pinTitleAndButtons
+            ? `${className} flex flex-col overflow-hidden`
+            : className
+        }
+      >
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           {dialogDescription && (
@@ -58,10 +67,20 @@ const AddUpdateItemDialog = ({
             e.preventDefault();
             onSubmit(e);
           }}
-          className="space-y-5"
+          className={
+            pinTitleAndButtons ? "flex min-h-0 flex-1 flex-col gap-4" : "space-y-5"
+          }
         >
-          {children}
-          <DialogFooter>
+          {pinTitleAndButtons ? (
+            <div className="min-h-0 flex-1 overflow-y-auto -mx-5 px-5 pb-1">
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+          <DialogFooter
+            className={pinTitleAndButtons ? "-mx-5 px-5 pt-4 border-t" : undefined}
+          >
             <Button
               type="button"
               variant="outline"
