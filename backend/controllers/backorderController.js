@@ -4,11 +4,14 @@ import {
   BACKORDER_STATUSES,
   getOrderLines,
 } from "../../shared/orderLines.js";
+import { sendBackorderShippedEmail } from "../services/orderEmailService.js";
 
 // Backorders (admin): hold some lines of an order back, ship the rest, and ship
 // the held lines later with their own tracking. The order keeps one payment and
 // its normal status — "Shipped" means Shipment 1 went out; the held lines are
-// Shipment 2, 3, … on the same order. No emails are sent from here.
+// Shipment 2, 3, … on the same order. Holding lines back sends no email (the
+// normal shipping email lists them as following separately); shipping them
+// sends the customer a shipping email with that package's tracking.
 
 const bad = (res, message, description) =>
   res.status(400).json({ success: false, message, description });
@@ -227,6 +230,8 @@ export const shipOrderBackorder = async (req, res) => {
     }
     order.backorders.push(...added);
     await order.save();
+
+    sendBackorderShippedEmail(order, generation).catch(() => {});
 
     return res.status(200).json({
       success: true,

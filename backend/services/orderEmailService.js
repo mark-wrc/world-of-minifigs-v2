@@ -3,6 +3,7 @@ import {
   getShippingNotificationTemplate,
   getOrderCancelledTemplate,
   getOrderDeliveredTemplate,
+  getBackorderShippedTemplate,
 } from "../utils/Email/orderEmails.js";
 
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
@@ -28,6 +29,14 @@ export const sendShippingNotificationEmail = (order) =>
     order,
     `Your Order Has Been Shipped – ${appName()}`,
     getShippingNotificationTemplate,
+  );
+
+// Backordered items shipped as Shipment `generation` (2, 3, …).
+export const sendBackorderShippedEmail = (order, generation) =>
+  send(
+    order,
+    `The Rest of Your Order Has Shipped – ${appName()}`,
+    (o) => getBackorderShippedTemplate(o, generation),
   );
 
 export const sendOrderDeliveredEmail = (order) =>

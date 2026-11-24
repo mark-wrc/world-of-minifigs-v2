@@ -143,7 +143,8 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
         />
         <p className="text-xs text-muted-foreground">
           The customer sees these items as "Awaiting shipment" on their order
-          page. No email is sent.
+          page, and the shipping email for the rest of the order lists them as
+          following separately.
         </p>
       </div>
     </AddUpdateItemDialog>
@@ -257,7 +258,8 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
           required
         />
         <p className="text-xs text-muted-foreground">
-          The tracking shows on the customer's order page. No email is sent.
+          The customer gets a shipping email with this tracking, and it shows
+          on their order page.
         </p>
       </div>
     </AddUpdateItemDialog>

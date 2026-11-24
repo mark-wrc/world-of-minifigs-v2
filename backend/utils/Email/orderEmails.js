@@ -3,6 +3,10 @@ import {
   DELIVERY_METHOD_LABELS,
   getPaymentGatewayLabel,
 } from "../../constants/orderConstants.js";
+import {
+  BACKORDER_STATUSES,
+  getAwaitingBackorders,
+} from "../../../shared/orderLines.js";
 
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
 const supportEmail = () => process.env.SMTP_FROM_EMAIL || "";
@@ -510,12 +514,88 @@ export const getShippingNotificationTemplate = (order) =>
       { divider: false },
     )}
     ${trackingSection(order)}
+    ${backorderFollowsSection(order)}
     ${buildItemsHtml(order)}
     ${buildPaymentSummaryHtml(order, { totalColor: "#16a34a" })}
     ${viewOrderBtn(order)}
   `,
     "#0ea5e9",
   );
+
+// ── Backorders (items that ship later, in their own package) ─────────────────
+
+const escapeHtml = (s) =>
+  String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const backorderLinesTable = (lines) =>
+  `<table width="100%" cellpadding="0" cellspacing="0" border="0">${lines
+    .map((b, i) =>
+      kv(escapeHtml(b.name), `&times; ${b.quantity}`, i === lines.length - 1),
+    )
+    .join("")}</table>`;
+
+// In the normal "Your order has shipped" email: the items that were out of
+// stock and will follow in their own package. Empty when nothing is held.
+const backorderFollowsSection = (order) => {
+  const waiting = getAwaitingBackorders(order);
+  if (!waiting.length) return "";
+  return `<tr><td style="padding:0 32px 10px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:#78350f;line-height:1.6;">
+          &#9203;&nbsp; Some items were out of stock and are <strong style="color:#92400e;">not in this package</strong>. They will follow in a separate package, and we'll email you its tracking when it ships.
+        </td></tr>
+      </table>
+    </td></tr>
+    ${openSection("Shipping Separately", backorderLinesTable(waiting), { divider: false })}`;
+};
+
+// Sent when backordered items ship (Shipment 2, 3, …): this package's
+// tracking and items, plus anything still waiting after it.
+export const getBackorderShippedTemplate = (order, generation) => {
+  const shipped = (order.backorders || []).filter(
+    (b) =>
+      b.status === BACKORDER_STATUSES.SHIPPED && b.generation === generation,
+  );
+  const stillWaiting = getAwaitingBackorders(order);
+  const tracking = shipped[0]?.shipping || {};
+
+  return wrap(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">The rest of your order is on its way!</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;">The items that were out of stock when your order shipped are now in their own package, heading your way.</p>
+    </td></tr>
+    ${openSection(
+      "Order Information",
+      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${kv("Invoice Number", invoiceLink(order))}
+        ${kv("Package", `<span style="color:#2563eb;font-weight:600;">Shipment ${generation}</span>`, true)}
+      </table>`,
+      { divider: false },
+    )}
+    ${trackingSection({ shipping: tracking })}
+    ${openSection("In this Package", backorderLinesTable(shipped))}
+    ${
+      stillWaiting.length
+        ? `<tr><td style="padding:0 32px 10px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:#78350f;line-height:1.6;">
+          &#9203;&nbsp; A few items are still out of stock. They will follow in another package, and we'll email you when they ship.
+        </td></tr>
+      </table>
+    </td></tr>
+    ${openSection("Still to Come", backorderLinesTable(stillWaiting), { divider: false })}`
+        : ""
+    }
+    ${viewOrderBtn(order)}
+  `,
+    "#0ea5e9",
+  );
+};
 
 export const getOrderDeliveredTemplate = (order) => {
   const isPickup = order.delivery?.method === DELIVERY_METHODS.STORE_PICKUP;
