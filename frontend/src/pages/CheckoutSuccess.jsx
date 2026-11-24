@@ -10,6 +10,7 @@ import CancelOrderModal from "@/components/products/CancelOrderModal";
 import OrderShipmentCard from "@/components/products/OrderShipmentCard";
 import OrderItemRow from "@/components/shared/OrderItemRow";
 import BackorderShipments from "@/components/shared/BackorderShipments";
+import OrderRefunds from "@/components/shared/OrderRefunds";
 import { formatCurrency, formatDate, formatPhone } from "@/utils/formatting";
 import {
   splitProductItemName,
@@ -340,6 +341,7 @@ const CheckoutSuccess = () => {
 
           {/* Items shipping separately (backordered) */}
           <BackorderShipments order={order} size="md" />
+          <OrderRefunds order={order} size="md" />
 
           {/* Pay Now, Ship Later — consolidated shipment */}
           {!isHeld && <OrderShipmentCard order={order} shipment={shipment} />}

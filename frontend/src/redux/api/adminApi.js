@@ -714,6 +714,25 @@ export const adminApi = createApi({
       invalidatesTags: ["Order"],
     }),
 
+    // Refunds without cancelling: items and/or an amount, back to the card
+    createOrderRefund: builder.mutation({
+      query: ({ id, amount, reason, lines, restock }) => ({
+        url: `/orders/${id}/refunds`,
+        method: "POST",
+        body: { amount, reason, lines, restock },
+      }),
+      invalidatesTags: ["Order"],
+    }),
+
+    // Refunds: put a refund's held-back items back in stock
+    restockOrderRefund: builder.mutation({
+      query: ({ id, refundId }) => ({
+        url: `/orders/${id}/refunds/${refundId}/restock`,
+        method: "POST",
+      }),
+      invalidatesTags: ["Order"],
+    }),
+
     // Backorders: everything still waiting to ship
     getBackorderReport: builder.query({
       query: () => ({ url: "/orders/backorders", method: "GET" }),
@@ -940,6 +959,8 @@ export const {
   useSetOrderBackorderMutation,
   useShipOrderBackorderMutation,
   useGetBackorderReportQuery,
+  useCreateOrderRefundMutation,
+  useRestockOrderRefundMutation,
 
   useGetUsersQuery,
   useUpdateUserRoleMutation,

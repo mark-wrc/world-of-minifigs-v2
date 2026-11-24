@@ -59,7 +59,13 @@ import {
 import {
   getAwaitingBackorders,
   hasAwaitingBackorder,
+  getRefundedTotal,
+  getRefundableAmount,
 } from "@shared/orderLines";
+import OrderRefunds from "@/components/shared/OrderRefunds";
+import RefundDialog from "@/components/admin/orders/RefundDialog";
+import { useRestockOrderRefundMutation } from "@/redux/api/adminApi";
+import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
 import BackorderShipments from "@/components/shared/BackorderShipments";
 import {
   BackorderDialog,
@@ -167,14 +173,49 @@ const OrderManagement = () => {
   const [shipBackorderOrder, setShipBackorderOrder] = React.useState(null);
   const [backorderReportOpen, setBackorderReportOpen] = React.useState(false);
   // The order views show a copy of the order from when it was opened; after a
-  // backorder change, show the saved backorder straight away.
-  const [backorderUpdates, setBackorderUpdates] = React.useState({});
+  // backorder or refund change, show the saved backorder/refunds straight away.
+  const [orderUpdates, setOrderUpdates] = React.useState({});
   const handleBackorderSaved = (orderId, backorders) =>
-    setBackorderUpdates((prev) => ({ ...prev, [orderId]: backorders || [] }));
+    setOrderUpdates((prev) => ({
+      ...prev,
+      [orderId]: { ...prev[orderId], backorders: backorders || [] },
+    }));
+  const handleRefundSaved = (orderId, saved) =>
+    setOrderUpdates((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...prev[orderId],
+        backorders: saved?.backorders || [],
+        refunds: saved?.refunds || [],
+      },
+    }));
   const withBackorderUpdate = (order) =>
-    order && backorderUpdates[order._id] !== undefined
-      ? { ...order, backorders: backorderUpdates[order._id] }
+    order && orderUpdates[order._id]
+      ? { ...order, ...orderUpdates[order._id] }
       : order;
+
+  // Refunds without cancelling: which order the refund dialog is open for.
+  const [refundOrder, setRefundOrder] = React.useState(null);
+  const [restockOrderRefund] = useRestockOrderRefundMutation();
+  const [restockingId, setRestockingId] = React.useState(null);
+  const handleRestock = async (order, refund) => {
+    setRestockingId(refund._id);
+    try {
+      const result = await restockOrderRefund({
+        id: order._id,
+        refundId: refund._id,
+      }).unwrap();
+      handleApiSuccess(result, "Put back in stock");
+      handleRefundSaved(order._id, result.order);
+    } catch (error) {
+      handleApiError(error, "Failed to put back in stock");
+    } finally {
+      setRestockingId(null);
+    }
+  };
+  const canRefund = (order) =>
+    ["paid", "on_hold", "shipped", "delivered"].includes(order?.status) &&
+    getRefundableAmount(order) > 0;
 
   // Shipment view: which orders are expanded to their full details.
   const [openParcelOrders, setOpenParcelOrders] = React.useState({});
@@ -238,6 +279,13 @@ const OrderManagement = () => {
                 waiting
               </span>
             )}
+            {order.status !== "cancelled" &&
+              getRefundedTotal(withBackorderUpdate(order)) > 0 && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                  Refunded{" "}
+                  {formatCurrency(getRefundedTotal(withBackorderUpdate(order)))}
+                </span>
+              )}
           </div>
         </TableCell>
 
@@ -840,6 +888,28 @@ const OrderManagement = () => {
         </div>
       )}
 
+      {/* ── Refunds made without cancelling ── */}
+      <OrderRefunds
+        order={viewOrder}
+        admin
+        onRestock={(refund) => handleRestock(viewOrder, refund)}
+        restockingId={restockingId}
+        actions={
+          canRefund(viewOrder) && (
+            <Button size="sm" variant="outline" onClick={() => setRefundOrder(viewOrder)}>
+              Refund
+            </Button>
+          )
+        }
+      />
+      {canRefund(viewOrder) && !viewOrder?.refunds?.length && (
+        <div className="flex justify-end">
+          <Button size="sm" variant="outline" onClick={() => setRefundOrder(viewOrder)}>
+            Refund Items or an Amount
+          </Button>
+        </div>
+      )}
+
       {/* ── Refund Details ── */}
       {viewOrder?.status === "cancelled" && (
         <section className="space-y-2">
@@ -959,6 +1029,16 @@ const OrderManagement = () => {
               </div>
               <span className="text-xs">
                 -{formatCurrency(viewOrder.payment.discount.amount)}
+              </span>
+            </div>
+          )}
+          {getRefundedTotal(viewOrder) > 0 && (
+            <div className="flex justify-between items-center p-3 text-destructive">
+              <span className="font-semibold text-xs">
+                Refunded {viewOrder?.status === "cancelled" ? "before cancelling" : "so far"}
+              </span>
+              <span className="text-xs">
+                -{formatCurrency(getRefundedTotal(viewOrder))}
               </span>
             </div>
           )}
@@ -1506,6 +1586,14 @@ const OrderManagement = () => {
       <BackorderReportDialog
         open={backorderReportOpen}
         onOpenChange={setBackorderReportOpen}
+      />
+
+      {/* Refunds */}
+      <RefundDialog
+        open={Boolean(refundOrder)}
+        onOpenChange={(open) => !open && setRefundOrder(null)}
+        order={refundOrder}
+        onSaved={handleRefundSaved}
       />
     </div>
   );

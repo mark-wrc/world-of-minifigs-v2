@@ -14,7 +14,7 @@ import {
   getShipmentStatusConfig,
 } from "@/constant/orderData";
 import { formatDate, formatCurrency } from "@/utils/formatting";
-import { hasAwaitingBackorder } from "@shared/orderLines";
+import { hasAwaitingBackorder, getRefundedTotal } from "@shared/orderLines";
 
 const buildOrderCard = (order) => {
   const statusConfig = getOrderStatusConfig(order);
@@ -41,6 +41,11 @@ const buildOrderCard = (order) => {
     itemCount: orderItems.length,
     // Some items are backordered and will ship separately.
     hasBackorder: hasAwaitingBackorder(order),
+    // Part of the order was refunded without cancelling it.
+    partRefunded:
+      order.status !== "cancelled" && getRefundedTotal(order) > 0
+        ? formatCurrency(getRefundedTotal(order))
+        : null,
     totalAmount: formatCurrency(order.payment?.totalAmount),
     showTrackingInfo,
     trackingCarrier: order.shipping?.carrier || null,

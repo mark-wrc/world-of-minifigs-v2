@@ -12,6 +12,7 @@ const OrderCard = ({ orderCard }) => {
     createdAt,
     itemCount,
     hasBackorder,
+    partRefunded,
     totalAmount,
   } = orderCard;
 
@@ -37,6 +38,11 @@ const OrderCard = ({ orderCard }) => {
             {hasBackorder && (
               <p className="text-xs font-semibold text-amber-600 mt-1">
                 Some items are awaiting shipment
+              </p>
+            )}
+            {partRefunded && (
+              <p className="text-xs font-semibold text-green-600 mt-1">
+                {partRefunded} refunded
               </p>
             )}
           </div>
