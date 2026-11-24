@@ -5,7 +5,9 @@ import {
   Check,
   ChevronRight,
   ClipboardList,
+  Clock,
   Copy,
+  Truck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -61,6 +63,8 @@ import {
   getAwaitingBackorders,
   hasAwaitingBackorder,
   getRefundedTotal,
+  getBackorderShipments,
+  getOrderLines,
 } from "@shared/orderLines";
 import OrderRefunds from "@/components/shared/OrderRefunds";
 import RefundDialog from "@/components/admin/orders/RefundDialog";
@@ -77,6 +81,21 @@ import OrderItemRow from "@/components/shared/OrderItemRow";
 import { perBagUnit } from "@shared/inventoryData";
 
 // Small inline button that copies the given text and briefly shows a check.
+// The recipient's name and shipping address as lines, ready to paste onto a
+// label: name, street, (unit), "City, ST 12345", country.
+const shipToText = (address) => {
+  if (!address) return "";
+  const cityLine = [
+    address.city,
+    [address.state, address.postalCode].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return [address.name, address.line1, address.line2, cityLine, address.country]
+    .filter(Boolean)
+    .join("\n");
+};
+
 const CopyButton = ({ value, label = "Address" }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -222,6 +241,229 @@ const OrderManagement = () => {
   const toggleParcelOrder = (id) =>
     setOpenParcelOrders((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  // ── Backorder shipments in the order list ──
+  // Each later shipment (Shipment 2, 3, …) of an order is its own line under
+  // the order. Open by default; the arrow on the order's invoice hides them.
+  const [closedBackorders, setClosedBackorders] = React.useState({});
+  const toggleBackorders = (id) =>
+    setClosedBackorders((prev) => ({ ...prev, [id]: !prev[id] }));
+  const laterShipments = (order) =>
+    !order || order.status === "cancelled"
+      ? []
+      : getBackorderShipments(withBackorderUpdate(order));
+  // Held items can be changed until the order ships; once it has shipped,
+  // what is still waiting can be shipped.
+  const canChangeBackorder = (order) =>
+    order?.status === "paid" || order?.status === "on_hold";
+  const canShipBackorder = (order) =>
+    (order?.status === "shipped" || order?.status === "delivered") &&
+    hasAwaitingBackorder(withBackorderUpdate(order));
+  const backorderMenuItems = (order) => {
+    const current = withBackorderUpdate(order);
+    return [
+      canChangeBackorder(current) && {
+        label: hasAwaitingBackorder(current)
+          ? "Change Backorder"
+          : "Backorder Items",
+        onSelect: () => setBackorderOrder(current),
+      },
+      canShipBackorder(current) && {
+        label: "Ship Backordered Items",
+        onSelect: () => setShipBackorderOrder(current),
+      },
+    ];
+  };
+
+  // The backorder shipment being viewed: { orderId, generation }. The order is
+  // looked up fresh each render so saved changes show straight away.
+  const [viewBackorder, setViewBackorder] = React.useState(null);
+
+  // What a shipment's items cost, from the prices paid (blank if unknown).
+  const shipmentValue = (order, shipment) => {
+    const prices = Object.fromEntries(
+      getOrderLines(order).map((l) => [l.key, l.unitPrice]),
+    );
+    let total = 0;
+    for (const line of shipment.lines) {
+      if (prices[line.lineKey] == null) return null;
+      total += prices[line.lineKey] * line.quantity;
+    }
+    return Math.round(total * 100) / 100;
+  };
+
+  // One later shipment's line in the order list.
+  const renderBackorderShipmentCells = (order, shipment) => {
+    const current = withBackorderUpdate(order);
+    const isWaiting = shipment.status === "awaiting";
+    const invoice = getInvoiceNumber(order) || order._id?.substring(0, 7);
+    const items = shipment.lines.reduce((n, l) => n + l.quantity, 0);
+    const value = shipmentValue(current, shipment);
+    const createdAt = shipment.lines
+      .map((l) => l.createdAt)
+      .filter(Boolean)
+      .sort()[0];
+    const shippable = isWaiting && canShipBackorder(current);
+
+    return (
+      <>
+        {/* Invoice · Shipment N */}
+        <TableCell truncate={false} className="font-mono text-xs">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+            <span className="text-muted-foreground">↳</span>
+            {isWaiting ? (
+              <Clock className="size-3.5 shrink-0 text-amber-600" />
+            ) : (
+              <Truck className="size-3.5 shrink-0 text-blue-600" />
+            )}
+            <span className="flex flex-col items-start leading-tight">
+              <span className="font-sans font-semibold">
+                Shipment {shipment.generation}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {invoice}
+              </span>
+            </span>
+          </span>
+        </TableCell>
+
+        {/* Customer */}
+        <TableCell maxWidth="180px">{formatFullName(order.userId)}</TableCell>
+
+        {/* Email */}
+        <TableCell>{display(order.email)}</TableCell>
+
+        {/* Type */}
+        <TableCell truncate={false}>
+          <div className="flex flex-col items-center leading-tight">
+            <span className="font-semibold">Backorder</span>
+            <span className="text-[10px] text-muted-foreground">
+              {items} item{items === 1 ? "" : "s"}
+            </span>
+          </div>
+        </TableCell>
+
+        {/* Payment — paid with the order */}
+        <TableCell className="text-xs text-muted-foreground">
+          With order
+        </TableCell>
+
+        {/* Value of the items in this shipment */}
+        {value == null ? (
+          <TableCell className="text-muted-foreground">—</TableCell>
+        ) : (
+          <TableCell className="text-muted-foreground font-semibold">
+            {formatCurrency(value)}
+          </TableCell>
+        )}
+
+        {/* Status */}
+        <TableCell truncate={false}>
+          <div className="flex flex-col items-center gap-1">
+            <Badge
+              className={`font-medium ${isWaiting ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300"}`}
+            >
+              {isWaiting ? "Awaiting shipment" : "Shipped"}
+            </Badge>
+            {!isWaiting && shipment.shipping?.trackingNumber && (
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {shipment.shipping.carrier} · {shipment.shipping.trackingNumber}
+              </span>
+            )}
+            {isWaiting && !canShipBackorder(current) && (
+              <span className="text-[10px] text-muted-foreground">
+                Ships after the rest of the order
+              </span>
+            )}
+          </div>
+        </TableCell>
+
+        {/* Created At — when the items were held back */}
+        <TimestampCells createdAt={createdAt || order.createdAt} withTime />
+
+        {/* Actions */}
+        <ActionsColumn
+          onView={() =>
+            setViewBackorder({
+              orderId: order._id,
+              order,
+              generation: shipment.generation,
+            })
+          }
+          viewTitle="View shipment"
+          onEdit={shippable ? () => setShipBackorderOrder(current) : undefined}
+          editTitle="Mark as shipped"
+          extraActions={[
+            canChangeBackorder(current) && {
+              label: "Backorder Items",
+              onSelect: () => setBackorderOrder(current),
+            },
+            { label: "View order", onSelect: () => handleView(order) },
+          ]}
+        />
+      </>
+    );
+  };
+
+  // The lines under an order for its later shipments (none when hidden).
+  const renderBackorderRows = (order) =>
+    !closedBackorders[order._id] &&
+    laterShipments(order).map((shipment) => (
+      <tr
+        key={`${order._id}-bo-${shipment.generation}`}
+        className={`border-t border-dashed text-sm ${shipment.status === "awaiting" ? "bg-amber-50/60 dark:bg-amber-950/20" : "bg-muted/40"}`}
+      >
+        {renderBackorderShipmentCells(order, shipment)}
+      </tr>
+    ));
+
+  // The top of an order view, which stays in place while the rest scrolls:
+  // invoice, status, the customer and where it ships.
+  const renderOrderHeader = (order) => {
+    const address = order?.shipping?.address;
+    const statusConfig = getOrderStatusConfig(order);
+    const phone = address?.phone;
+    return (
+      <section className="sticky -top-5 z-10 -mx-5 -mt-5 px-5 pt-5 pb-3 bg-background border-b shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <span className="font-mono text-sm font-semibold">
+            #{getInvoiceNumber(order) || order?._id?.substring(0, 7)}
+          </span>
+          <Badge className={`font-medium ${statusConfig.iconColor}`}>
+            {statusConfig.label}
+          </Badge>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 text-xs">
+          <div className="min-w-0 space-y-0.5">
+            <p className="font-semibold uppercase text-[10px] text-muted-foreground">
+              Customer
+            </p>
+            <p className="font-semibold">{formatFullName(order?.userId)}</p>
+            <p className="break-all">{order?.email || "—"}</p>
+            {phone && <p>{formatPhone(phone)}</p>}
+          </div>
+          <div className="min-w-0 space-y-0.5">
+            <p className="flex items-center justify-between gap-2 font-semibold uppercase text-[10px] text-muted-foreground">
+              Ship To
+              {address?.line1 && (
+                <CopyButton
+                  value={shipToText(address)}
+                  label="name and shipping address"
+                />
+              )}
+            </p>
+            {address?.line1 ? (
+              <p className="whitespace-pre-line select-all">
+                {shipToText(address)}
+              </p>
+            ) : (
+              <p>—</p>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   // One order's cells. `nested` marks an order listed under its shipment row,
   // where the "Consolidated" tag would only repeat the row above. Inside a
   // paid shipment an order can only be cancelled — shipping happens once, on
@@ -232,14 +474,34 @@ const OrderManagement = () => {
     const transitions = getAvailableTransitions(order.status, allowed);
     const statusConfig = getOrderStatusConfig(order);
     const shipment = nested ? null : getOrderShipment(order);
+    const later = laterShipments(order);
+    const laterOpen = later.length > 0 && !closedBackorders[order._id];
 
     return (
       <>
-        {/* Invoice */}
-        <TableCell maxWidth="160px" className="font-mono text-xs">
-          {nested && <span className="text-muted-foreground mr-1">↳</span>}
-          {invoice}
-        </TableCell>
+        {/* Invoice — with an arrow that shows/hides its later shipments */}
+        {later.length > 0 ? (
+          <TableCell truncate={false} className="font-mono text-xs">
+            <button
+              type="button"
+              onClick={() => toggleBackorders(order._id)}
+              aria-expanded={laterOpen}
+              title={laterOpen ? "Hide later shipments" : "Show later shipments"}
+              className="inline-flex items-center gap-1 cursor-pointer hover:text-primary"
+            >
+              {nested && <span className="text-muted-foreground">↳</span>}
+              <ChevronRight
+                className={`size-4 transition-transform ${laterOpen ? "rotate-90" : ""}`}
+              />
+              {invoice}
+            </button>
+          </TableCell>
+        ) : (
+          <TableCell maxWidth="160px" className="font-mono text-xs">
+            {nested && <span className="text-muted-foreground mr-1">↳</span>}
+            {invoice}
+          </TableCell>
+        )}
 
         {/* Customer */}
         <TableCell maxWidth="180px">{formatFullName(order.userId)}</TableCell>
@@ -301,6 +563,9 @@ const OrderManagement = () => {
               : undefined
           }
           editTitle={allowed ? "Cancel order" : undefined}
+          extraActions={
+            order.status === "cancelled" ? [] : backorderMenuItems(order)
+          }
           onExport={() => exportOrderToPdf(order)}
         />
       </>
@@ -408,6 +673,9 @@ const OrderManagement = () => {
   // order reads as just its own details.
   const renderOrderDetails = (viewOrder, { inShipment = false } = {}) => (
     <>
+      {/* ── Invoice, status, customer and ship-to: stays at the top ── */}
+      {!inShipment && renderOrderHeader(viewOrder)}
+
       {/* ── Order Information ── */}
       <section className="space-y-2 mt-2">
         <Label className="font-semibold text-xs uppercase">
@@ -433,30 +701,6 @@ const OrderManagement = () => {
               </span>
             )}
           </div>
-          {!inShipment && (
-            <div className="grid grid-cols-[140px_1fr] p-3">
-              <span className="font-semibold text-xs">Status</span>
-              <div className="flex items-center">
-                <span
-                  className={`text-xs font-semibold ${
-                    getOrderStatusConfig(viewOrder).variant === "success"
-                      ? "text-success"
-                      : getOrderStatusConfig(viewOrder).variant === "info"
-                        ? "text-blue-600"
-                        : getOrderStatusConfig(viewOrder).variant ===
-                            "destructive"
-                          ? "text-destructive"
-                          : getOrderStatusConfig(viewOrder).variant ===
-                              "secondary"
-                            ? "text-amber-600"
-                            : "text-muted-foreground"
-                  }`}
-                >
-                  {getOrderStatusConfig(viewOrder).label}
-                </span>
-              </div>
-            </div>
-          )}
           <div className="grid grid-cols-[140px_1fr] p-3">
             <span className="font-semibold text-xs">Order Type</span>
             <span className="text-xs capitalize">
@@ -489,37 +733,6 @@ const OrderManagement = () => {
         </div>
       </section>
 
-      {!inShipment && (
-        <>
-          {/* ── Customer ── */}
-          <section className="space-y-2">
-            <Label className="font-semibold text-xs uppercase">Customer</Label>
-            <div className="rounded-lg border divide-y text-sm">
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Name</span>
-                <span className="text-xs">
-                  {formatFullName(viewOrder?.userId)}
-                </span>
-              </div>
-              <div className="grid grid-cols-[140px_1fr] p-3">
-                <span className="font-semibold text-xs">Email</span>
-                <span className="text-xs break-all">
-                  {viewOrder?.email || "—"}
-                </span>
-              </div>
-              {viewOrder?.shipping?.address?.phone && (
-                <div className="grid grid-cols-[140px_1fr] p-3">
-                  <span className="font-semibold text-xs">Contact No.</span>
-                  <span className="text-xs">
-                    {formatPhone(viewOrder.shipping.address.phone)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-        </>
-      )}
-
       {/* ── Billing Details ── */}
       {(viewOrder?.billing?.cardHolderName || viewOrder?.billing?.country) && (
         <section className="space-y-2">
@@ -545,52 +758,6 @@ const OrderManagement = () => {
 
       {!inShipment && (
         <>
-          {/* ── Shipping Address ── */}
-          {viewOrder?.shipping?.address && (
-            <section className="space-y-2">
-              <Label className="font-semibold text-xs uppercase">
-                Shipping Address
-              </Label>
-              <div className="rounded-lg border divide-y text-sm">
-                <div className="grid grid-cols-[140px_1fr] p-3">
-                  <span className="font-semibold text-xs">Recipient</span>
-                  <span className="text-xs">
-                    {viewOrder?.shipping?.address?.name || "—"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-[140px_1fr] p-3">
-                  <span className="font-semibold text-xs">Address</span>
-                  {(() => {
-                    const fullAddress = [
-                      viewOrder?.shipping?.address?.line1,
-                      viewOrder?.shipping?.address?.line2,
-                      viewOrder?.shipping?.address?.city,
-                      viewOrder?.shipping?.address?.state,
-                      viewOrder?.shipping?.address?.postalCode,
-                      viewOrder?.shipping?.address?.country,
-                    ]
-                      .filter(Boolean)
-                      .join(", ");
-                    return (
-                      <span className="flex items-start justify-between gap-2 text-xs">
-                        <span className="select-all">{fullAddress || "—"}</span>
-                        {fullAddress && <CopyButton value={fullAddress} />}
-                      </span>
-                    );
-                  })()}
-                </div>
-                {viewOrder?.shipping?.address?.phone && (
-                  <div className="grid grid-cols-[140px_1fr] p-3">
-                    <span className="font-semibold text-xs">Contact No.</span>
-                    <span className="text-xs">
-                      {formatPhone(viewOrder.shipping.address.phone)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </section>
-          )}
-
           {/* ── Shipping & Tracking ── */}
           {viewOrder?.shipping?.carrier && (
             <section className="space-y-2">
@@ -1153,7 +1320,10 @@ const OrderManagement = () => {
                 "Address",
                 <span className="flex items-start justify-between gap-2">
                   <span className="select-all">{fullAddress}</span>
-                  <CopyButton value={fullAddress} />
+                  <CopyButton
+                    value={shipToText(address)}
+                    label="name and shipping address"
+                  />
                 </span>,
               )}
               {address.phone &&
@@ -1340,19 +1510,20 @@ const OrderManagement = () => {
             : renderOrderCells(group.order)
         }
         renderExpanded={(group) =>
-          group.type === "shipment" &&
-          expandedShipments[group._id] &&
-          group.orders.map((order) => (
-            <tr
-              key={order._id}
-              className="border-t border-dashed text-sm bg-muted/40"
-            >
-              {renderOrderCells(order, {
-                nested: true,
-                parcel: group.shipment,
-              })}
-            </tr>
-          ))
+          group.type === "shipment"
+            ? expandedShipments[group._id] &&
+              group.orders.map((order) => (
+                <React.Fragment key={order._id}>
+                  <tr className="border-t border-dashed text-sm bg-muted/40">
+                    {renderOrderCells(order, {
+                      nested: true,
+                      parcel: group.shipment,
+                    })}
+                  </tr>
+                  {renderBackorderRows(order)}
+                </React.Fragment>
+              ))
+            : renderBackorderRows(group.order)
         }
       />
 
@@ -1543,6 +1714,70 @@ const OrderManagement = () => {
       >
         {renderOrderDetails(withBackorderUpdate(viewOrder))}
       </ViewAdminDialog>
+
+      {/* View Backorder Shipment Dialog — one later shipment of an order */}
+      {(() => {
+        const order = withBackorderUpdate(viewBackorder?.order);
+        const generation = viewBackorder?.generation;
+        const onlyThis = order && {
+          ...order,
+          backorders: (order.backorders || []).filter(
+            (b) => (b.generation || 2) === generation,
+          ),
+        };
+        const waiting = onlyThis?.backorders.some(
+          (b) => b.status === "awaiting",
+        );
+        return (
+          <ViewAdminDialog
+            open={Boolean(viewBackorder)}
+            onOpenChange={(open) => !open && setViewBackorder(null)}
+            title={
+              order
+                ? `Order #${getInvoiceNumber(order) || order._id?.substring(0, 7)} · Shipment ${generation}`
+                : "Shipment"
+            }
+            footerActions={
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setViewBackorder(null);
+                    handleView(viewBackorder.order);
+                  }}
+                >
+                  View Order
+                </Button>
+                {waiting && canShipBackorder(order) && (
+                  <Button onClick={() => setShipBackorderOrder(order)}>
+                    Mark as Shipped
+                  </Button>
+                )}
+              </>
+            }
+          >
+            {order && (
+              <>
+                {renderOrderHeader(order)}
+                {onlyThis.backorders.length ? (
+                  <BackorderShipments order={onlyThis} admin />
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    This shipment no longer has any items. They were refunded
+                    or taken off the backorder.
+                  </p>
+                )}
+                {waiting && !canShipBackorder(order) && (
+                  <p className="text-xs text-muted-foreground">
+                    These items can be marked as shipped once the rest of the
+                    order has shipped.
+                  </p>
+                )}
+              </>
+            )}
+          </ViewAdminDialog>
+        );
+      })()}
 
       {/* View Shipment Dialog — the parcel and every order inside it */}
       <ViewAdminDialog

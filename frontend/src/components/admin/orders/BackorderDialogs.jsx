@@ -14,6 +14,8 @@ import {
   useGetBackorderReportQuery,
 } from "@/redux/api/adminApi";
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
+import LineSearch from "@/components/admin/orders/LineSearch";
+import { lineMatches } from "@/components/admin/orders/lineMatches";
 import { formatDate } from "@/utils/formatting";
 import { getInvoiceNumber } from "@/constant/orderData";
 import {
@@ -74,15 +76,18 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
   );
   const [qty, setQty] = React.useState({});
   const [note, setNote] = React.useState("");
+  const [query, setQuery] = React.useState("");
 
   // Start from what is already backordered.
   React.useEffect(() => {
     if (!open || !order) return;
     setQty(awaitingQuantityByKey(order));
     setNote(getAwaitingBackorders(order)[0]?.note || "");
+    setQuery("");
   }, [open, order]);
 
   const held = lines.filter((l) => Number(qty[l.key]) > 0);
+  const shownLines = lines.filter((l) => lineMatches(l, query));
 
   const handleSubmit = async (event) => {
     event?.preventDefault?.();
@@ -118,8 +123,19 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
           <span className="font-semibold">Shipment 2</span>; everything else
           ships now as usual. Leave 0 for items that are here.
         </p>
+        <LineSearch
+          value={query}
+          onChange={setQuery}
+          shown={shownLines.length}
+          total={lines.length}
+        />
         <div className="rounded-lg border divide-y max-h-[50vh] overflow-y-auto">
-          {lines.map((line) => (
+          {shownLines.length === 0 && (
+            <p className="p-3 text-xs text-muted-foreground">
+              No items match "{query}".
+            </p>
+          )}
+          {shownLines.map((line) => (
             <div
               key={line.key}
               className={`flex items-center justify-between gap-3 p-3 ${Number(qty[line.key]) > 0 ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}
@@ -142,6 +158,12 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
             </div>
           ))}
         </div>
+        {query && held.some((l) => !lineMatches(l, query)) && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {held.filter((l) => !lineMatches(l, query)).length} backordered
+            item(s) are hidden by the search and still count.
+          </p>
+        )}
         <AdminFormTextarea
           label="Note (staff only)"
           name="backorderNote"
@@ -172,9 +194,12 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
   const [trackingNumber, setTrackingNumber] = React.useState("");
   const [trackingLink, setTrackingLink] = React.useState("");
   const [qty, setQty] = React.useState({});
+  const [query, setQuery] = React.useState("");
+  const shownWaiting = waiting.filter((b) => lineMatches(b, query));
 
   React.useEffect(() => {
     if (!open) return;
+    setQuery("");
     setCarrier("");
     setTrackingNumber("");
     setTrackingLink("");
@@ -219,8 +244,21 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
       className="sm:max-w-2xl"
     >
       <div className="space-y-4">
+        {waiting.length > 3 && (
+          <LineSearch
+            value={query}
+            onChange={setQuery}
+            shown={shownWaiting.length}
+            total={waiting.length}
+          />
+        )}
         <div className="rounded-lg border divide-y max-h-[40vh] overflow-y-auto">
-          {waiting.map((b) => (
+          {shownWaiting.length === 0 && (
+            <p className="p-3 text-xs text-muted-foreground">
+              No items match "{query}".
+            </p>
+          )}
+          {shownWaiting.map((b) => (
             <div key={b.lineKey} className="flex items-center justify-between gap-3 p-3">
               <span className="text-xs font-semibold min-w-0">{b.name}</span>
               <QtyBox

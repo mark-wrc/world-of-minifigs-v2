@@ -2,6 +2,8 @@
 
 Two additions to **Order Management**, both on pull request #12 (branch `backorders`):
 
+Section 3 lists screen changes added later at Brendyn's request.
+
 1. **Backorders**: when some items of a paid order are out of stock, staff hold
    just those back. The rest ships as usual; the held items ship later in their
    own package(s) with their own tracking.
@@ -211,6 +213,59 @@ unchanged.
   the backorder staff fields.
 - **The Odoo integration key** is blocked from every admin `/orders` route
   (existing rule), so Odoo can never start a refund or change a backorder.
+
+---
+
+## 3. Screen changes added after the first review request
+
+Brendyn asked for these after trying the screens. **Frontend only**: no backend,
+data, email or payment changes.
+
+1. **Backorder shipments are their own lines in the order list.** Every later
+   shipment of an order (Shipment 2, 3, …) shows as a line right under the
+   order: amber "Awaiting shipment" or blue "Shipped" with carrier and
+   tracking, the number of items, and what those items cost. They're shown by
+   default. The arrow next to the order's invoice number hides or shows them.
+   Inside a consolidated parcel, an order's shipment lines show under that
+   order.
+2. **The order's ⋯ menu has backorder actions:**
+   - "Backorder Items", or "Change Backorder" if items are already held. Shown
+     while the order is Paid or Held.
+   - "Ship Backordered Items". Shown once the order has shipped and something
+     is still waiting.
+3. **Each shipment line has its own ⋯ menu,** like a normal order:
+   - "View shipment" shows its items, tracking and note, plus the customer and
+     ship-to.
+   - "Mark as shipped" opens the existing Ship Backordered Items window.
+   - "Backorder Items" (while the order is Paid or Held).
+   - "View order".
+   A waiting shipment can't be marked shipped before the rest of the order. The
+   line says "Ships after the rest of the order", the same rule the backend
+   already enforces.
+4. **Search in the Backorder Items and Refund windows.** A search box filters
+   the item list by name, colour or bin. It only hides lines: quantities typed
+   for hidden lines are kept. A note says so if any are hidden. Ship
+   Backordered Items gets the same box when more than 3 items are waiting.
+5. **Order view: the top stays put.** A header with the invoice, status,
+   customer (name, email, phone) and ship-to address stays at the top while the
+   rest of the order scrolls. The separate Customer and Shipping Address
+   sections and the Status row were removed, since the header shows them.
+6. **The copy button copies the name and the address.** It copies a
+   label-ready block: recipient name, street, unit, "City, ST ZIP", country.
+   Before, it copied the address only. It works the same in the consolidated
+   shipment view.
+
+Files: `pages/admin/OrderManagement.jsx`,
+`components/admin/orders/BackorderDialogs.jsx`,
+`components/admin/orders/RefundDialog.jsx`,
+`components/admin/orders/LineSearch.jsx` (new),
+`components/admin/orders/lineMatches.js` (new), and
+`components/table/BaseColumn.jsx`. `ActionsColumn` takes an optional
+`extraActions` list. It's empty by default, so the other 35 tables that use
+it are unchanged.
+
+Checked: `vite build` passes, eslint is clean on these files, and every item
+above was clicked through locally with made-up orders.
 
 ---
 

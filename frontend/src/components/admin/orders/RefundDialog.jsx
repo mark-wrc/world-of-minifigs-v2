@@ -4,6 +4,8 @@ import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import { AdminFormTextarea } from "@/components/shared/AdminFormInput";
 import { useCreateOrderRefundMutation } from "@/redux/api/adminApi";
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
+import LineSearch from "@/components/admin/orders/LineSearch";
+import { lineMatches } from "@/components/admin/orders/lineMatches";
 import { formatCurrency } from "@/utils/formatting";
 import { getInvoiceNumber, getRefundLimit } from "@/constant/orderData";
 import {
@@ -45,9 +47,12 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
   const [reason, setReason] = React.useState("");
   const [restock, setRestock] = React.useState(true);
   const [fromBackorder, setFromBackorder] = React.useState(true);
+  const [query, setQuery] = React.useState("");
+  const shownLines = lines.filter((l) => lineMatches(l, query));
 
   React.useEffect(() => {
     if (!open) return;
+    setQuery("");
     setQty({});
     setAmount("");
     setAmountTouched(false);
@@ -130,8 +135,20 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
           customer is emailed. This can't be undone.
         </p>
 
+        <LineSearch
+          value={query}
+          onChange={setQuery}
+          shown={shownLines.length}
+          total={lines.length}
+          disabled={isLoading}
+        />
         <div className="rounded-lg border divide-y max-h-[40vh] overflow-y-auto">
-          {lines.map((line) => {
+          {shownLines.length === 0 && (
+            <p className="p-3 text-xs text-muted-foreground">
+              No items match "{query}".
+            </p>
+          )}
+          {shownLines.map((line) => {
             // Units that already shipped (box unticked): not the backordered ones.
             const max = Math.max(
               0,
@@ -176,6 +193,13 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
             );
           })}
         </div>
+
+        {query && picked.some((l) => !lineMatches(l, query)) && (
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            {picked.filter((l) => !lineMatches(l, query)).length} ticked
+            item(s) are hidden by the search and are still in this refund.
+          </p>
+        )}
 
         <div className="space-y-1">
           <label htmlFor="refundAmount" className="text-sm font-medium">

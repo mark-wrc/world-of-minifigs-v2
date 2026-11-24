@@ -101,6 +101,8 @@ export const ActionsColumn = ({
   duplicateTitle = "Duplicate",
   deleteTitle = "Delete",
   exportTitle = "Export",
+  // More menu items after Update: [{ label, onSelect }]. Optional.
+  extraActions = [],
 }) => {
   return (
     <td className="p-3 text-center">
@@ -138,6 +140,17 @@ export const ActionsColumn = ({
               {editTitle}
             </DropdownMenuItem>
           )}
+          {extraActions.filter(Boolean).map((action) => (
+            <DropdownMenuItem
+              key={action.label}
+              onSelect={(event) => {
+                event.preventDefault();
+                action.onSelect();
+              }}
+            >
+              {action.label}
+            </DropdownMenuItem>
+          ))}
           {onDuplicate && (
             <DropdownMenuItem
               onSelect={(event) => {
