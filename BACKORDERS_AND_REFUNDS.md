@@ -246,10 +246,13 @@ data, email or payment changes.
    the item list by name, colour or bin. It only hides lines: quantities typed
    for hidden lines are kept. A note says so if any are hidden. Ship
    Backordered Items gets the same box when more than 3 items are waiting.
-5. **Order view: the top stays put.** A header with the invoice, status,
-   customer (name, email, phone) and ship-to address stays at the top while the
-   rest of the order scrolls. The separate Customer and Shipping Address
-   sections and the Status row were removed, since the header shows them.
+5. **Order view: the top stays put.** The Order Information, Customer, Billing
+   and Shipping Address boxes stay at the top while the rest of the order
+   (tracking, items, backorders, refunds, payment) scrolls under them. They
+   look exactly as before: same boxes, same order. They're only wrapped so
+   they stay in place, with a thin line under them. On short screens (window
+   under 850px tall) they scroll normally, so the items are never squeezed
+   out of view.
 6. **The copy button copies the name and the address.** It copies a
    label-ready block: recipient name, street, unit, "City, ST ZIP", country.
    Before, it copied the address only. It works the same in the consolidated

@@ -416,53 +416,92 @@ const OrderManagement = () => {
       </tr>
     ));
 
-  // The top of an order view, which stays in place while the rest scrolls:
-  // invoice, status, the customer and where it ships.
-  const renderOrderHeader = (order) => {
-    const address = order?.shipping?.address;
-    const statusConfig = getOrderStatusConfig(order);
-    const phone = address?.phone;
-    return (
-      <section className="sticky -top-5 z-10 -mx-5 -mt-5 px-5 pt-5 pb-3 bg-background border-b shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <span className="font-mono text-sm font-semibold">
-            #{getInvoiceNumber(order) || order?._id?.substring(0, 7)}
-          </span>
-          <Badge className={`font-medium ${statusConfig.iconColor}`}>
-            {statusConfig.label}
-          </Badge>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 text-xs">
-          <div className="min-w-0 space-y-0.5">
-            <p className="font-semibold uppercase text-[10px] text-muted-foreground">
-              Customer
-            </p>
-            <p className="font-semibold">{formatFullName(order?.userId)}</p>
-            <p className="break-all">{order?.email || "—"}</p>
-            {phone && <p>{formatPhone(phone)}</p>}
+  // The Customer and Shipping Address boxes of an order view (same look as
+  // before). Also used in the backorder shipment view.
+  const renderCustomerSection = (viewOrder) => (
+    <>
+      {/* ── Customer ── */}
+      <section className="space-y-2">
+        <Label className="font-semibold text-xs uppercase">Customer</Label>
+        <div className="rounded-lg border divide-y text-sm">
+          <div className="grid grid-cols-[140px_1fr] p-3">
+            <span className="font-semibold text-xs">Name</span>
+            <span className="text-xs">
+              {formatFullName(viewOrder?.userId)}
+            </span>
           </div>
-          <div className="min-w-0 space-y-0.5">
-            <p className="flex items-center justify-between gap-2 font-semibold uppercase text-[10px] text-muted-foreground">
-              Ship To
-              {address?.line1 && (
-                <CopyButton
-                  value={shipToText(address)}
-                  label="name and shipping address"
-                />
-              )}
-            </p>
-            {address?.line1 ? (
-              <p className="whitespace-pre-line select-all">
-                {shipToText(address)}
-              </p>
-            ) : (
-              <p>—</p>
-            )}
+          <div className="grid grid-cols-[140px_1fr] p-3">
+            <span className="font-semibold text-xs">Email</span>
+            <span className="text-xs break-all">
+              {viewOrder?.email || "—"}
+            </span>
           </div>
+          {viewOrder?.shipping?.address?.phone && (
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Contact No.</span>
+              <span className="text-xs">
+                {formatPhone(viewOrder.shipping.address.phone)}
+              </span>
+            </div>
+          )}
         </div>
       </section>
-    );
-  };
+    </>
+  );
+  const renderShippingAddressSection = (viewOrder) => (
+    <>
+      {/* ── Shipping Address ── */}
+      {viewOrder?.shipping?.address && (
+        <section className="space-y-2">
+          <Label className="font-semibold text-xs uppercase">
+            Shipping Address
+          </Label>
+          <div className="rounded-lg border divide-y text-sm">
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Recipient</span>
+              <span className="text-xs">
+                {viewOrder?.shipping?.address?.name || "—"}
+              </span>
+            </div>
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Address</span>
+              {(() => {
+                const fullAddress = [
+                  viewOrder?.shipping?.address?.line1,
+                  viewOrder?.shipping?.address?.line2,
+                  viewOrder?.shipping?.address?.city,
+                  viewOrder?.shipping?.address?.state,
+                  viewOrder?.shipping?.address?.postalCode,
+                  viewOrder?.shipping?.address?.country,
+                ]
+                  .filter(Boolean)
+                  .join(", ");
+                return (
+                  <span className="flex items-start justify-between gap-2 text-xs">
+                    <span className="select-all">{fullAddress || "—"}</span>
+                    {fullAddress && (
+                      <CopyButton
+                        value={shipToText(viewOrder?.shipping?.address)}
+                        label="name and shipping address"
+                      />
+                    )}
+                  </span>
+                );
+              })()}
+            </div>
+            {viewOrder?.shipping?.address?.phone && (
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Contact No.</span>
+                <span className="text-xs">
+                  {formatPhone(viewOrder.shipping.address.phone)}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </>
+  );
 
   // One order's cells. `nested` marks an order listed under its shipment row,
   // where the "Consolidated" tag would only repeat the row above. Inside a
@@ -673,88 +712,123 @@ const OrderManagement = () => {
   // order reads as just its own details.
   const renderOrderDetails = (viewOrder, { inShipment = false } = {}) => (
     <>
-      {/* ── Invoice, status, customer and ship-to: stays at the top ── */}
-      {!inShipment && renderOrderHeader(viewOrder)}
-
-      {/* ── Order Information ── */}
-      <section className="space-y-2 mt-2">
-        <Label className="font-semibold text-xs uppercase">
-          Order Information
-        </Label>
-        <div className="rounded-lg border divide-y text-sm">
-          <div className="grid grid-cols-[140px_1fr] p-3">
-            <span className="font-semibold text-xs">Invoice Number</span>
-            {getInvoiceUrl(viewOrder) && getInvoiceNumber(viewOrder) ? (
-              <a
-                href={getInvoiceUrl(viewOrder)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary underline underline-offset-2"
-              >
-                {getInvoiceNumber(viewOrder)}
-              </a>
-            ) : (
-              <span className="text-xs">
-                {getInvoiceNumber(viewOrder) ||
-                  viewOrder?._id?.substring(0, 7) ||
-                  "—"}
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-[140px_1fr] p-3">
-            <span className="font-semibold text-xs">Order Type</span>
-            <span className="text-xs capitalize">
-              {viewOrder?.orderType || "—"}
-            </span>
-          </div>
-          <div className="grid grid-cols-[140px_1fr] p-3">
-            <span className="font-semibold text-xs">Paid At</span>
-            <span className="text-xs">
-              {formatDate(viewOrder?.payment?.paidAt)}
-            </span>
-          </div>
-          <div className="grid grid-cols-[140px_1fr] p-3">
-            <span className="font-semibold text-xs">Paid With</span>
-            <span className="text-xs">{getPaymentGatewayLabel(viewOrder)}</span>
-          </div>
-          {!inShipment && viewOrder?.payment?.shippingCountryMismatch && (
-            <div className="grid grid-cols-[140px_1fr] p-3 bg-destructive/5">
-              <span className="font-semibold text-xs text-destructive">
-                Shipping Check
-              </span>
-              <span className="text-xs font-semibold text-destructive">
-                Shipping was paid for{" "}
-                {viewOrder.payment.shippingCountryMismatch.expected}, but the
-                address is in {viewOrder.payment.shippingCountryMismatch.actual}
-                . Review before shipping.
-              </span>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ── Billing Details ── */}
-      {(viewOrder?.billing?.cardHolderName || viewOrder?.billing?.country) && (
+      {/* ── The top of the order (information, customer, billing, address)
+          stays in place while the rest scrolls — order view only ── */}
+      <div
+        className={
+          inShipment
+            ? "space-y-5"
+            : "space-y-5 [@media(min-height:850px)]:sticky -top-5 z-10 -mx-5 -mt-5 px-5 pt-5 pb-4 bg-background [@media(min-height:850px)]:border-b"
+        }
+      >
+        {/* ── Order Information ── */}
         <section className="space-y-2">
           <Label className="font-semibold text-xs uppercase">
-            Billing Details
+            Order Information
           </Label>
           <div className="rounded-lg border divide-y text-sm">
             <div className="grid grid-cols-[140px_1fr] p-3">
-              <span className="font-semibold text-xs">Cardholder Name</span>
-              <span className="text-xs">
-                {viewOrder.billing.cardHolderName || "—"}
+              <span className="font-semibold text-xs">Invoice Number</span>
+              {getInvoiceUrl(viewOrder) && getInvoiceNumber(viewOrder) ? (
+                <a
+                  href={getInvoiceUrl(viewOrder)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary underline underline-offset-2"
+                >
+                  {getInvoiceNumber(viewOrder)}
+                </a>
+              ) : (
+                <span className="text-xs">
+                  {getInvoiceNumber(viewOrder) ||
+                    viewOrder?._id?.substring(0, 7) ||
+                    "—"}
+                </span>
+              )}
+            </div>
+            {!inShipment && (
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Status</span>
+                <div className="flex items-center">
+                  <span
+                    className={`text-xs font-semibold ${
+                      getOrderStatusConfig(viewOrder).variant === "success"
+                        ? "text-success"
+                        : getOrderStatusConfig(viewOrder).variant === "info"
+                          ? "text-blue-600"
+                          : getOrderStatusConfig(viewOrder).variant ===
+                              "destructive"
+                            ? "text-destructive"
+                            : getOrderStatusConfig(viewOrder).variant ===
+                                "secondary"
+                              ? "text-amber-600"
+                              : "text-muted-foreground"
+                    }`}
+                  >
+                    {getOrderStatusConfig(viewOrder).label}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Order Type</span>
+              <span className="text-xs capitalize">
+                {viewOrder?.orderType || "—"}
               </span>
             </div>
             <div className="grid grid-cols-[140px_1fr] p-3">
-              <span className="font-semibold text-xs">Country</span>
+              <span className="font-semibold text-xs">Paid At</span>
               <span className="text-xs">
-                {viewOrder.billing.country || "—"}
+                {formatDate(viewOrder?.payment?.paidAt)}
               </span>
             </div>
+            <div className="grid grid-cols-[140px_1fr] p-3">
+              <span className="font-semibold text-xs">Paid With</span>
+              <span className="text-xs">{getPaymentGatewayLabel(viewOrder)}</span>
+            </div>
+            {!inShipment && viewOrder?.payment?.shippingCountryMismatch && (
+              <div className="grid grid-cols-[140px_1fr] p-3 bg-destructive/5">
+                <span className="font-semibold text-xs text-destructive">
+                  Shipping Check
+                </span>
+                <span className="text-xs font-semibold text-destructive">
+                  Shipping was paid for{" "}
+                  {viewOrder.payment.shippingCountryMismatch.expected}, but the
+                  address is in {viewOrder.payment.shippingCountryMismatch.actual}
+                  . Review before shipping.
+                </span>
+              </div>
+            )}
           </div>
         </section>
-      )}
+
+        {!inShipment && renderCustomerSection(viewOrder)}
+
+        {/* ── Billing Details ── */}
+        {(viewOrder?.billing?.cardHolderName || viewOrder?.billing?.country) && (
+          <section className="space-y-2">
+            <Label className="font-semibold text-xs uppercase">
+              Billing Details
+            </Label>
+            <div className="rounded-lg border divide-y text-sm">
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Cardholder Name</span>
+                <span className="text-xs">
+                  {viewOrder.billing.cardHolderName || "—"}
+                </span>
+              </div>
+              <div className="grid grid-cols-[140px_1fr] p-3">
+                <span className="font-semibold text-xs">Country</span>
+                <span className="text-xs">
+                  {viewOrder.billing.country || "—"}
+                </span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!inShipment && renderShippingAddressSection(viewOrder)}
+      </div>
 
       {!inShipment && (
         <>
@@ -1758,7 +1832,8 @@ const OrderManagement = () => {
           >
             {order && (
               <>
-                {renderOrderHeader(order)}
+                {renderCustomerSection(order)}
+                {renderShippingAddressSection(order)}
                 {onlyThis.backorders.length ? (
                   <BackorderShipments order={onlyThis} admin />
                 ) : (
