@@ -148,13 +148,29 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
                   </p>
                 )}
               </div>
-              <QtyBox
-                value={qty[line.key] ?? 0}
-                max={line.quantity}
-                label={`Backordered ${line.name}`}
-                disabled={isLoading}
-                onChange={(v) => setQty((prev) => ({ ...prev, [line.key]: v }))}
-              />
+              <div className="flex items-center gap-2 shrink-0">
+                <QtyBox
+                  value={qty[line.key] ?? 0}
+                  max={line.quantity}
+                  label={`Backordered ${line.name}`}
+                  disabled={isLoading}
+                  onChange={(v) => setQty((prev) => ({ ...prev, [line.key]: v }))}
+                />
+                {/* Backorder every unit of this line in one click. */}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 px-3"
+                  title={`Backorder all ${line.quantity}`}
+                  disabled={isLoading || Number(qty[line.key]) === line.quantity}
+                  onClick={() =>
+                    setQty((prev) => ({ ...prev, [line.key]: line.quantity }))
+                  }
+                >
+                  All
+                </Button>
+              </div>
             </div>
           ))}
         </div>

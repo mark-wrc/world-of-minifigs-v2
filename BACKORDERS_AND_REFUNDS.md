@@ -246,6 +246,9 @@ data, email or payment changes.
    the item list by name, colour or bin. It only hides lines: quantities typed
    for hidden lines are kept. A note says so if any are hidden. Ship
    Backordered Items gets the same box when more than 3 items are waiting.
+   In Backorder Items, an **All** button next to each quantity fills in the
+   whole quantity of that line in one click. The backend still refuses
+   backordering every item of the order.
 5. **Order view: the top stays put.**
    - The Order Information box is on the left, and the Customer, Billing and
      Shipping Address boxes are beside it on the right. The boxes look the
