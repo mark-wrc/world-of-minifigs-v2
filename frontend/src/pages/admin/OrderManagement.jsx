@@ -55,12 +55,12 @@ import {
   CONSOLIDATED_FILTER,
   BACKORDER_FILTER,
   STATUS_CONFIG,
+  getRefundLimit,
 } from "@/constant/orderData";
 import {
   getAwaitingBackorders,
   hasAwaitingBackorder,
   getRefundedTotal,
-  getRefundableAmount,
 } from "@shared/orderLines";
 import OrderRefunds from "@/components/shared/OrderRefunds";
 import RefundDialog from "@/components/admin/orders/RefundDialog";
@@ -215,7 +215,7 @@ const OrderManagement = () => {
   };
   const canRefund = (order) =>
     ["paid", "on_hold", "shipped", "delivered"].includes(order?.status) &&
-    getRefundableAmount(order) > 0;
+    getRefundLimit(order, getRefundedTotal(order)) > 0;
 
   // Shipment view: which orders are expanded to their full details.
   const [openParcelOrders, setOpenParcelOrders] = React.useState({});

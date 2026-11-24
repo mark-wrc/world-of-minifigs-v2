@@ -243,6 +243,26 @@ export const getOrderShipment = (order) =>
     ? order.shipmentId
     : null;
 
+// How much can still be refunded on an order without cancelling it. Mirrors
+// the backend: an order that paid a group shipment's fee keeps that fee while
+// other orders in the parcel are still waiting to ship.
+export const getRefundLimit = (order, refundedSoFar = 0) => {
+  const total = Number(order?.payment?.totalAmount) || 0;
+  const s = getOrderShipment(order);
+  const keepsFee =
+    s &&
+    s.status === "paid" &&
+    s.paymentSource === "order" &&
+    String(s.carrierOrderId?._id ?? s.carrierOrderId) === String(order._id) &&
+    (s.orders || []).some(
+      (o) => String(o?._id ?? o) !== String(order._id) && o?.status === "paid",
+    );
+  const cap = keepsFee
+    ? Math.max(0, total - (Number(s.payment?.totalAmount) || 0))
+    : total;
+  return Math.round(Math.max(0, cap - refundedSoFar) * 100) / 100;
+};
+
 // Short reference for an order inside a shipment list.
 export const getOrderRef = (order) =>
   getInvoiceNumber(order) || order?._id?.substring(0, 7)?.toUpperCase() || "—";

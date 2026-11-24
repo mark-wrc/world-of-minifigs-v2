@@ -69,18 +69,26 @@ async function applyOrderRefundEntry(refund) {
   }
 
   if (refund.failed) return true;
-  order.refunds = order.refunds || [];
-  order.refunds.push({
-    amount: refund.amount,
-    reason: "Refunded in the payment provider's dashboard",
-    source: "gateway",
-    gatewayRefundId: refund.id,
-    status: refund.completed
-      ? REFUND_ENTRY_STATUSES.COMPLETED
-      : REFUND_ENTRY_STATUSES.PENDING,
-    ...(refund.completed && { completedAt: new Date() }),
-  });
-  await order.save();
+  // One atomic add, only if this refund isn't listed yet — two deliveries of
+  // the same event can't list it twice.
+  await Order.updateOne(
+    { _id: order._id, "refunds.gatewayRefundId": { $ne: refund.id } },
+    {
+      $push: {
+        refunds: {
+          amount: refund.amount,
+          reason: "Refunded in the payment provider's dashboard",
+          source: "gateway",
+          gatewayRefundId: refund.id,
+          status: refund.completed
+            ? REFUND_ENTRY_STATUSES.COMPLETED
+            : REFUND_ENTRY_STATUSES.PENDING,
+          createdAt: new Date(),
+          ...(refund.completed && { completedAt: new Date() }),
+        },
+      },
+    },
+  );
   return true;
 }
 

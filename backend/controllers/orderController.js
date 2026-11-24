@@ -392,6 +392,7 @@ export const cancelOrder = async (req, res) => {
         success: false,
         message: "Refund could not be processed",
         description:
+          refundErr.description ||
           "We were unable to initiate your refund. Please try again or contact support.",
       });
     }
@@ -638,6 +639,7 @@ export const updateOrderStatus = async (req, res) => {
           success: false,
           message: "Refund could not be processed",
           description:
+            refundErr.description ||
             "We were unable to initiate the refund. Please try again or contact support.",
         });
       }

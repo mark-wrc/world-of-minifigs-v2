@@ -302,6 +302,14 @@ const fetchRefund = async (refundId) => {
   return normalizeRefund(refund);
 };
 
+// Every refund made on a record's payment.
+const listRefunds = async (record) => {
+  const { payment } = await getSquare().payments.get({
+    paymentId: record.payment.transactionId,
+  });
+  return Promise.all((payment?.refundIds || []).map(fetchRefund));
+};
+
 export default {
   name: PAYMENT_GATEWAYS.SQUARE,
   isConfigured,
@@ -312,4 +320,5 @@ export default {
   normalizeWebhookRefund,
   createRefund,
   fetchRefund,
+  listRefunds,
 };

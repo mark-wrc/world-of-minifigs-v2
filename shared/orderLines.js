@@ -61,7 +61,8 @@ export const getOrderLines = (order) => {
             key: `a${i}s${j}`,
             name: sub.colorName ? `${sub.name} - ${sub.colorName}` : sub.name,
             group: addon.name,
-            quantity: positive(sub.qty),
+            // bags per add-on × add-ons ordered (what checkout took from stock)
+            quantity: positive(sub.qty) * positive(addon.quantity || 1),
             unit: "bag",
             bin: sub.bin,
             imageUrl: sub.imageUrl,

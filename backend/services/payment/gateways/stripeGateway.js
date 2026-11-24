@@ -243,6 +243,16 @@ const createRefund = async (record, { amount, idempotencyKey } = {}) => {
 const fetchRefund = async (refundId) =>
   normalizeRefund(await getStripe().refunds.retrieve(refundId));
 
+// Every refund made on a record's payment (newest first).
+const listRefunds = async (record) => {
+  const { data } = await getStripe().refunds.list({
+    payment_intent:
+      record.payment.transactionId || record.payment.stripePaymentIntentId,
+    limit: 100,
+  });
+  return data.map(normalizeRefund);
+};
+
 export default {
   name: PAYMENT_GATEWAYS.STRIPE,
   isConfigured,
@@ -255,4 +265,5 @@ export default {
   normalizeRefund,
   createRefund,
   fetchRefund,
+  listRefunds,
 };

@@ -9,6 +9,7 @@ import {
   SHIPMENT_PAYMENT_SOURCES,
 } from "../constants/orderConstants.js";
 import { resolveShippingCountry } from "../../shared/shippingData.js";
+import { getRefundedTotal } from "../../shared/orderLines.js";
 import { getOrderGateway } from "./payment/gateways/index.js";
 import {
   getAdminShipmentReadyTemplate,
@@ -343,9 +344,11 @@ export const releaseShipmentIfEmpty = async (order) => {
   let feeAlreadyRefunded = false;
   if (shipment.paymentSource === SHIPMENT_PAYMENT_SOURCES.ORDER) {
     const carrier = await Order.findById(shipment.carrierOrderId);
+    // The cancel refund plus any refunds made from the order view before it.
     feeAlreadyRefunded =
       carrier?.status === ORDER_STATUSES.CANCELLED &&
-      (carrier.refund?.amount ?? 0) >= carrier.payment.totalAmount - 0.005;
+      (carrier.refund?.amount ?? 0) + getRefundedTotal(carrier) >=
+        carrier.payment.totalAmount - 0.005;
   }
 
   if (!feeAlreadyRefunded) {

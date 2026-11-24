@@ -5,8 +5,9 @@ import {
   REFUND_ENTRY_STATUSES,
   RESTOCK_STATUSES,
   getOrderLines,
-  getRefundableAmount,
+  getRefundedTotal,
   refundedQuantityByKey,
+  awaitingQuantityByKey,
 } from "../../shared/orderLines.js";
 import { getOrderGateway } from "../services/payment/gateways/index.js";
 import {
@@ -14,6 +15,7 @@ import {
   restockOrderLines,
 } from "../utils/payment/stockManager.js";
 import { sendRefundIssuedEmail } from "../services/orderEmailService.js";
+import { getCancellationRefundAmount } from "../services/shipmentService.js";
 
 // Refunds without cancelling (admin): refund some items and/or an amount of a
 // paid order through the gateway that took the payment (Stripe or Square).
@@ -100,7 +102,9 @@ export const createOrderRefund = async (req, res) => {
   const { id } = req.params;
   let locked = false;
   try {
-    const { lines = [], reason, restock = true } = req.body || {};
+    // takeOffBackorder: the refunded units are the backordered ones (they
+    // aren't coming). false = they are units that already shipped.
+    const { lines = [], reason, restock = true, takeOffBackorder = true } = req.body || {};
     const amount = Number(req.body?.amount);
     const cleanReason = typeof reason === "string" ? reason.trim().slice(0, 300) : "";
 
@@ -160,6 +164,9 @@ export const createOrderRefund = async (req, res) => {
     // Items: whole numbers, no more than ordered minus already refunded.
     const orderLines = new Map(getOrderLines(order).map((l) => [l.key, l]));
     const refunded = refundedQuantityByKey(order);
+    // Refunding units that already shipped (not the backordered ones): only
+    // the units not on backorder can be meant.
+    const waiting = takeOffBackorder === false ? awaitingQuantityByKey(order) : {};
     const picked = new Map();
     for (const line of lines) {
       const quantity = Number(line?.quantity);
@@ -167,7 +174,10 @@ export const createOrderRefund = async (req, res) => {
       if (!orderLine) {
         return bad(res, "Unknown item", "One of the items is not on this order. Reload the order and try again.");
       }
-      const max = orderLine.quantity - (refunded[orderLine.key] || 0);
+      const max = Math.max(
+        0,
+        orderLine.quantity - (refunded[orderLine.key] || 0) - (waiting[orderLine.key] || 0),
+      );
       if (!isWholeNumber(quantity) || quantity > max) {
         return bad(res, "Invalid quantity", `${orderLine.name}: refund a whole number from 0 to ${max}.`);
       }
@@ -180,7 +190,12 @@ export const createOrderRefund = async (req, res) => {
     // Amount: never more than what's left of the payment. Before the order
     // ships, refunding everything is a cancellation (it also handles the stock
     // and any consolidated shipment), so that's done with Cancel instead.
-    const refundable = getRefundableAmount(order);
+    // An order that paid a group shipment's fee keeps that fee while other
+    // orders in the parcel still need it (same rule as cancelling).
+    const cancelCap = await getCancellationRefundAmount(order);
+    const refundable = round2(
+      Math.max(0, (cancelCap ?? order.payment.totalAmount) - getRefundedTotal(order)),
+    );
     if (amount > refundable + 0.0001) {
       return bad(
         res,
@@ -254,7 +269,8 @@ export const createOrderRefund = async (req, res) => {
     if (!refund.failed && entry.lines?.length) {
       try {
         // Backordered items aren't coming: take them off the backorder.
-        takeOffBackorders(order, entry.lines);
+        if (takeOffBackorder !== false) takeOffBackorders(order, entry.lines);
+        else for (const line of entry.lines) line.fromBackorder = 0;
         for (const line of entry.lines) {
           const tracked = await getLineStockTarget(order, line.lineKey);
           line.restockQuantity = tracked ? line.quantity - line.fromBackorder : 0;

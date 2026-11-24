@@ -5,10 +5,10 @@ import { AdminFormTextarea } from "@/components/shared/AdminFormInput";
 import { useCreateOrderRefundMutation } from "@/redux/api/adminApi";
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
 import { formatCurrency } from "@/utils/formatting";
-import { getInvoiceNumber } from "@/constant/orderData";
+import { getInvoiceNumber, getRefundLimit } from "@/constant/orderData";
 import {
   getOrderLines,
-  getRefundableAmount,
+  getRefundedTotal,
   refundedQuantityByKey,
   awaitingQuantityByKey,
 } from "@shared/orderLines";
@@ -36,7 +36,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
   const lines = React.useMemo(() => getOrderLines(order), [order]);
   const refunded = React.useMemo(() => refundedQuantityByKey(order), [order]);
   const waiting = React.useMemo(() => awaitingQuantityByKey(order), [order]);
-  const refundable = getRefundableAmount(order);
+  const refundable = getRefundLimit(order, getRefundedTotal(order));
   const notShipped = order?.status === "paid" || order?.status === "on_hold";
 
   const [qty, setQty] = React.useState({});
@@ -44,6 +44,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
   const [amountTouched, setAmountTouched] = React.useState(false);
   const [reason, setReason] = React.useState("");
   const [restock, setRestock] = React.useState(true);
+  const [fromBackorder, setFromBackorder] = React.useState(true);
 
   React.useEffect(() => {
     if (!open) return;
@@ -52,6 +53,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
     setAmountTouched(false);
     setReason("");
     setRestock(true);
+    setFromBackorder(true);
   }, [open]);
 
   const picked = lines.filter((l) => Number(qty[l.key]) > 0);
@@ -94,6 +96,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
         reason: reason.trim(),
         lines: picked.map((l) => ({ lineKey: l.key, quantity: Number(qty[l.key]) })),
         restock,
+        takeOffBackorder: fromBackorder,
       }).unwrap();
       handleApiSuccess(result, "Refunded");
       onSaved?.(order._id, result.order);
@@ -129,7 +132,11 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
 
         <div className="rounded-lg border divide-y max-h-[40vh] overflow-y-auto">
           {lines.map((line) => {
-            const max = line.quantity - (refunded[line.key] || 0);
+            // Units that already shipped (box unticked): not the backordered ones.
+            const max = Math.max(
+              0,
+              line.quantity - (refunded[line.key] || 0) - (fromBackorder ? 0 : waiting[line.key] || 0),
+            );
             return (
               <div
                 key={line.key}
@@ -216,6 +223,23 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
           required
         />
 
+        {pickedBackordered && (
+          <label className="flex items-start gap-2 text-xs">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={fromBackorder}
+              onChange={(e) => setFromBackorder(e.target.checked)}
+              disabled={isLoading}
+            />
+            <span>
+              <span className="font-semibold">These are the backordered items</span>{" "}
+              (they aren't coming): take them off the backorder. Untick if the
+              refund is for items that already shipped (e.g. damaged).
+            </span>
+          </label>
+        )}
+
         {picked.length > 0 && (
           <label className="flex items-start gap-2 text-xs">
             <input
@@ -230,6 +254,7 @@ const RefundDialog = ({ open, onOpenChange, order, onSaved }) => {
               Untick if they haven't come back yet. You can put them back later
               from the order.
               {pickedBackordered &&
+                fromBackorder &&
                 " Backordered items come off the backorder and are not put back in stock (they never came in)."}
             </span>
           </label>

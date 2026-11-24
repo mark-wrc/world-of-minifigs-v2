@@ -20,6 +20,7 @@ import {
   getOrderLines,
   getAwaitingBackorders,
   awaitingQuantityByKey,
+  refundedQuantityByKey,
 } from "@shared/orderLines";
 
 // Backorders in Order Management:
@@ -62,7 +63,15 @@ const QtyBox = ({ value, max, onChange, disabled, label }) => (
 
 export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
   const [setOrderBackorder, { isLoading }] = useSetOrderBackorderMutation();
-  const lines = React.useMemo(() => getOrderLines(order), [order]);
+  // Units already refunded can't be held.
+  const refunded = React.useMemo(() => refundedQuantityByKey(order), [order]);
+  const lines = React.useMemo(
+    () =>
+      getOrderLines(order)
+        .map((l) => ({ ...l, quantity: l.quantity - (refunded[l.key] || 0) }))
+        .filter((l) => l.quantity > 0),
+    [order, refunded],
+  );
   const [qty, setQty] = React.useState({});
   const [note, setNote] = React.useState("");
 

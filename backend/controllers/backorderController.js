@@ -3,6 +3,7 @@ import { ORDER_STATUSES } from "../constants/orderConstants.js";
 import {
   BACKORDER_STATUSES,
   getOrderLines,
+  refundedQuantityByKey,
 } from "../../shared/orderLines.js";
 import { sendBackorderShippedEmail } from "../services/orderEmailService.js";
 
@@ -64,6 +65,9 @@ export const setOrderBackorder = async (req, res) => {
     }
 
     const orderLines = new Map(getOrderLines(order).map((l) => [l.key, l]));
+    // Units already refunded aren't coming either way, so they can't be held.
+    const refunded = refundedQuantityByKey(order);
+    const left = (l) => l.quantity - (refunded[l.key] || 0);
     const wanted = new Map();
     for (const line of lines) {
       const quantity = Number(line?.quantity);
@@ -71,11 +75,11 @@ export const setOrderBackorder = async (req, res) => {
       if (!orderLine) {
         return bad(res, "Unknown line", "One of the lines is not on this order. Reload the order and try again.");
       }
-      if (!isWholeNumber(quantity) || quantity > orderLine.quantity) {
+      if (!isWholeNumber(quantity) || quantity > left(orderLine)) {
         return bad(
           res,
           "Invalid quantity",
-          `${orderLine.name}: backorder a whole number from 0 to ${orderLine.quantity}.`,
+          `${orderLine.name}: backorder a whole number from 0 to ${left(orderLine)}.`,
         );
       }
       if (wanted.has(line.lineKey)) {
@@ -86,9 +90,9 @@ export const setOrderBackorder = async (req, res) => {
 
     // Something has to be left for Shipment 1 — if nothing is in stock, the
     // order simply stays "Paid" until it can ship.
-    const everything = [...orderLines.values()].every(
-      (l) => wanted.get(l.key)?.quantity === l.quantity,
-    );
+    const everything = [...orderLines.values()]
+      .filter((l) => left(l) > 0)
+      .every((l) => wanted.get(l.key)?.quantity === left(l));
     if (wanted.size > 0 && everything) {
       return bad(
         res,
@@ -171,6 +175,10 @@ export const shipOrderBackorder = async (req, res) => {
       return bad(res, "Nothing to ship", "This order has no backordered items waiting.");
     }
 
+    // What was waiting when this request started, to check nobody else
+    // changed it before saving (two clicks, or two people at once).
+    const asLoaded = awaiting.map((b) => ({ _id: b._id, quantity: b.quantity }));
+
     // How many of each held line ship now (default: all of them).
     const shipNow = new Map(awaiting.map((b) => [b.lineKey, b.quantity]));
     if (Array.isArray(lines)) {
@@ -229,7 +237,38 @@ export const shipOrderBackorder = async (req, res) => {
       }
     }
     order.backorders.push(...added);
-    await order.save();
+    // Saved only if every entry is still waiting exactly as loaded.
+    const now = new Date();
+    const saved = await Order.updateOne(
+      {
+        _id: order._id,
+        // not while a refund (which may take items off the backorder) is running
+        $or: [
+          { refundLockUntil: { $exists: false } },
+          { refundLockUntil: null },
+          { refundLockUntil: { $lt: now } },
+        ],
+        backorders: {
+          $all: asLoaded.map((b) => ({
+            $elemMatch: {
+              _id: b._id,
+              status: BACKORDER_STATUSES.AWAITING,
+              quantity: b.quantity,
+            },
+          })),
+        },
+      },
+      // Bump the version, so an older copy of the order can't be saved over this.
+      { $set: { backorders: order.toObject().backorders }, $inc: { __v: 1 } },
+    );
+    if (!saved.modifiedCount) {
+      return res.status(409).json({
+        success: false,
+        message: "Already changed",
+        description:
+          "These backordered items were just shipped, refunded or changed by someone else. Reload the order and try again.",
+      });
+    }
 
     sendBackorderShippedEmail(order, generation).catch(() => {});
 
