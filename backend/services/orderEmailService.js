@@ -4,6 +4,7 @@ import {
   getOrderCancelledTemplate,
   getOrderDeliveredTemplate,
   getBackorderShippedTemplate,
+  getRefundIssuedTemplate,
 } from "../utils/Email/orderEmails.js";
 
 const appName = () => process.env.SMTP_FROM_NAME || "World of Minifigs";
@@ -37,6 +38,14 @@ export const sendBackorderShippedEmail = (order, generation) =>
     order,
     `The Rest of Your Order Has Shipped – ${appName()}`,
     (o) => getBackorderShippedTemplate(o, generation),
+  );
+
+// A refund made from the order view without cancelling (`entry` = order.refunds item).
+export const sendRefundIssuedEmail = (order, entry) =>
+  send(
+    order,
+    `A Refund Has Been Issued – ${appName()}`,
+    (o) => getRefundIssuedTemplate(o, entry),
   );
 
 export const sendOrderDeliveredEmail = (order) =>

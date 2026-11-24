@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
-import { BACKORDER_STATUSES } from "../../shared/orderLines.js";
+import {
+  BACKORDER_STATUSES,
+  REFUND_ENTRY_STATUSES,
+  RESTOCK_STATUSES,
+} from "../../shared/orderLines.js";
 import {
   ORDER_STATUSES,
   REFUND_STATUSES,
@@ -163,6 +167,53 @@ const backorderLineSchema = new mongoose.Schema(
   { _id: true },
 );
 
+/* ----------------------------------------- Refund Schema ------------------------------------------ */
+
+// A refund made from the admin order view without cancelling the order (items
+// and/or an amount), or one made straight in the Stripe/Square dashboard. An
+// order can have several. The refund made when an order is cancelled stays in
+// `order.refund` as before.
+const refundLineSchema = new mongoose.Schema(
+  {
+    lineKey: { type: String, required: true },
+    name: { type: String },
+    quantity: { type: Number, required: true, min: 1 },
+    // Of `quantity`, how many were still backordered (never came in, so never put back in stock).
+    fromBackorder: { type: Number, default: 0, min: 0 },
+    // How many go back into the website's stock (0 when the website keeps no stock for it).
+    restockQuantity: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false },
+);
+
+const refundEntrySchema = new mongoose.Schema(
+  {
+    amount: { type: Number, required: true, min: 0 },
+    reason: { type: String },
+    lines: { type: [refundLineSchema], default: undefined },
+    status: {
+      type: String,
+      enum: Object.values(REFUND_ENTRY_STATUSES),
+      default: REFUND_ENTRY_STATUSES.PENDING,
+    },
+    // "admin" = made from the order view; "gateway" = made in the Stripe/Square dashboard.
+    source: { type: String, enum: ["admin", "gateway"], default: "admin" },
+    gatewayRefundId: { type: String },
+    error: { type: String }, // why the gateway refused it (admin only)
+    restock: {
+      type: String,
+      enum: Object.values(RESTOCK_STATUSES),
+      default: RESTOCK_STATUSES.NONE,
+    },
+    restockedAt: { type: Date },
+    restockedById: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    createdAt: { type: Date, default: Date.now },
+    createdById: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    completedAt: { type: Date },
+  },
+  { _id: true },
+);
+
 /* ----------------------------------------- Order Schema ------------------------------------------- */
 
 const orderSchema = new mongoose.Schema(
@@ -302,6 +353,13 @@ const orderSchema = new mongoose.Schema(
       type: [backorderLineSchema],
       default: undefined,
     },
+    refunds: {
+      type: [refundEntrySchema],
+      default: undefined,
+    },
+    // Set while a refund from the order view is being sent to the gateway, so
+    // two clicks can't refund twice. Expires on its own.
+    refundLockUntil: { type: Date },
     cancellation: {
       reason: { type: String },
       notes: { type: String },
@@ -330,6 +388,7 @@ orderSchema.index({ shipmentId: 1 }, { sparse: true });
 orderSchema.index({ orderType: 1 });
 orderSchema.index({ "refund.status": 1 });
 orderSchema.index({ "backorders.status": 1 }, { sparse: true });
+orderSchema.index({ "refunds.gatewayRefundId": 1 }, { sparse: true });
 orderSchema.index({ "payment.stripePaymentIntentId": 1 });
 orderSchema.index({ "payment.stripeSessionId": 1 });
 orderSchema.index({ "payment.checkoutSessionId": 1 });

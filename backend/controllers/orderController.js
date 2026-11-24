@@ -269,7 +269,7 @@ export const getUserOrders = async (req, res) => {
       limit,
       scope: { userId },
       orderSelect:
-        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById",
+        "-payment.stripeSessionId -payment.stripePaymentIntentId -payment.checkoutSessionId -payment.gatewayOrderId -payment.transactionId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById -refunds.createdById -refunds.restockedById -refunds.error -refundLockUntil",
       orderPopulate: [shipmentPopulate(USER_SHIPMENT_FIELDS)],
       shipmentSelect: `${USER_SHIPMENT_FIELDS} createdAt payment.paidAt`,
     });
@@ -318,7 +318,7 @@ export const getUserOrderById = async (req, res) => {
 
     const order = await Order.findOne({ _id: id, userId })
       .select(
-        "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById",
+        "-payment.stripeSessionId -payment.checkoutSessionId -payment.gatewayOrderId -__v -cancellation.isLocked -cancellation.lockExpiresAt -cancellation.cancelledById -refund.arn -delivery.deliveredById -backorders.note -backorders.createdById -backorders.shippedById -refunds.createdById -refunds.restockedById -refunds.error -refundLockUntil",
       )
       .populate(shipmentPopulate(USER_SHIPMENT_FIELDS));
 

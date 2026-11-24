@@ -5,8 +5,18 @@ import {
   CANCELLATION_REASONS,
 } from "../constants/orderConstants.js";
 import { restockOrder } from "../utils/payment/index.js";
+import { restockOrderLines } from "../utils/payment/stockManager.js";
+import {
+  getOrderLines,
+  getRefundedTotal,
+  refundedQuantityByKey,
+  REFUND_ENTRY_STATUSES,
+} from "../../shared/orderLines.js";
 import { getOrderGateway } from "./payment/gateways/index.js";
-import { applyCompletedRefund } from "./payment/refundHandler.js";
+import {
+  applyCompletedRefund,
+  applyRefundEntryUpdate,
+} from "./payment/refundHandler.js";
 import {
   getCancellationRefundAmount,
   releaseShipmentIfEmpty,
@@ -109,8 +119,19 @@ export const releaseCancellationLock = async (order) => {
 
 // Refunds the order through whichever gateway took the payment — in full,
 // except an order whose shipping fee still covers a consolidated shipment.
+// Refunds already made from the order view (order.refunds) are taken off, so
+// only what's left is refunded. Orders without them are unchanged.
 export const createRefundForOrder = async (order) => {
   const amount = await getCancellationRefundAmount(order);
+  const alreadyRefunded = getRefundedTotal(order);
+  if (alreadyRefunded > 0) {
+    const left =
+      Math.round(((amount ?? order.payment.totalAmount) - alreadyRefunded) * 100) / 100;
+    if (left <= 0) {
+      throw new Error("Nothing left to refund: this order was already refunded in full.");
+    }
+    return getOrderGateway(order).createRefund(order, { amount: left });
+  }
   return getOrderGateway(order).createRefund(order, { amount });
 };
 
@@ -150,8 +171,21 @@ export const applyCancellationMetadata = (
 
 // ------------------------ Restock --------------------------------
 
+// Items already refunded from the order view were put back (or held back) by
+// that refund, so a cancel only restocks the rest. Orders without them are unchanged.
 export const restockOrderItemsSafely = async (order) => {
   try {
+    const refunded = refundedQuantityByKey(order);
+    if (Object.keys(refunded).length) {
+      await restockOrderLines(
+        order,
+        getOrderLines(order).map((l) => ({
+          lineKey: l.key,
+          quantity: l.quantity - (refunded[l.key] || 0),
+        })),
+      );
+      return;
+    }
     await restockOrder(order);
   } catch (stockErr) {
     console.error(
@@ -163,7 +197,29 @@ export const restockOrderItemsSafely = async (order) => {
 
 // ------------------------ Refund Status Sync (Fallback) --------------------------------
 
+// Refunds made without cancelling (order.refunds) that are still pending.
+const syncRefundEntries = async (order) => {
+  const pending = (order.refunds || []).filter(
+    (r) => r.status === REFUND_ENTRY_STATUSES.PENDING && r.gatewayRefundId,
+  );
+  if (!pending.length) return;
+  let changed = false;
+  for (const entry of pending) {
+    try {
+      const refund = await getOrderGateway(order).fetchRefund(entry.gatewayRefundId);
+      if (applyRefundEntryUpdate(entry, refund)) changed = true;
+    } catch (err) {
+      console.error(
+        `syncRefundEntries: Failed to sync refund ${entry.gatewayRefundId} for order ${order._id}:`,
+        err.message,
+      );
+    }
+  }
+  if (changed) await order.save();
+};
+
 export const syncRefundStatus = async (order) => {
+  await syncRefundEntries(order);
   // Only sync if refund is pending and we have a gateway refund ID
   const refundId = order.refund?.gatewayRefundId || order.refund?.stripeRefundId;
   if (order.refund?.status !== REFUND_STATUSES.PENDING || !refundId) {

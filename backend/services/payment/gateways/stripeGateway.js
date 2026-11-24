@@ -225,14 +225,17 @@ const normalizeRefund = (refund) => {
 
 // `record` is an order or a shipment (both carry the same payment fields).
 // Refunds the whole payment unless `amount` (dollars) asks for part of it.
-const createRefund = async (record, { amount } = {}) => {
+// `idempotencyKey` defaults to one per record (the cancel refund); a partial
+// refund passes its own, so a second refund on the same order isn't mistaken
+// for a retry of the first.
+const createRefund = async (record, { amount, idempotencyKey } = {}) => {
   const refund = await getStripe().refunds.create(
     {
       payment_intent:
         record.payment.transactionId || record.payment.stripePaymentIntentId,
       ...(amount != null && { amount: Math.round(amount * 100) }),
     },
-    { idempotencyKey: `refund_${record._id}` },
+    { idempotencyKey: idempotencyKey || `refund_${record._id}` },
   );
   return normalizeRefund(refund);
 };

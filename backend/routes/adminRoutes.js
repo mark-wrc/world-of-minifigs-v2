@@ -97,6 +97,10 @@ import {
   shipOrderBackorder,
   getBackorderReport,
 } from "../controllers/backorderController.js";
+import {
+  createOrderRefund,
+  restockOrderRefund,
+} from "../controllers/refundController.js";
 import { getDashboardAnalytics } from "../controllers/dashboardController.js";
 import { getAllUsers, updateUserRole, updateUserTaxExempt } from "../controllers/authController.js";
 import {
@@ -225,6 +229,9 @@ router.get("/orders/:id", getOrderById);
 router.patch("/orders/:id/status", updateOrderStatus);
 router.put("/orders/:id/backorder", setOrderBackorder);
 router.post("/orders/:id/backorder/ship", shipOrderBackorder);
+// Refunds without cancelling (items and/or an amount).
+router.post("/orders/:id/refunds", createOrderRefund);
+router.post("/orders/:id/refunds/:refundId/restock", restockOrderRefund);
 
 // User Management routes
 router.get("/users", getAllUsers);

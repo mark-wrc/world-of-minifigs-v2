@@ -209,6 +209,63 @@ const restockTorsoBagItems = async (dealerItems) => {
   }
 };
 
+// ------------------------- Restock Single Order Lines -----------------------------
+// For refunds: puts some of one order line back in stock. Lines are addressed by
+// their key from shared/orderLines.js (p0, b0t1, a0s0, a0, …). Returns where the
+// stock lives, or null when the website keeps no stock for that line (bundles
+// without torso bags, extra bags, untracked add-ons).
+
+const LINE_KEY = /^(?:p(\d+)|b(\d+)t(\d+)|t(\d+)|a(\d+)s(\d+)|a(\d+))$/;
+
+export const getLineStockTarget = async (order, lineKey) => {
+  const m = LINE_KEY.exec(lineKey || "");
+  if (!m) return null;
+  const [, p, bi, bt, t, ai, as, a] = m;
+  const di = order.dealerItems || {};
+  const idOf = (v) => v?._id ?? v;
+
+  if (p != null) {
+    const item = order.productItems?.[+p];
+    const id = idOf(item?.productId);
+    if (!id) return null;
+    const field =
+      item.variantIndex != null ? `variants.${item.variantIndex}.stock` : "stock";
+    return { Model: Product, id, field };
+  }
+  if (bi != null || t != null) {
+    const bag = bi != null ? di.bundles?.[+bi]?.torsoBags?.[+bt] : di.torsoBags?.[+t];
+    const id = idOf(bag?.id);
+    return id ? { Model: DealerTorsoBag, id, field: "stock" } : null;
+  }
+  const addon = di.addons?.[+(ai ?? a)];
+  const addonId = idOf(addon?.id);
+  if (!addonId) return null;
+  const doc = await DealerAddon.findById(addonId).lean();
+  if (!doc) return null;
+  if (ai != null) {
+    const invId = idOf(addon.subItems?.[+as]?.invId);
+    return doc.addonType === "bundle" && invId
+      ? { Model: GeneralInventory, id: invId, field: "stock" }
+      : null;
+  }
+  return doc.addonType === "upgrade" && doc.stock !== null && doc.stock !== undefined
+    ? { Model: DealerAddon, id: addonId, field: "stock" }
+    : null;
+};
+
+// lines: [{ lineKey, quantity }]. Adds each quantity back to its stock.
+export const restockOrderLines = async (order, lines) => {
+  for (const { lineKey, quantity } of lines) {
+    const qty = Number(quantity) || 0;
+    if (qty <= 0) continue;
+    const target = await getLineStockTarget(order, lineKey);
+    if (!target) continue;
+    await target.Model.findByIdAndUpdate(target.id, {
+      $inc: { [target.field]: qty },
+    });
+  }
+};
+
 // ------------------------- Generic Restock Dispatcher -----------------------------
 
 export const restockOrder = async (order) => {

@@ -12,7 +12,9 @@
 // Order lines are never reordered or removed after checkout, so the keys stay valid.
 //
 // Used by the backend (to check what staff send) and the frontend (to list the
-// lines in the backorder dialog and show what is still waiting).
+// lines in the backorder and refund dialogs and show what is still waiting).
+// `unitPrice` is the price charged per unit where the order stores one (before
+// any order-wide discount or tax); torso bags have none (priced in the bundle).
 
 export const BACKORDER_STATUSES = {
   AWAITING: "awaiting",
@@ -20,6 +22,8 @@ export const BACKORDER_STATUSES = {
 };
 
 const positive = (n) => (Number.isFinite(Number(n)) ? Number(n) : 0);
+const price = (n) => (n != null && Number.isFinite(Number(n)) ? Number(n) : undefined);
+const round2 = (n) => Math.round(n * 100) / 100;
 
 export const getOrderLines = (order) => {
   const lines = [];
@@ -29,7 +33,7 @@ export const getOrderLines = (order) => {
     const name = item.colorName && !String(item.productName).endsWith(` - ${item.colorName}`)
       ? `${item.productName} - ${item.colorName}`
       : item.productName;
-    lines.push({ key: `p${i}`, name, quantity: positive(item.quantity), unit: "item", imageUrl: item.imageUrl });
+    lines.push({ key: `p${i}`, name, quantity: positive(item.quantity), unit: "item", imageUrl: item.imageUrl, unitPrice: price(item.unitPrice) });
   });
 
   const di = order.dealerItems;
@@ -41,7 +45,7 @@ export const getOrderLines = (order) => {
             lines.push({ key: `b${i}t${j}`, name: tb.name, group: bundle.name, quantity: positive(tb.quantity), unit: "bag" }),
           );
         } else {
-          lines.push({ key: `b${i}`, name: bundle.name, quantity: positive(bundle.quantity || 1), unit: "bundle" });
+          lines.push({ key: `b${i}`, name: bundle.name, quantity: positive(bundle.quantity || 1), unit: "bundle", unitPrice: price(bundle.price) });
         }
       });
     } else if (di.torsoBags?.length) {
@@ -61,15 +65,22 @@ export const getOrderLines = (order) => {
             unit: "bag",
             bin: sub.bin,
             imageUrl: sub.imageUrl,
+            unitPrice: price(sub.pricePerBag),
           }),
         );
       } else {
-        lines.push({ key: `a${i}`, name: addon.name, quantity: positive(addon.quantity || 1), unit: "item" });
+        lines.push({
+          key: `a${i}`,
+          name: addon.name,
+          quantity: positive(addon.quantity || 1),
+          unit: "item",
+          unitPrice: addon.totalPrice != null ? price(addon.totalPrice / positive(addon.quantity || 1)) : undefined,
+        });
       }
     });
 
     (di.extraBags || []).forEach((bag, i) =>
-      lines.push({ key: `x${i}`, name: bag.name, quantity: positive(bag.quantity), unit: "bag" }),
+      lines.push({ key: `x${i}`, name: bag.name, quantity: positive(bag.quantity), unit: "bag", unitPrice: price(bag.price) }),
     );
   }
 
@@ -104,5 +115,41 @@ export const getBackorderShipments = (order) => {
 export const awaitingQuantityByKey = (order) => {
   const map = {};
   for (const b of getAwaitingBackorders(order)) map[b.lineKey] = (map[b.lineKey] || 0) + b.quantity;
+  return map;
+};
+
+// ------------------------------------------------ Refunds ------------------------------------------------
+// An order can have several refunds (order.refunds[]) on top of the one made
+// when it is cancelled (order.refund). Failed refunds moved no money and don't count.
+
+export const REFUND_ENTRY_STATUSES = {
+  PENDING: "pending",
+  COMPLETED: "completed",
+  FAILED: "failed",
+};
+
+export const RESTOCK_STATUSES = {
+  DONE: "done", // put back in the website's stock
+  HELD: "held", // staff chose to put it back later
+  NONE: "none", // nothing to put back (amount only, backordered items, or no stock kept for it)
+};
+
+const countingRefunds = (order) =>
+  (order?.refunds || []).filter((r) => r.status !== REFUND_ENTRY_STATUSES.FAILED);
+
+// Money already refunded (or on its way) through order.refunds[].
+export const getRefundedTotal = (order) =>
+  round2(countingRefunds(order).reduce((sum, r) => sum + (Number(r.amount) || 0), 0));
+
+// How much more can still be refunded.
+export const getRefundableAmount = (order) =>
+  round2(Math.max(0, (Number(order?.payment?.totalAmount) || 0) - getRefundedTotal(order)));
+
+// How many of each line were refunded, by key.
+export const refundedQuantityByKey = (order) => {
+  const map = {};
+  for (const r of countingRefunds(order)) {
+    for (const l of r.lines || []) map[l.lineKey] = (map[l.lineKey] || 0) + l.quantity;
+  }
   return map;
 };

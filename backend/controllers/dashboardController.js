@@ -444,12 +444,51 @@ export const getDashboardAnalytics = async (req, res) => {
                 },
               },
             ],
+            // Cancel refunds (order.refund) plus refunds made without
+            // cancelling (order.refunds[], completed ones only).
             refunds: [
-              { $match: { "refund.status": REFUND_STATUSES.COMPLETED } },
+              {
+                $match: {
+                  $or: [
+                    { "refund.status": REFUND_STATUSES.COMPLETED },
+                    { "refunds.status": "completed" },
+                  ],
+                },
+              },
               {
                 $group: {
                   _id: null,
-                  amount: { $sum: { $ifNull: ["$refund.amount", 0] } },
+                  amount: {
+                    $sum: {
+                      $add: [
+                        {
+                          $cond: [
+                            { $eq: ["$refund.status", REFUND_STATUSES.COMPLETED] },
+                            { $ifNull: ["$refund.amount", 0] },
+                            0,
+                          ],
+                        },
+                        {
+                          $reduce: {
+                            input: { $ifNull: ["$refunds", []] },
+                            initialValue: 0,
+                            in: {
+                              $add: [
+                                "$$value",
+                                {
+                                  $cond: [
+                                    { $eq: ["$$this.status", "completed"] },
+                                    { $ifNull: ["$$this.amount", 0] },
+                                    0,
+                                  ],
+                                },
+                              ],
+                            },
+                          },
+                        },
+                      ],
+                    },
+                  },
                   orders: { $sum: 1 },
                 },
               },

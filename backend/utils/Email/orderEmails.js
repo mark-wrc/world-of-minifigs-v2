@@ -597,6 +597,41 @@ export const getBackorderShippedTemplate = (order, generation) => {
   );
 };
 
+// ── Refunds made without cancelling the order ────────────────────────────────
+
+// Sent when staff refund part of an order (items and/or an amount) from the
+// order view. `entry` is the order.refunds entry.
+export const getRefundIssuedTemplate = (order, entry) => {
+  const lines = entry.lines || [];
+  return wrap(
+    `
+    <tr><td align="center" style="padding:32px 32px 24px;">
+      <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;color:#0f172a;">A refund has been issued</h1>
+      <p style="margin:0;font-size:14px;color:#64748b;">We've refunded part of your order to your original payment method.</p>
+    </td></tr>
+    <tr><td style="padding:0 32px 10px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;border-radius:10px;">
+        <tr><td style="padding:14px 18px;font-size:13.5px;color:#78350f;line-height:1.6;">
+          &#9203;&nbsp; A refund of <strong style="color:#92400e;">${fmt(entry.amount)}</strong> has been issued to your original payment method. Depending on your bank, this may take <strong style="color:#92400e;">5&ndash;10 business days</strong> to appear on your statement.
+        </td></tr>
+      </table>
+    </td></tr>
+    ${openSection(
+      "Refund Information",
+      `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        ${kv("Invoice Number", invoiceLink(order))}
+        ${kv("Refund Amount", `<span style="color:#16a34a;font-weight:600;">${fmt(entry.amount)}</span>`)}
+        ${kv("Reason", escapeHtml(entry.reason) || "—", true)}
+      </table>`,
+      { divider: false },
+    )}
+    ${lines.length ? openSection("Refunded Items", backorderLinesTable(lines)) : ""}
+    ${viewOrderBtn(order)}
+  `,
+    "#16a34a",
+  );
+};
+
 export const getOrderDeliveredTemplate = (order) => {
   const isPickup = order.delivery?.method === DELIVERY_METHODS.STORE_PICKUP;
   const intro = isPickup

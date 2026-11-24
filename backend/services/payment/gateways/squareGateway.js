@@ -284,13 +284,15 @@ const normalizeWebhookRefund = (refund) =>
 
 // `record` is an order or a shipment (both carry the same payment fields).
 // Refunds the whole payment unless `amount` (dollars) asks for part of it.
-const createRefund = async (record, { amount } = {}) => {
+// `idempotencyKey` defaults to one per record (the cancel refund); a partial
+// refund passes its own, plus its `reason`.
+const createRefund = async (record, { amount, idempotencyKey, reason } = {}) => {
   const { refund } = await getSquare().refunds.refundPayment({
-    idempotencyKey: `refund_${record._id}`,
+    idempotencyKey: idempotencyKey || `refund_${record._id}`,
     paymentId: record.payment.transactionId,
     // Square needs an explicit amount — the full total unless told otherwise.
     amountMoney: toMoney((amount ?? record.payment.totalAmount) * 100),
-    reason: "Order cancelled",
+    reason: reason ? String(reason).slice(0, 192) : "Order cancelled",
   });
   return normalizeRefund(refund);
 };
