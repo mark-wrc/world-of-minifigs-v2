@@ -712,15 +712,17 @@ const OrderManagement = () => {
   // order reads as just its own details.
   const renderOrderDetails = (viewOrder, { inShipment = false } = {}) => (
     <>
-      {/* ── The top of the order (information, customer, billing, address)
-          stays in place while the rest scrolls — order view only ── */}
+      {/* ── The top of the order: Order Information on the left; Customer,
+          Billing and Shipping Address beside it. It stays in place while the
+          rest scrolls (order view only). ── */}
       <div
         className={
           inShipment
             ? "space-y-5"
-            : "space-y-5 [@media(min-height:850px)]:sticky top-0 z-10 -mx-5 px-5 pb-4 bg-background [@media(min-height:850px)]:border-b"
+            : "grid gap-5 md:grid-cols-2 items-start [@media(min-height:700px)]:sticky top-0 z-10 -mx-5 px-5 pb-4 bg-background [@media(min-height:700px)]:border-b"
         }
       >
+        <div className="min-w-0">
         {/* ── Order Information ── */}
         <section className="space-y-2">
           <Label className="font-semibold text-xs uppercase">
@@ -801,7 +803,9 @@ const OrderManagement = () => {
             )}
           </div>
         </section>
+        </div>
 
+        <div className="min-w-0 space-y-5">
         {!inShipment && renderCustomerSection(viewOrder)}
 
         {/* ── Billing Details ── */}
@@ -828,6 +832,7 @@ const OrderManagement = () => {
         )}
 
         {!inShipment && renderShippingAddressSection(viewOrder)}
+        </div>
       </div>
 
       {!inShipment && (
@@ -1783,6 +1788,7 @@ const OrderManagement = () => {
         onOpenChange={handleViewModalChange}
         title="Order Details"
         fixedTitle
+        className="sm:max-w-4xl"
         footerActions={
           <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
         }
