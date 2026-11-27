@@ -6,7 +6,10 @@ import DealerTorsoBag from "../models/dealerTorsoBag.model.js";
 import DealerAddon from "../models/dealerAddon.model.js";
 import { normalizePagination } from "../utils/pagination.js";
 import { ORDER_STATUSES } from "../constants/orderConstants.js";
+import { BACKORDER_STATUSES } from "../../shared/orderLines.js";
 import { updateOrderStatus } from "./orderController.js";
+import { setOrderBackorder, shipOrderBackorder } from "./backorderController.js";
+import { createOrderRefund, restockOrderRefund } from "./refundController.js";
 
 // Read and update access for Odoo. Lists are sorted oldest change first, so
 // Odoo can ask for "everything changed since <time>" and page through it.
@@ -137,8 +140,8 @@ export const getIntegrationOrderById = async (req, res) => {
 // PATCH /orders/:id/status
 //   { status: "shipped", carrier, trackingNumber, trackingLink? }
 //   { status: "delivered", deliveryMethod: "hand_delivered" | "store_pickup", receivedBy?, notes? }
-// Uses the same rules and customer emails as the admin screen. Cancelling stays
-// in the website admin, because it refunds the customer.
+// Uses the same rules and customer emails as the admin screen. Cancelling has
+// its own route (below), because it refunds the customer.
 export const updateIntegrationOrderStatus = async (req, res) => {
   const { status, carrier, trackingNumber } = req.body || {};
 
@@ -147,7 +150,7 @@ export const updateIntegrationOrderStatus = async (req, res) => {
       success: false,
       message: "Unsupported status",
       description:
-        'Odoo can mark orders "shipped" or "delivered". Cancel orders in the website admin.',
+        'Odoo can mark orders "shipped" or "delivered" here. Cancelling is POST /orders/:id/cancel.',
     });
   }
 
@@ -192,6 +195,120 @@ export const updateIntegrationOrderStatus = async (req, res) => {
 
   // req.user is the Odoo admin account (or no one, if it isn't set up).
   return updateOrderStatus(req, res);
+};
+
+//------------------------------------------------ Order changes -------------------------------------
+// The admin order view's own actions, for Odoo. Each one runs the same code as
+// the admin screen (same rules, locks, stock handling and customer emails) and
+// is recorded as made by the Odoo admin account. What's added here is only what
+// a program needs: the order id is checked first, the tracking link is filled
+// in from the carrier, and sending the same request twice (Odoo didn't hear the
+// first answer) changes nothing the second time.
+
+const orderNotFound = (res) =>
+  res.status(404).json({
+    success: false,
+    message: "Order not found",
+    description: "The requested order does not exist.",
+  });
+
+const asText = (value) =>
+  value === null || value === undefined ? undefined : String(value).trim();
+
+// PUT /orders/:id/backorder   { lines: [{ lineKey, quantity }], note? }
+// Before the order ships: the lines (and how many of each) held back to ship
+// later. Sends the whole list each time (an empty list holds nothing back).
+export const holdIntegrationBackorder = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return orderNotFound(res);
+  return setOrderBackorder(req, res);
+};
+
+// POST /orders/:id/backorder/ship   { carrier, trackingNumber, trackingLink?, lines?: [{ lineKey, quantity }] }
+// After Shipment 1: ships held lines (all of them, or the ones listed) with
+// their own tracking; the customer gets the shipping email for that package.
+export const shipIntegrationBackorder = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return orderNotFound(res);
+  const body = req.body || {};
+  body.carrier = asText(body.carrier);
+  body.trackingNumber = asText(body.trackingNumber);
+  body.trackingLink = asText(body.trackingLink) || buildTrackingLink(body.carrier, body.trackingNumber);
+  req.body = body;
+
+  try {
+    // Already sent: a package with this tracking number has shipped.
+    if (body.trackingNumber) {
+      const order = await Order.findById(req.params.id).select("backorders").lean();
+      if (!order) return orderNotFound(res);
+      const sent = (order.backorders || []).filter(
+        (b) =>
+          b.status === BACKORDER_STATUSES.SHIPPED &&
+          b.shipping?.trackingNumber === body.trackingNumber,
+      );
+      if (sent.length) {
+        return res.status(200).json({
+          success: true,
+          message: "Already shipped",
+          order: { _id: order._id, backorders: order.backorders },
+        });
+      }
+    }
+  } catch (error) {
+    return serverError(res, "ship backordered items", error);
+  }
+  return shipOrderBackorder(req, res);
+};
+
+// POST /orders/:id/cancel   { reason }
+// Cancels the order: refunds what is left of the payment and puts the items
+// back in stock, exactly like Cancel in the admin order view. Only while
+// INTEGRATION_REFUNDS=on.
+export const cancelIntegrationOrder = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return orderNotFound(res);
+  try {
+    const order = await Order.findById(req.params.id).select("status refund").lean();
+    if (!order) return orderNotFound(res);
+    if (order.status === ORDER_STATUSES.CANCELLED) {
+      return res.status(200).json({
+        success: true,
+        message: "Order already cancelled",
+        order: { _id: order._id, status: order.status, refund: order.refund },
+      });
+    }
+  } catch (error) {
+    return serverError(res, "cancel order", error);
+  }
+  req.body = { status: ORDER_STATUSES.CANCELLED, reason: asText(req.body?.reason) };
+  return updateOrderStatus(req, res);
+};
+
+// POST /orders/:id/refunds   { requestId, amount, reason, lines?: [{ lineKey, quantity }], restock?, takeOffBackorder? }
+// A partial refund without cancelling, exactly like Refund in the admin order
+// view (same limits: never more than is left of the payment; before the order
+// ships, refunding all of it is a cancel instead). requestId is Odoo's own id
+// for the refund: sending it again answers with the refund already made and
+// never refunds twice. Only while INTEGRATION_REFUNDS=on.
+export const refundIntegrationOrder = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id)) return orderNotFound(res);
+  const requestId = asText(req.body?.requestId);
+  if (!requestId || requestId.length > 100) {
+    return res.status(400).json({
+      success: false,
+      message: "requestId is required",
+      description: "Send Odoo's own id for this refund (up to 100 characters), so a repeat can't refund twice.",
+    });
+  }
+  req.integration = { requestId };
+  return createOrderRefund(req, res);
+};
+
+// POST /orders/:id/refunds/:refundId/restock
+// Puts a refund's items back in the website's stock, when they were held back
+// at refund time (like "Put back in stock" in the admin order view).
+export const restockIntegrationRefund = async (req, res) => {
+  if (!mongoose.isValidObjectId(req.params.id) || !mongoose.isValidObjectId(req.params.refundId)) {
+    return orderNotFound(res);
+  }
+  return restockOrderRefund(req, res);
 };
 
 //------------------------------------------------ Products ------------------------------------------

@@ -95,3 +95,31 @@ export const authenticateAdminOrIntegration = async (req, res, next) => {
     next(error);
   }
 };
+
+// Order changes from Odoo (hold back, ship held lines, refunds, cancelling) are
+// recorded as made by the Odoo admin account, like any other admin's changes,
+// so that account must be set up (INTEGRATION_ADMIN_EMAIL).
+export const requireIntegrationAdmin = (req, res, next) => {
+  if (req.user?._id) return next();
+  return res.status(401).json({
+    success: false,
+    message: "Odoo admin account not set up",
+    description:
+      "Set INTEGRATION_ADMIN_EMAIL to the email of an active admin account.",
+  });
+};
+
+// Money: refunds and cancelling (which refunds) only while the server setting
+// INTEGRATION_REFUNDS=on. Taking it away (or setting anything else) switches
+// them off at once, without a code change; everything else keeps working.
+export const requireIntegrationRefunds = (req, res, next) => {
+  if (String(process.env.INTEGRATION_REFUNDS || "").trim().toLowerCase() === "on") {
+    return next();
+  }
+  return res.status(403).json({
+    success: false,
+    message: "Refunds from Odoo are switched off",
+    description:
+      "Refunds and cancellations from Odoo need INTEGRATION_REFUNDS=on on the website server.",
+  });
+};

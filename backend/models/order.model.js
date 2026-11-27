@@ -196,8 +196,10 @@ const refundEntrySchema = new mongoose.Schema(
       enum: Object.values(REFUND_ENTRY_STATUSES),
       default: REFUND_ENTRY_STATUSES.PENDING,
     },
-    // "admin" = made from the order view; "gateway" = made in the Stripe/Square dashboard.
+    // "admin" = made from the order view (or by Odoo, as the Odoo admin account); "gateway" = made in the Stripe/Square dashboard.
     source: { type: String, enum: ["admin", "gateway"], default: "admin" },
+    // Refunds sent by Odoo: Odoo's own id for the refund: asking again with the same id never refunds twice.
+    requestId: { type: String },
     gatewayRefundId: { type: String },
     error: { type: String }, // why the gateway refused it (admin only)
     restock: {

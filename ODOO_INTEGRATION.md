@@ -48,9 +48,9 @@ straight to Cloudinary, then send its `publicId` and `url` in the item.
 Three areas always refuse the key; only a person signed in to the website admin can use them:
 
 - **User accounts** (`/api/v1/admin/users...`): the user list, roles and tax-exempt status.
-- **Admin order screens** (`/api/v1/admin/orders...`), including cancelling, which refunds
-  the customer. Odoo reads orders and marks them shipped or delivered through
-  `/api/v1/integration/orders` (below), which cannot cancel.
+- **Admin order screens** (`/api/v1/admin/orders...`). Odoo changes orders only through
+  its own addresses under `/api/v1/integration/orders` (below), each of which runs the
+  same code as the admin order view.
 - **The dashboard** (`/api/v1/admin/dashboard...`). Odoo makes its own reports from the
   orders it reads.
 
@@ -132,8 +132,32 @@ Delivered (handed over in person or picked up):
 
 `deliveryMethod` is `hand_delivered` or `store_pickup`.
 
-Cancelling is not possible with the key at all, because it refunds the customer. It
-stays a person's decision in the website admin.
+Cancelling has its own address (below), because it refunds the customer.
+
+## Changing an order from Odoo
+
+The admin order view's own actions. Each runs the same code as the admin screen
+(same rules, locks, stock handling and customer emails) and is recorded as made
+by the Odoo admin account (`INTEGRATION_ADMIN_EMAIL`; without it these refuse the
+key). Sending the same request twice changes nothing the second time.
+
+| Address | Body | What it does |
+|---|---|---|
+| `PUT /orders/:id/backorder` | `{ "lines": [{ "lineKey": "p0", "quantity": 4 }], "note": "" }` | Before the order ships: hold these back to ship later (the whole list each time; `[]` holds nothing back) |
+| `POST /orders/:id/backorder/ship` | `{ "carrier": "UPS", "trackingNumber": "1Z…", "lines": [...] }` | After Shipment 1: ship held lines (all, or the ones listed) with their own tracking; the customer gets that package's shipping email. `trackingLink` is filled in for USPS, UPS, FedEx and DHL |
+| `POST /orders/:id/refunds` | `{ "requestId": "odoo-123", "amount": 5, "reason": "Missing piece", "lines": [...], "restock": true, "takeOffBackorder": true }` | A partial (or, once shipped, full) refund without cancelling, same limits as the admin screen. **Money; needs `INTEGRATION_REFUNDS=on`** |
+| `POST /orders/:id/refunds/:refundId/restock` | | Put a refund's items back in stock later |
+| `POST /orders/:id/cancel` | `{ "reason": "Out of stock" }` | Cancel: refunds what is left and puts the items back in stock, like Cancel in the admin screen. **Money; needs `INTEGRATION_REFUNDS=on`** |
+
+`lineKey` is the line's key as in `shared/orderLines.js` (`p0`, `p1`, … for products).
+`requestId` is Odoo's own id for the refund: sending a refund again with the same
+id answers "Refund already made" and never refunds twice (a refund the payment
+provider refused moved no money, so it may be sent again).
+
+**The money switch:** refunds and cancelling work only while the server setting
+`INTEGRATION_REFUNDS` is `on`. Without it (or with any other value) they answer
+403 "Refunds from Odoo are switched off"; everything else keeps working. Removing
+the setting on Render switches them off at once, without a code change.
 
 ## Files
 

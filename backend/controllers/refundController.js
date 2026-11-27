@@ -105,6 +105,8 @@ export const createOrderRefund = async (req, res) => {
     // takeOffBackorder: the refunded units are the backordered ones (they
     // aren't coming). false = they are units that already shipped.
     const { lines = [], reason, restock = true, takeOffBackorder = true } = req.body || {};
+    // Set by the Odoo route only: Odoo's id for this refund.
+    const requestId = req.integration?.requestId;
     const amount = Number(req.body?.amount);
     const cleanReason = typeof reason === "string" ? reason.trim().slice(0, 300) : "";
 
@@ -143,6 +145,26 @@ export const createOrderRefund = async (req, res) => {
       );
     }
     locked = true;
+
+    // Odoo sending the same refund again (it didn't hear the first answer):
+    // answer with the refund already made, never refund twice. A refund the
+    // payment provider refused moved no money, so that one may be tried again.
+    if (requestId) {
+      const earlier = (order.refunds || []).find(
+        (r) => r.requestId === requestId && r.status !== REFUND_ENTRY_STATUSES.FAILED,
+      );
+      if (earlier) {
+        order.refundLockUntil = undefined;
+        await order.save();
+        locked = false;
+        return res.status(200).json({
+          success: true,
+          message: "Refund already made",
+          refund: earlier,
+          order: refundView(order),
+        });
+      }
+    }
 
     if (!REFUNDABLE.includes(order.status)) {
       return bad(
@@ -225,6 +247,7 @@ export const createOrderRefund = async (req, res) => {
         : undefined,
       status: REFUND_ENTRY_STATUSES.PENDING,
       source: "admin",
+      requestId: requestId || undefined,
       createdById: req.user._id,
     });
     const entry = order.refunds[order.refunds.length - 1];
