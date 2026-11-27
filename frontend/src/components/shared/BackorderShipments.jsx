@@ -19,7 +19,14 @@ const BackorderShipments = ({ order, admin = false, size = "sm", actions }) => {
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-xs uppercase">
+        {/* Customer page: same heading size as its other cards. */}
+        <span
+          className={
+            size === "md"
+              ? "font-bold text-sm uppercase tracking-widest"
+              : "font-semibold text-xs uppercase"
+          }
+        >
           {awaiting ? "Items Shipping Separately" : "Later Shipments"}
         </span>
         {actions}
@@ -36,7 +43,7 @@ const BackorderShipments = ({ order, admin = false, size = "sm", actions }) => {
         return (
           <div
             key={`${s.generation}-${s.status}`}
-            className={`rounded-lg border divide-y ${isWaiting ? "border-amber-300 dark:border-amber-700" : ""}`}
+            className={`rounded-lg border divide-y overflow-hidden ${isWaiting ? "border-amber-300 dark:border-amber-700" : ""}`}
           >
             <div
               className={`flex flex-wrap items-center justify-between gap-2 p-3 ${isWaiting ? "bg-amber-50 dark:bg-amber-950/30" : "bg-muted/30"}`}

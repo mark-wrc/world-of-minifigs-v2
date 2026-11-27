@@ -36,7 +36,16 @@ const OrderRefunds = ({
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-xs uppercase">Refunds</span>
+        {/* Customer page: same heading size as its other cards. */}
+        <span
+          className={
+            size === "md"
+              ? "font-bold text-sm uppercase tracking-widest"
+              : "font-semibold text-xs uppercase"
+          }
+        >
+          Refunds
+        </span>
         {actions}
       </div>
       {!admin && (

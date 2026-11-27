@@ -24,6 +24,8 @@ const AddUpdateItemDialog = ({
   // Keep the title at the top and the buttons at the bottom, and scroll only
   // the form between them. Off by default.
   pinTitleAndButtons = false,
+  // Disable the submit button (e.g. while the form has an error). Off by default.
+  submitDisabled = false,
 }) => {
   const modeConfig = {
     add: {
@@ -89,7 +91,11 @@ const AddUpdateItemDialog = ({
             >
               Cancel
             </Button>
-            <Button variant="accent" type="submit" disabled={isLoading}>
+            <Button
+              variant="accent"
+              type="submit"
+              disabled={isLoading || submitDisabled}
+            >
               {isLoading ? loadingText : buttonText}
             </Button>
           </DialogFooter>

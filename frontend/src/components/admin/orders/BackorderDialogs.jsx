@@ -1,7 +1,6 @@
 import React from "react";
-import { Download } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import AddUpdateItemDialog from "@/components/table/AddUpdateItemDialog";
 import ViewAdminDialog from "@/components/table/ViewAdminDialog";
 import {
@@ -16,6 +15,7 @@ import {
 import { handleApiError, handleApiSuccess } from "@/utils/apiHelpers";
 import LineSearch from "@/components/admin/orders/LineSearch";
 import { lineMatches } from "@/components/admin/orders/lineMatches";
+import OrderLineList from "@/components/admin/orders/OrderLineList";
 import { formatDate } from "@/utils/formatting";
 import { getInvoiceNumber } from "@/constant/orderData";
 import {
@@ -34,32 +34,6 @@ import {
 
 const orderRef = (order) =>
   getInvoiceNumber(order) || order?._id?.substring(0, 7) || "";
-
-// A whole number from 0 to max, or "" while the box is being typed in.
-const clampQty = (value, max) => {
-  if (value === "") return "";
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.min(n, max);
-};
-
-const QtyBox = ({ value, max, onChange, disabled, label }) => (
-  <div className="flex items-center gap-1 shrink-0">
-    <Input
-      type="number"
-      inputMode="numeric"
-      min={0}
-      max={max}
-      step={1}
-      value={value}
-      aria-label={label}
-      onChange={(e) => onChange(clampQty(e.target.value, max))}
-      disabled={disabled}
-      className="w-20 h-8 text-right"
-    />
-    <span className="text-xs text-muted-foreground w-10">of {max}</span>
-  </div>
-);
 
 //------------------------------------------------ Backorder items ------------------------------------------
 
@@ -119,81 +93,83 @@ export const BackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
       className="sm:max-w-2xl"
     >
       <div className="space-y-4">
-        <p className="text-xs text-muted-foreground">
-          Enter how many of each item are out of stock. Those ship later as{" "}
-          <span className="font-semibold">Shipment 2</span>; everything else
-          ships now as usual. Leave 0 for items that are here.
-        </p>
+        {/* What a backorder is for, so it isn't mistaken for a refund. */}
+        <div className="flex items-start gap-2 rounded-md border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+          <Info className="size-4 shrink-0 mt-px" />
+          <p>
+            Out of stock? Hold those items here. The rest
+            ships now, and these ship later in a second package. If an item
+            isn't coming, use <span className="font-semibold">Refund</span>{" "}
+            instead.
+          </p>
+        </div>
         <LineSearch
           value={query}
           onChange={setQuery}
           shown={shownLines.length}
           total={lines.length}
         />
-        <div className="rounded-lg border divide-y max-h-[50vh] overflow-y-auto">
-          {shownLines.length === 0 && (
-            <p className="p-3 text-xs text-muted-foreground">
-              No items match "{query}".
-            </p>
-          )}
-          {shownLines.map((line) => (
-            <div
-              key={line.key}
-              className={`flex items-center justify-between gap-3 p-3 ${Number(qty[line.key]) > 0 ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}
-            >
-              <div className="min-w-0 text-xs">
-                <p className="font-semibold">{line.name}</p>
-                {(line.group || line.bin) && (
-                  <p className="text-muted-foreground">
-                    {[line.group, line.bin && `Bin ${line.bin}`].filter(Boolean).join(" · ")}
-                  </p>
-                )}
+        <OrderLineList
+          order={order}
+          lines={shownLines}
+          query={query}
+          values={qty}
+          onChange={(key, v) => setQty((prev) => ({ ...prev, [key]: v }))}
+          disabled={isLoading}
+        />
+
+        {/* What ships now and what waits, over the whole order. Shown only
+            once at least one item is held back. */}
+        {(() => {
+          const total = lines.reduce((n, l) => n + l.quantity, 0);
+          const later = held.reduce((n, l) => n + Number(qty[l.key]), 0);
+          if (later === 0) return null;
+          return (
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md border p-2">
+                <p className="text-muted-foreground">Ships now (Shipment 1)</p>
+                <p className="font-semibold text-sm">{total - later} units</p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <QtyBox
-                  value={qty[line.key] ?? 0}
-                  max={line.quantity}
-                  label={`Backordered ${line.name}`}
-                  disabled={isLoading}
-                  onChange={(v) => setQty((prev) => ({ ...prev, [line.key]: v }))}
-                />
-                {/* Backorder every unit of this line in one click. */}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 px-3"
-                  title={`Backorder all ${line.quantity}`}
-                  disabled={isLoading || Number(qty[line.key]) === line.quantity}
-                  onClick={() =>
-                    setQty((prev) => ({ ...prev, [line.key]: line.quantity }))
-                  }
-                >
-                  All
-                </Button>
+              <div
+                className={`rounded-md border p-2 ${later > 0 ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : ""}`}
+              >
+                <p className="text-muted-foreground">Ships later (Shipment 2)</p>
+                <p className="font-semibold text-sm">
+                  {later} units
+                  {later > 0 &&
+                    ` · ${held.length} item${held.length === 1 ? "" : "s"}`}
+                </p>
               </div>
+              {total > 0 && later >= total && (
+                <p className="col-span-2 text-destructive">
+                  Every unit is held back, so nothing would ship now. Cancel
+                  the order instead, or leave at least one unit to ship.
+                </p>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })()}
         {query && held.some((l) => !lineMatches(l, query)) && (
           <p className="text-xs text-amber-700 dark:text-amber-400">
             {held.filter((l) => !lineMatches(l, query)).length} backordered
             item(s) are hidden by the search and still count.
           </p>
         )}
-        <AdminFormTextarea
-          label="Note (staff only)"
-          name="backorderNote"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="e.g. waiting on supplier, expected next week"
-          disabled={isLoading}
-        />
-        <p className="text-xs text-muted-foreground">
-          The customer sees these items as "Awaiting shipment" on their order
-          page, and the shipping email for the rest of the order lists them as
-          following separately.
-        </p>
+        <div className="space-y-1.5">
+          <AdminFormTextarea
+            label="Staff Note (optional)"
+            name="backorderNote"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. waiting on supplier, expected next week"
+            disabled={isLoading}
+          />
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold">Only admins can see this note.</span>{" "}
+            The customer only sees these items as "Awaiting shipment" on their
+            order page and under "Shipping Separately" in their shipping email.
+          </p>
+        </div>
       </div>
     </AddUpdateItemDialog>
   );
@@ -212,7 +188,16 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
   const [trackingLink, setTrackingLink] = React.useState("");
   const [qty, setQty] = React.useState({});
   const [query, setQuery] = React.useState("");
-  const shownWaiting = waiting.filter((b) => lineMatches(b, query));
+  // The waiting items as order lines (for images, sections, bin and colour),
+  // each with how many are still waiting as its quantity.
+  const lines = React.useMemo(() => {
+    const byKey = new Map(getOrderLines(order).map((l) => [l.key, l]));
+    return waiting.map((b) => ({
+      ...(byKey.get(b.lineKey) || { key: b.lineKey, name: b.name }),
+      quantity: b.quantity,
+    }));
+  }, [order, waiting]);
+  const shownLines = lines.filter((l) => lineMatches(l, query));
 
   React.useEffect(() => {
     if (!open) return;
@@ -262,39 +247,45 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
       className="sm:max-w-2xl"
     >
       <div className="space-y-4">
+        <div className="flex items-start gap-2 rounded-md border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 p-3 text-xs text-blue-800 dark:text-blue-300">
+          <Info className="size-4 shrink-0 mt-px" />
+          <p>
+            Items arrived? Set how many are in this package, then add the
+            tracking. Anything left stays backordered for the next package.
+          </p>
+        </div>
         {waiting.length > 3 && (
           <LineSearch
             value={query}
             onChange={setQuery}
-            shown={shownWaiting.length}
-            total={waiting.length}
+            shown={shownLines.length}
+            total={lines.length}
           />
         )}
-        <div className="rounded-lg border divide-y max-h-[40vh] overflow-y-auto">
-          {shownWaiting.length === 0 && (
-            <p className="p-3 text-xs text-muted-foreground">
-              No items match "{query}".
+        {/* The list and its notes sit close together. */}
+        <div className="space-y-1.5">
+          <OrderLineList
+            order={order}
+            lines={shownLines}
+            query={query}
+            values={qty}
+            onChange={(key, v) => setQty((prev) => ({ ...prev, [key]: v }))}
+            disabled={isLoading}
+            className="max-h-[40vh]"
+          />
+          {query && lines.some((l) => !lineMatches(l, query)) && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              {lines.filter((l) => !lineMatches(l, query)).length} item(s) are
+              hidden by the search and still count.
             </p>
           )}
-          {shownWaiting.map((b) => (
-            <div key={b.lineKey} className="flex items-center justify-between gap-3 p-3">
-              <span className="text-xs font-semibold min-w-0">{b.name}</span>
-              <QtyBox
-                value={qty[b.lineKey] ?? b.quantity}
-                max={b.quantity}
-                label={`Shipping now ${b.name}`}
-                disabled={isLoading}
-                onChange={(v) => setQty((prev) => ({ ...prev, [b.lineKey]: v }))}
-              />
-            </div>
-          ))}
+          {partial && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              Only some items are shipping. The rest stay backordered as
+              Shipment {generation + 1}.
+            </p>
+          )}
         </div>
-        {partial && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            Only some items are shipping. The rest stay backordered as Shipment{" "}
-            {generation + 1}.
-          </p>
-        )}
         <AdminFormInput
           label="Carrier"
           name="backorderCarrier"
@@ -313,19 +304,21 @@ export const ShipBackorderDialog = ({ open, onOpenChange, order, onSaved }) => {
           disabled={isLoading}
           required
         />
-        <AdminFormInput
-          label="Tracking Link"
-          name="backorderTrackingLink"
-          value={trackingLink}
-          onChange={(e) => setTrackingLink(e.target.value)}
-          placeholder="https://tracking.example.com/..."
-          disabled={isLoading}
-          required
-        />
-        <p className="text-xs text-muted-foreground">
-          The customer gets a shipping email with this tracking, and it shows
-          on their order page.
-        </p>
+        <div className="space-y-1.5">
+          <AdminFormInput
+            label="Tracking Link"
+            name="backorderTrackingLink"
+            value={trackingLink}
+            onChange={(e) => setTrackingLink(e.target.value)}
+            placeholder="https://tracking.example.com/..."
+            disabled={isLoading}
+            required
+          />
+          <p className="text-xs text-muted-foreground">
+            The customer gets a shipping email with this tracking, and it shows
+            on their order page.
+          </p>
+        </div>
       </div>
     </AddUpdateItemDialog>
   );

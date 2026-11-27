@@ -271,6 +271,10 @@ const OrderManagement = () => {
         label: "Ship Backordered Items",
         onSelect: () => setShipBackorderOrder(current),
       },
+      canRefund(current) && {
+        label: "Refund Items",
+        onSelect: () => setRefundOrder(current),
+      },
     ];
   };
 
@@ -295,7 +299,6 @@ const OrderManagement = () => {
   const renderBackorderShipmentCells = (order, shipment) => {
     const current = withBackorderUpdate(order);
     const isWaiting = shipment.status === "awaiting";
-    const invoice = getInvoiceNumber(order) || order._id?.substring(0, 7);
     const items = shipment.lines.reduce((n, l) => n + l.quantity, 0);
     const value = shipmentValue(current, shipment);
     const createdAt = shipment.lines
@@ -306,22 +309,17 @@ const OrderManagement = () => {
 
     return (
       <>
-        {/* Invoice · Shipment N */}
-        <TableCell truncate={false} className="font-mono text-xs">
+        {/* Shipment N (sits right under its order's row) */}
+        <TableCell truncate={false}>
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
             <span className="text-muted-foreground">↳</span>
             {isWaiting ? (
-              <Clock className="size-3.5 shrink-0 text-amber-600" />
+              <Clock className="size-4 shrink-0 text-amber-600" />
             ) : (
-              <Truck className="size-3.5 shrink-0 text-blue-600" />
+              <Truck className="size-4 shrink-0 text-blue-600" />
             )}
-            <span className="flex flex-col items-start leading-tight">
-              <span className="font-sans font-semibold">
-                Shipment {shipment.generation}
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {invoice}
-              </span>
+            <span className="font-semibold">
+              Shipment {shipment.generation}
             </span>
           </span>
         </TableCell>
@@ -364,11 +362,6 @@ const OrderManagement = () => {
             >
               {isWaiting ? "Awaiting shipment" : "Shipped"}
             </Badge>
-            {!isWaiting && shipment.shipping?.trackingNumber && (
-              <span className="text-[10px] text-muted-foreground font-mono">
-                {shipment.shipping.carrier} · {shipment.shipping.trackingNumber}
-              </span>
-            )}
             {isWaiting && !canShipBackorder(current) && (
               <span className="text-[10px] text-muted-foreground">
                 Ships after the rest of the order
@@ -712,16 +705,9 @@ const OrderManagement = () => {
   // order reads as just its own details.
   const renderOrderDetails = (viewOrder, { inShipment = false } = {}) => (
     <>
-      {/* ── The top of the order: Order Information on the left; Customer,
-          Billing and Shipping Address beside it. It stays in place while the
-          rest scrolls (order view only). ── */}
-      <div
-        className={
-          inShipment
-            ? "space-y-5"
-            : "grid gap-5 md:grid-cols-2 items-start [@media(min-height:700px)]:sticky top-0 z-10 -mx-5 px-5 pb-4 bg-background [@media(min-height:700px)]:border-b"
-        }
-      >
+      {/* ── The top of the order: Order Information, then Customer, Billing
+          and Shipping Address, stacked in one column. ── */}
+      <div className="space-y-5">
         <div className="min-w-0">
         {/* ── Order Information ── */}
         <section className="space-y-2">
@@ -1120,41 +1106,14 @@ const OrderManagement = () => {
           )
         }
       />
-      {(viewOrder?.status === "paid" || viewOrder?.status === "on_hold") && (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setBackorderOrder(viewOrder)}
-          >
-            {hasAwaitingBackorder(viewOrder)
-              ? "Change Backorder"
-              : "Backorder Items (out of stock)"}
-          </Button>
-        </div>
-      )}
-
-      {/* ── Refunds made without cancelling ── */}
+      {/* ── Refunds made without cancelling ── (Backorder Items and Refund
+          are started from the order's ⋯ menu in the list.) */}
       <OrderRefunds
         order={viewOrder}
         admin
         onRestock={(refund) => handleRestock(viewOrder, refund)}
         restockingId={restockingId}
-        actions={
-          canRefund(viewOrder) && (
-            <Button size="sm" variant="outline" onClick={() => setRefundOrder(viewOrder)}>
-              Refund
-            </Button>
-          )
-        }
       />
-      {canRefund(viewOrder) && !viewOrder?.refunds?.length && (
-        <div className="flex justify-end">
-          <Button size="sm" variant="outline" onClick={() => setRefundOrder(viewOrder)}>
-            Refund Items or an Amount
-          </Button>
-        </div>
-      )}
 
       {/* ── Refund Details ── */}
       {viewOrder?.status === "cancelled" && (
@@ -1552,6 +1511,15 @@ const OrderManagement = () => {
         isLoading={isLoadingOrders}
         searchExtra={
           <>
+          {/* Outline, styled like the status filter beside it. */}
+          <Button
+            variant="outline"
+            className="border-border/50 dark:border-input/30 bg-transparent shadow-none font-normal hover:bg-transparent hover:text-foreground dark:hover:bg-transparent"
+            onClick={() => setBackorderReportOpen(true)}
+          >
+            <ClipboardList className="size-4 text-muted-foreground" />
+            Backorder Report
+          </Button>
           <Select
             value={statusFilter || "all"}
             onValueChange={handleStatusFilterChange}
@@ -1574,13 +1542,6 @@ const OrderManagement = () => {
               </SelectItem>
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            onClick={() => setBackorderReportOpen(true)}
-          >
-            <ClipboardList className="size-4" />
-            Backorder Report
-          </Button>
           </>
         }
         renderRow={(group) =>
@@ -1789,7 +1750,6 @@ const OrderManagement = () => {
         open={viewModalOpen}
         onOpenChange={handleViewModalChange}
         title="Order Details"
-        className="sm:max-w-4xl"
         footerActions={
           <Button onClick={() => exportOrderToPdf(viewOrder)}>Export</Button>
         }
@@ -1816,9 +1776,17 @@ const OrderManagement = () => {
             open={Boolean(viewBackorder)}
             onOpenChange={(open) => !open && setViewBackorder(null)}
             title={
-              order
-                ? `Order #${getInvoiceNumber(order) || order._id?.substring(0, 7)} · Shipment ${generation}`
-                : "Shipment"
+              order ? (
+                <>
+                  Order #{getInvoiceNumber(order) || order._id?.substring(0, 7)}
+                  {" · "}
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Shipment {generation}
+                  </span>
+                </>
+              ) : (
+                "Shipment"
+              )
             }
             footerActions={
               <>
@@ -1843,20 +1811,23 @@ const OrderManagement = () => {
               <>
                 {renderCustomerSection(order)}
                 {renderShippingAddressSection(order)}
-                {onlyThis.backorders.length ? (
-                  <BackorderShipments order={onlyThis} admin />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    This shipment no longer has any items. They were refunded
-                    or taken off the backorder.
-                  </p>
-                )}
-                {waiting && !canShipBackorder(order) && (
-                  <p className="text-xs text-muted-foreground">
-                    These items can be marked as shipped once the rest of the
-                    order has shipped.
-                  </p>
-                )}
+                {/* Note sits right under the shipment box, not a section away. */}
+                <div className="space-y-2">
+                  {onlyThis.backorders.length ? (
+                    <BackorderShipments order={onlyThis} admin />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      This shipment no longer has any items. They were refunded
+                      or taken off the backorder.
+                    </p>
+                  )}
+                  {waiting && !canShipBackorder(order) && (
+                    <p className="text-xs text-muted-foreground">
+                      These items can be marked as shipped once the rest of the
+                      order has shipped.
+                    </p>
+                  )}
+                </div>
               </>
             )}
           </ViewAdminDialog>
